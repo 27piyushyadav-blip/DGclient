@@ -12,6 +12,7 @@ import { connectToDatabase } from "@/lib/db";
 import User from "@/models/User";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import UserProfile from "@/models/UserProfile";
 
 // --- Validation Schemas ---
 
@@ -30,35 +31,54 @@ const updateProfileSchema = z.object({
  */
 export async function getUser() {
   const session = await getServerSession(authOptions);
-  
+
   if (!session || !session.user) {
     return { success: false, message: "Unauthorized" };
   }
 
   try {
     await connectToDatabase();
-    
-    // Select specific fields (exclude password, otp, etc.)
-    // We explicitly select fields to be safe
+
+    // 1. Fetch identity from User
     const user = await User.findById(session.user.id)
-      .select("name email profilePicture notificationPreferences isVerified isOnline")
+      .select("name email image isVerified role")
       .lean();
 
     if (!user) {
       return { success: false, message: "User not found." };
     }
 
-    // Convert _id and dates to string for serialization
-    return { 
-      success: true, 
-      user: JSON.parse(JSON.stringify(user)) 
+    // 2. Fetch preferences from UserProfile
+    const profile = await UserProfile.findOne({ user: session.user.id })
+      .select("notificationPreferences isOnline")
+      .lean();
+
+    // 3. Merge User + UserProfile into frontend-friendly shape
+    const merged = {
+      ...user,
+      _id: user._id.toString(),
+      profilePicture: user.image, // Normalize for frontend consistency
+      notificationPreferences: profile?.notificationPreferences || {
+        marketing: false,
+        transactional: true,
+        security: true,
+      },
+      isOnline: profile?.isOnline || false,
     };
 
+    return {
+      success: true,
+      user: JSON.parse(JSON.stringify(merged)),
+    };
   } catch (error) {
     console.error("[UserAction] GetUser Error:", error);
-    return { success: false, message: "Failed to fetch profile." };
+    return {
+      success: false,
+      message: "Failed to fetch profile.",
+    };
   }
 }
+
 
 /**
  * @name updateUserAction
@@ -71,7 +91,7 @@ export async function updateUserAction(formData) {
     return { success: false, message: "Unauthorized" };
   }
 
-  // 1. Extract Data
+  // Extract form data
   const rawData = {
     name: formData.get("name"),
     profilePicture: formData.get("profilePicture"),
@@ -80,43 +100,50 @@ export async function updateUserAction(formData) {
     transactional: formData.get("transactional") === "true",
   };
 
-  // 2. Validate
+  // Validate
   const validation = updateProfileSchema.safeParse(rawData);
   if (!validation.success) {
-    return { 
-      success: false, 
-      message: validation.error.issues[0].message 
+    return {
+      success: false,
+      message: validation.error.issues[0].message,
     };
   }
 
-  const { name, profilePicture, marketing, security, transactional } = validation.data;
+  const { name, profilePicture, marketing, security, transactional } =
+    validation.data;
 
   try {
     await connectToDatabase();
 
-    // 3. Update
-    // We use dot notation for nested fields to update them individually
-    // without overwriting the whole 'notificationPreferences' object if strictly needed,
-    // though here we are setting all known keys.
+    // 1. Update identity
     await User.findByIdAndUpdate(
       session.user.id,
       {
         name,
-        profilePicture,
+        image: profilePicture, // mapped to schema field
+      },
+      { new: true }
+    );
+
+    // 2. Update preferences
+    await UserProfile.findOneAndUpdate(
+      { user: session.user.id },
+      {
         "notificationPreferences.marketing": marketing,
         "notificationPreferences.security": security,
         "notificationPreferences.transactional": transactional,
       },
-      { new: true, runValidators: true }
+      { upsert: true, new: true }
     );
 
-    // 4. Revalidate Pages
-    // Refresh the profile page and any layouts using the user avatar
+    // Revalidate relevant pages/layouts
     revalidatePath("/profile");
-    revalidatePath("/", "layout"); 
+    revalidatePath("/", "layout");
 
-    return { success: true, message: "Profile updated successfully." };
-
+    return {
+      success: true,
+      message: "Profile updated successfully.",
+    };
   } catch (error) {
     console.error("[UserAction] Update Error:", error);
     return { success: false, message: "Failed to update profile." };

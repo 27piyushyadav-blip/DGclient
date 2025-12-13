@@ -94,61 +94,91 @@ export const authOptions = {
 
   callbacks: {
     async signIn({ user, account }) {
-      // Handle Google Sign-in logic (Upsert User)
       if (account.provider === "google") {
         await connectToDatabase();
-
+  
         let existingUser = await User.findOne({ email: user.email });
-
+  
+        const UserProfile = require("@/models/UserProfile").default;
+  
         if (!existingUser) {
-          // Create new user from Google profile
+          // Create new Google account
           existingUser = await User.create({
             name: user.name,
             email: user.email,
-            profilePicture: user.image,
-            authProvider: "google",
-            isVerified: true, // Google emails are verified by definition
+            image: user.image,       // Save Google profile picture
+            provider: "google",
+            isVerified: true,        // Google = verified email
+            role: "user",
+            tokenVersion: 0,         // IMPORTANT for session invalidation
           });
+  
+          // Ensure UserProfile exists
+          await UserProfile.create({ user: existingUser._id });
+  
         } else {
-          // Update profile pic if missing
-          if (!existingUser.profilePicture) {
-            existingUser.profilePicture = user.image;
+          // Update missing profile picture if needed
+          if (!existingUser.image && user.image) {
+            existingUser.image = user.image;
             await existingUser.save();
           }
         }
-
-        if (existingUser.isBanned) return false; // Block banned users
-
-        // Attach DB ID to the user object for the JWT callback
+  
+        if (existingUser.isBanned) return false;
+  
+        // Attach DB identity fields to next-auth "user" object
         user.id = existingUser._id.toString();
+        user.role = existingUser.role;
+        user.tokenVersion = existingUser.tokenVersion;
       }
+  
       return true;
     },
-
+  
     async jwt({ token, user, trigger, session }) {
-      // Initial sign in
+      // When user first signs in → attach custom fields
       if (user) {
         token.id = user.id;
         token.picture = user.image;
+        token.role = user.role;
+        token.tokenVersion = user.tokenVersion || 0;
       }
-      
-      // Allow client-side session updates (e.g., changing profile pic)
+  
+      // Allow client-side updates (NextAuth feature)
       if (trigger === "update" && session) {
         token.name = session.name || token.name;
         token.picture = session.image || token.picture;
       }
+  
+      // ---- TOKEN VERSION CHECK (PROJECT-ADMIN LOGIC) ----
+      // If tokenVersion in DB changes, force logout everywhere
+      if (token?.id) {
+        const dbUser = await User.findById(token.id)
+          .select("tokenVersion isBanned")
+          .lean();
+  
+        if (!dbUser || dbUser.isBanned) return null;
+  
+        // Token invalid → someone reset password or revoked sessions
+        if ((dbUser.tokenVersion || 0) !== (token.tokenVersion || 0)) {
+          return null; // Force sign-out
+        }
+      }
+      // ----------------------------------------------------
+  
       return token;
     },
-
+  
     async session({ session, token }) {
-      // Expose the User ID to the client
-      if (session.user) {
+      if (token && session.user) {
         session.user.id = token.id;
         session.user.image = token.picture;
+        session.user.role = token.role;
       }
       return session;
     },
   },
+  
 
   pages: { 
     signIn: "/login", 

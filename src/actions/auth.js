@@ -11,6 +11,7 @@ import User from "@/models/User";
 import { sendEmail } from "@/lib/nodemailer";
 import { headers } from "next/headers";
 import { authIpLimit, authUserLimit } from "@/lib/ratelimit";
+import UserProfile from "@/models/UserProfile";
 
 // --- HELPERS ---
 
@@ -84,63 +85,84 @@ export async function registerAction(formData) {
 
     if (!name || !email || !password)
       return { success: false, message: "Please fill out all fields." };
+
     if (password.length < 8)
-      return {
-        success: false,
-        message: "Password must be at least 8 characters.",
-      };
+      return { success: false, message: "Password must be at least 8 characters." };
 
     await connectToDatabase();
 
-    // Check if user exists and is fully verified
+    // Look up user
     const existingUser = await User.findOne({ email });
+
+    // If user exists AND is already verified → DO NOT reveal
     if (existingUser && existingUser.isVerified) {
-      return {
-        success: false,
-        message: "An account with this email already exists.",
-      };
+      return { success: true, message: "OTP Sent.", email };
     }
 
     const otp = generateOTP();
-    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+    let userId;
 
-    // Upsert logic:
-    // If user exists but is NOT verified, update their details and send new OTP.
-    // If user does not exist, create new record.
     if (existingUser) {
+      // Update unverified user
       existingUser.name = name;
-      existingUser.password = password; // Will be hashed by pre-save hook
+      existingUser.password = password; // hashed by pre-save hook
       existingUser.otp = otp;
       existingUser.otpExpiry = otpExpiry;
-      existingUser.notificationPreferences.marketing = marketing;
       await existingUser.save();
+
+      userId = existingUser._id;
+
+      // Ensure UserProfile exists
+      await UserProfile.findOneAndUpdate(
+        { user: userId },
+        { 
+          $setOnInsert: { isOnline: false },
+          "notificationPreferences.marketing": marketing 
+        },
+        { upsert: true }
+      );
     } else {
-      await User.create({
+      // Create user
+      const newUser = await User.create({
         name,
         email,
         password,
         otp,
         otpExpiry,
-        notificationPreferences: { marketing },
+        role: "user",
+        isVerified: false,
+      });
+
+      userId = newUser._id;
+
+      // Create profile
+      await UserProfile.create({
+        user: userId,
+        notificationPreferences: {
+          marketing,
+          transactional: true,
+          security: true
+        },
+        isOnline: false,
       });
     }
 
+    // Send OTP email
     if (!(await sendTemplateEmail(email, "verification-code", { otp, name }))) {
       return {
         success: false,
-        message: "Account created, but failed to send verification code.",
+        message: "Account created, but failed to send verification code."
       };
     }
 
     return { success: true, message: "OTP Sent.", email };
   } catch (error) {
     console.error("Register Error:", error);
-    return {
-      success: false,
-      message: "Registration failed. Please try again.",
-    };
+    return { success: false, message: "Registration failed. Please try again." };
   }
 }
+
 
 export async function resendOtpAction(emailRaw) {
   try {
