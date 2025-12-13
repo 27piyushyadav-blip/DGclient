@@ -1,14 +1,15 @@
 /*
  * File: src/actions/organizations.js
  * SR-DEV: Server Actions for Organization Data Fetching.
- * Purpose: Provides data for the /organizations and /organizations/[slug] pages.
+ * UPDATED for ExpertProfile + User architecture.
  */
 
 "use server";
 
 import { connectToDatabase } from "@/lib/db";
 import Organization from "@/models/Organization";
-import Expert from "@/models/Expert";
+import ExpertProfile from "@/models/ExpertProfile";  // NEW
+import User from "@/models/User";                    // NEW
 import { revalidatePath } from "next/cache";
 
 /**
@@ -19,66 +20,88 @@ export async function getOrganizationsAction() {
     try {
         await connectToDatabase();
         
-        // Fetch organizations, only populating the number of affiliated experts (for count display)
         const organizations = await Organization.find({ isActive: true })
             .select("name slug logoUrl mission focusTags affiliatedExperts")
             .populate({
-                path: 'affiliatedExperts',
-                select: '_id', // Only need the IDs to get the count
-                model: Expert
+                path: "affiliatedExperts",
+                select: "_id",
+                model: ExpertProfile,   // FIX: Profile instead of Expert
             })
             .lean();
 
-        // Map the result to include the count and clean up IDs
-        const cleanedOrganizations = organizations.map(org => ({
+        const cleaned = organizations.map(org => ({
             ...org,
             _id: org._id.toString(),
-            expertCount: org.affiliatedExperts.length,
-            affiliatedExperts: undefined // Remove the large array of IDs
+            expertCount: org.affiliatedExperts?.length || 0,
+            affiliatedExperts: undefined,
         }));
 
-        return { success: true, organizations: JSON.parse(JSON.stringify(cleanedOrganizations)) };
+        return { success: true, organizations: JSON.parse(JSON.stringify(cleaned)) };
     } catch (error) {
-        console.error("[OrganizationsAction] Fetch All Error:", error);
+        console.error("[OrganizationsAction] getOrganizationsAction Error:", error);
         return { success: false, organizations: [], message: "Failed to fetch organizations." };
     }
 }
 
 /**
  * @name getOrganizationBySlugAction
- * @description Fetches a single organization's details and its full list of affiliated experts.
- * @param {string} slug - The organization's slug.
+ * @description Fetches a single organization's details and its affiliated experts.
  */
 export async function getOrganizationBySlugAction(slug) {
-    if (!slug) return { success: false, organization: null, experts: [], message: "Slug is required." };
+    if (!slug) {
+        return { success: false, organization: null, experts: [], message: "Slug is required." };
+    }
 
     try {
         await connectToDatabase();
 
-        const organization = await Organization.findOne({ slug, isActive: true })
-            .lean();
+        const organization = await Organization.findOne({ slug, isActive: true }).lean();
 
         if (!organization) {
             return { success: false, organization: null, experts: [], message: "Organization not found." };
         }
-        
-        // Fetch the details of the affiliated experts
-        const affiliatedExperts = await Expert.find({
-            _id: { $in: organization.affiliatedExperts },
-            isVerified: true,
-            isBanned: false
-        })
-        .select("-leaves -availability") // Exclude heavy data not needed for card view
-        .sort({ rating: -1, reviewCount: -1 })
-        .lean();
 
-        return { 
-            success: true, 
+        // Fetch expert profiles
+        const profiles = await ExpertProfile.find({
+            _id: { $in: organization.affiliatedExperts },
+            isVetted: true,                       // FIX: Profiles use isVetted, not isVerified
+        })
+            .select("-leaves -availability -workHistory -education")
+            .sort({ rating: -1, reviewCount: -1 })
+            .populate({
+                path: "user",
+                select: "name image isVerified",
+                model: User,
+            })
+            .lean();
+
+        // Flatten User into Profile structure for frontend card display
+        const experts = profiles
+            .map(profile => {
+                if (!profile.user) return null;
+
+                return {
+                    ...profile,
+                    _id: profile._id.toString(),
+                    name: profile.user.name,
+                    profilePicture: profile.user.image,
+                    isVerified: profile.user.isVerified,
+                };
+            })
+            .filter(Boolean);
+
+        return {
+            success: true,
             organization: JSON.parse(JSON.stringify(organization)),
-            experts: JSON.parse(JSON.stringify(affiliatedExperts)),
+            experts: JSON.parse(JSON.stringify(experts)),
         };
     } catch (error) {
-        console.error(`[OrganizationsAction] Fetch By Slug (${slug}) Error:`, error);
-        return { success: false, organization: null, experts: [], message: "Failed to fetch organization details." };
+        console.error(`[OrganizationsAction] getOrganizationBySlugAction (${slug}) Error:`, error);
+        return {
+            success: false,
+            organization: null,
+            experts: [],
+            message: "Failed to fetch organization details.",
+        };
     }
 }

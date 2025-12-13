@@ -1,7 +1,7 @@
 /*
  * File: src/components/ExpertProfileClient.js
  * SR-DEV: World-Class Expert Profile (Final Optimized Version)
- * ACTION: FIXED ReferenceError: User is not defined (missing icon import).
+ * ACTION: Fixed 'Objects are not valid as React child' crash by handling array fields properly.
  */
 
 "use client";
@@ -13,9 +13,9 @@ import {
   Star, MapPin, GraduationCap, Languages, CheckCircle2, 
   Video, Clock, ShieldCheck, Play, MessageSquare, CalendarCheck, 
   Share2, MoreHorizontal, AlertCircle, Loader2, Building2, HelpCircle, Flag, Users, FileBadge, Award,
-  User // <-- ADDED MISSING IMPORT
+  User, Briefcase // <-- Added Briefcase
 } from "lucide-react";
-import { FileTextIcon } from "@/components/Icons"; // File 107
+import { FileTextIcon } from "@/components/Icons";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,16 +26,14 @@ import BookingModal from "@/components/BookingModal";
 import ProfileImage from "@/components/ProfileImage";
 import { findOrCreateConversation } from "@/actions/chat";
 
-// --- MODULAR IMPORTS ---
-import VideoModal from "@/components/modals/VideoModal"; // File 87
-import ReportModal from "@/components/modals/ReportModal"; // File 89
-import ExpertDocumentCard from "@/components/ExpertDocumentCard"; // File 93
-import DocumentViewerModal from "@/components/modals/DocumentViewerModal"; // File 88
+import VideoModal from "@/components/modals/VideoModal";
+import ReportModal from "@/components/modals/ReportModal";
+import ExpertDocumentCard from "@/components/ExpertDocumentCard";
+import DocumentViewerModal from "@/components/modals/DocumentViewerModal";
 
 // --- SUB-COMPONENTS ---
 
 const StatCard = ({ icon: Icon, label, value }) => (
-  // Subtle hover effect
   <div className="flex flex-col items-center text-center p-4 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800/50 shadow-sm transition-all duration-500 hover:shadow-lg hover:border-zinc-200 dark:hover:border-zinc-700 h-full justify-center">
     <div className="p-2.5 rounded-full bg-zinc-50 dark:bg-zinc-800 text-zinc-400 mb-2"><Icon className="w-5 h-5" strokeWidth={1.5} /></div>
     <p className="text-xl font-bold text-zinc-900 dark:text-white tracking-tight">{value}</p>
@@ -84,7 +82,6 @@ export default function ExpertProfileClient({ expert }) {
     }
   }, [expert.videoUrl, searchParams]);
 
-  // Sticky Header Logic
   useEffect(() => {
     const observer = new IntersectionObserver(([entry]) => setIsProfileHeaderVisible(entry.isIntersecting), { threshold: 0.1, rootMargin: "-50px 0px 0px 0px" });
     if (profileHeaderRef.current) observer.observe(profileHeaderRef.current);
@@ -134,7 +131,6 @@ export default function ExpertProfileClient({ expert }) {
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 pb-32 relative font-sans">
       
-      {/* Background Decor */}
       <div className="absolute top-0 left-0 w-full h-[600px] overflow-hidden pointer-events-none z-0">
         <div className="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] bg-yellow-100/40 dark:bg-yellow-500/5 rounded-full blur-[120px]" />
         <div className="absolute top-[10%] left-[-10%] w-[500px] h-[500px] bg-blue-100/40 dark:bg-blue-500/5 rounded-full blur-[120px]" />
@@ -144,7 +140,6 @@ export default function ExpertProfileClient({ expert }) {
       <div ref={profileHeaderRef} className="relative z-10 pt-8 pb-12 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
          <div className="container max-w-6xl mx-auto px-4 md:px-6">
             
-            {/* Breadcrumbs */}
             <nav className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400 mb-8">
               <Link href="/" className="hover:text-primary transition-colors">Home</Link> <span className="text-zinc-300">/</span>
               <Link href="/experts" className="hover:text-primary transition-colors">Experts</Link> <span className="text-zinc-300">/</span>
@@ -181,7 +176,8 @@ export default function ExpertProfileClient({ expert }) {
                   <div className="flex flex-wrap gap-2 mb-6">
                      <Badge variant="outline" className="font-normal text-zinc-600 dark:text-zinc-400 gap-1.5 py-1 px-3 bg-zinc-50 dark:bg-zinc-800"><MapPin className="w-3.5 h-3.5" /> {expert.location}</Badge>
                      <Badge variant="outline" className="font-normal text-zinc-600 dark:text-zinc-400 gap-1.5 py-1 px-3 bg-zinc-50 dark:bg-zinc-800"><Languages className="w-3.5 h-3.5" /> {expert.languages?.join(", ")}</Badge>
-                     <Badge variant="outline" className="font-normal text-zinc-600 dark:text-zinc-400 gap-1.5 py-1 px-3 bg-zinc-50 dark:bg-zinc-800"><GraduationCap className="w-3.5 h-3.5" /> {expert.education}</Badge>
+                     {/* FIXED: Display latestEducation string instead of object array */}
+                     <Badge variant="outline" className="font-normal text-zinc-600 dark:text-zinc-400 gap-1.5 py-1 px-3 bg-zinc-50 dark:bg-zinc-800"><GraduationCap className="w-3.5 h-3.5" /> {expert.latestEducation || expert.education?.[0]?.degree || "N/A"}</Badge>
                   </div>
                   <div className="flex items-center gap-3">
                      {expert.videoUrl && (
@@ -226,6 +222,49 @@ export default function ExpertProfileClient({ expert }) {
                      <SectionCard title="About Me" icon={User}>
                         <div className="text-zinc-700 dark:text-zinc-300 leading-relaxed text-base whitespace-pre-line">{expert.bio || "No bio available."}</div>
                      </SectionCard>
+
+                     {/* Work Experience - NEW SECTION */}
+                     {expert.workHistory?.length > 0 && (
+                        <SectionCard title="Work Experience" icon={Briefcase}>
+                           <div className="space-y-6">
+                              {expert.workHistory.map((job, i) => (
+                                 <div key={i} className="flex gap-4">
+                                    <div className="mt-1 p-2 bg-zinc-50 dark:bg-zinc-800 rounded-lg h-fit border border-zinc-100 dark:border-zinc-700">
+                                       <Building2 className="w-5 h-5 text-zinc-500" />
+                                    </div>
+                                    <div>
+                                       <h4 className="font-bold text-zinc-900 dark:text-white text-base">{job.role}</h4>
+                                       <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{job.company}</p>
+                                       <p className="text-xs text-zinc-500 mt-1 flex items-center gap-1">
+                                           {job.location && <span>{job.location} • </span>}
+                                           {new Date(job.startDate).getFullYear()} - {job.current ? 'Present' : new Date(job.endDate).getFullYear()}
+                                       </p>
+                                    </div>
+                                 </div>
+                              ))}
+                           </div>
+                        </SectionCard>
+                     )}
+
+                     {/* Education - NEW SECTION */}
+                     {expert.education?.length > 0 && (
+                        <SectionCard title="Education" icon={GraduationCap}>
+                           <div className="space-y-4">
+                              {expert.education.map((edu, i) => (
+                                 <div key={i} className="flex gap-4 items-start">
+                                    <div className="mt-0.5 w-1.5 h-1.5 rounded-full bg-zinc-300 dark:bg-zinc-700 flex-shrink-0" />
+                                    <div>
+                                       <h4 className="font-bold text-zinc-900 dark:text-white text-sm">{edu.degree} in {edu.fieldOfStudy}</h4>
+                                       <p className="text-sm text-zinc-600 dark:text-zinc-400">{edu.institution}</p>
+                                       <p className="text-xs text-zinc-400 mt-0.5">
+                                         {new Date(edu.startDate).getFullYear()} - {edu.current ? 'Present' : new Date(edu.endDate).getFullYear()}
+                                       </p>
+                                    </div>
+                                 </div>
+                              ))}
+                           </div>
+                        </SectionCard>
+                     )}
                      
                      {/* Documents/Credentials Section */}
                      {expert.documents?.length > 0 && (
@@ -333,7 +372,7 @@ export default function ExpertProfileClient({ expert }) {
                </Tabs>
             </div>
 
-            {/* RIGHT COLUMN: STICKY BOOKING CARD (Desktop) */}
+            {/* RIGHT COLUMN: STICKY BOOKING CARD */}
             <div className="hidden lg:block lg:col-span-1 relative">
                <div className="sticky top-24 space-y-4">
                   <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xl p-6 transition-all duration-500">
@@ -356,7 +395,6 @@ export default function ExpertProfileClient({ expert }) {
          </div>
       </div>
 
-      {/* --- MOBILE BOTTOM BAR (Sticky) --- */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-lg border-t border-zinc-200 dark:border-zinc-800 z-40 flex items-center justify-between shadow-[0_-4px_20px_-5px_rgba(0,0,0,0.1)] safe-area-bottom">
          <div><p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Starts at</p><p className="text-xl font-black text-zinc-900 dark:text-white">{displayPrice}</p></div>
          <div className="flex gap-3">
@@ -365,7 +403,6 @@ export default function ExpertProfileClient({ expert }) {
          </div>
       </div>
 
-      {/* --- MODALS (Modularized) --- */}
       {viewingDocument && <DocumentViewerModal document={viewingDocument} onClose={() => setViewingDocument(null)} />}
       {showVideoModal && <VideoModal videoUrl={expert.videoUrl} onClose={() => setShowVideoModal(false)} />}
       

@@ -1,14 +1,15 @@
 /*
  * File: src/pages/api/socket.js
- * SR-DEV: Final Socket Server - Chat + Video + Whiteboard + CORS
+ * Updated for new architecture (User + ExpertProfile)
  */
 
 import { Server } from "socket.io";
 import { connectToDatabase } from "@/lib/db";
-import Message from "@/models/Message";
+
 import Conversation from "@/models/Conversation";
+import Message from "@/models/Message";
 import User from "@/models/User";
-import Expert from "@/models/Expert";
+import ExpertProfile from "@/models/ExpertProfile"; // NEW — replaces old Expert model
 
 export const config = {
   api: {
@@ -17,193 +18,211 @@ export const config = {
 };
 
 const ioHandler = (req, res) => {
+
   if (!res.socket.server.io) {
-    console.log("*First use* Starting Socket.io server...");
+    console.log("🚀 Starting Socket.io Server…");
 
     const io = new Server(res.socket.server, {
       path: "/api/socket_io",
       addTrailingSlash: false,
       cors: {
-        // SR-DEV: Robust CORS for Local & Cloud
-        origin: (origin, callback) => {
-          const allowedOrigins = [
-            "http://localhost:3000",
-            "http://localhost:3001",
-          ];
-          // Allow allowed origins OR any subdomain of cloudworkstations.dev
-          if (!origin || allowedOrigins.includes(origin) || origin.endsWith(".cloudworkstations.dev")) {
-            callback(null, true);
-          } else {
-            callback(null, true); // Dev: allow all to prevent headaches during rapid dev
-          }
-        },
+        origin: "*",
         methods: ["GET", "POST"],
-        credentials: true,
       },
     });
 
     io.on("connection", async (socket) => {
-      // 1. Handle Online Status on Connection
-      const { userId, model } = socket.handshake.query;
-      
-      if (userId && model) {
-        socket.join(userId); // Join personal room for direct status updates
+      /* -------------------------------------------------------
+       * 1. USER ONLINE STATUS HANDLING
+       * ------------------------------------------------------- */
+      const { userId, role } = socket.handshake.query;
+
+      if (userId) {
+        socket.join(userId); // Join personal room by USER ID
+
         try {
           await connectToDatabase();
-          const TargetModel = model === "User" ? User : Expert;
-          
-          // Mark as Online
-          await TargetModel.findByIdAndUpdate(userId, { 
-            isOnline: true, 
-            lastSeen: new Date() 
+
+          if (role === "expert") {
+            // ExpertProfile stores status
+            await ExpertProfile.findOneAndUpdate(
+              { user: userId },
+              { isOnline: true, lastSeen: new Date() }
+            );
+          } else {
+            // Normal user online logic (if using UserProfile)
+            await User.findByIdAndUpdate(userId, {
+              isOnline: true,
+              lastSeen: new Date(),
+            });
+          }
+
+          socket.broadcast.emit("userStatusChanged", {
+            userId,
+            isOnline: true,
+            lastSeen: new Date(),
           });
-          
-          // Broadcast "I am online" to everyone
-          socket.broadcast.emit("userStatusChanged", { userId, isOnline: true, lastSeen: new Date() });
-        } catch (e) { console.error("Error setting online status:", e); }
+        } catch (err) {
+          console.error("Online Status Error:", err);
+        }
       }
 
-      // --- VIDEO CALL & WHITEBOARD EVENTS ---
-      
-      // A. Join Video Room
-      socket.on("join-video", (roomId) => {
-        socket.join(roomId);
-      });
-
-      // B. "I am Ready" - Client confirmed media access
-      socket.on("client-ready", (roomId) => {
-        // Notify others in the room that a user connected & is ready
-        socket.to(roomId).emit("user-connected", socket.id); 
-      });
-
-      // C. Signaling
-      socket.on("offer", (payload) => {
-        socket.to(payload.roomId).emit("offer", payload);
-      });
-
-      socket.on("answer", (payload) => {
-        socket.to(payload.roomId).emit("answer", payload);
-      });
-
-      socket.on("ice-candidate", (payload) => {
-        socket.to(payload.roomId).emit("ice-candidate", payload);
-      });
-
-      // D. Whiteboard
-      socket.on("wb-draw", (data) => {
-        socket.to(data.roomId).emit("wb-draw", data);
-      });
-
-      socket.on("wb-clear", (roomId) => {
-        socket.to(roomId).emit("wb-clear");
-      });
-      
-      // E. Whiteboard Sync (State recovery for new joiners)
-      socket.on("wb-request-state", (roomId) => {
-        socket.to(roomId).emit("wb-request-state", { requesterId: socket.id });
-      });
-      socket.on("wb-send-state", ({ roomId, image, requesterId }) => {
-        io.to(requesterId).emit("wb-update-state", { image });
-      });
-
-
-      // --- CHAT EVENTS ---
-
-      // 2. Join Chat Room
+      /* -------------------------------------------------------
+       * 2. JOIN CHAT ROOM (conversationId)
+       * ------------------------------------------------------- */
       socket.on("joinRoom", (conversationId) => {
         socket.join(conversationId);
       });
 
-      // 3. Send Message
+      /* -------------------------------------------------------
+       * 3. SEND MESSAGE
+       * ------------------------------------------------------- */
       socket.on("sendMessage", async (data) => {
-        const { conversationId, sender, senderModel, content, contentType, replyTo } = data;
-        if (!conversationId || !sender || !content) return;
+        const {
+          conversationId,
+          senderId,
+          receiverId,
+          senderModel,
+          content,
+          contentType,
+          replyTo,
+        } = data;
+
+        if (!conversationId || !senderId || !content) return;
 
         try {
           await connectToDatabase();
-          
-          const newMessage = await Message.create({
-            conversationId, sender, senderModel, content,
+
+          // Save message
+          const msg = await Message.create({
+            conversationId,
+            sender: senderId,
+            senderModel,
+            content,
             contentType: contentType || "text",
             replyTo: replyTo || null,
-            readBy: [sender]
+            readBy: [senderId],
           });
 
-          // Populate for the client UI
-          const populatedMessage = await Message.findById(newMessage._id).populate('replyTo').lean();
+          const populated = await Message.findById(msg._id)
+            .populate("replyTo")
+            .lean();
 
-          let previewText = content;
-          if (contentType === 'image') previewText = "📷 Image";
-          else if (contentType === 'audio') previewText = "🎤 Audio Message";
-          else if (contentType === 'pdf') previewText = "📄 Document";
+          // Preview text for left inbox
+          let preview = content;
+          if (contentType === "image") preview = "📷 Image";
+          else if (contentType === "audio") preview = "🎤 Audio Message";
+          else if (contentType === "pdf") preview = "📄 Document";
 
-          // Update conversation metadata
+          // Determine who should receive unread increment
+          const isSenderUser = senderModel === "User";
+
           await Conversation.findByIdAndUpdate(conversationId, {
-            lastMessage: previewText,
-            lastMessageAt: newMessage.createdAt,
-            lastMessageSender: sender,
-            $inc: { [senderModel === 'User' ? 'expertUnreadCount' : 'userUnreadCount']: 1 }
+            lastMessage: preview,
+            lastMessageAt: populated.createdAt,
+            lastMessageSender: senderId,
+            $inc: {
+              userUnreadCount: isSenderUser ? 0 : 1,
+              expertUnreadCount: isSenderUser ? 1 : 0,
+            },
           });
 
-          // Emit to room
-          io.to(conversationId).emit("receiveMessage", populatedMessage);
-          
-          // Emit list update to participants
+          // Emit to room (conversation)
+          io.to(conversationId).emit("receiveMessage", populated);
+
+          // Update conversation list UI
           io.to(conversationId).emit("conversationUpdated", {
-             conversationId,
-             lastMessage: previewText,
-             lastMessageAt: populatedMessage.createdAt,
-             lastMessageSender: sender,
-             lastMessageStatus: "sent"
+            conversationId,
+            lastMessage: preview,
+            lastMessageAt: populated.createdAt,
+            lastMessageSender: senderId,
           });
 
-        } catch (error) {
-          console.error("Socket [sendMessage] Error:", error);
+          // Deliver message to the receiver's UserID room
+          io.to(receiverId).emit("receiveDirectMessage", populated);
+        } catch (err) {
+          console.error("sendMessage Error:", err);
         }
       });
 
-      // 4. Mark Read
+      /* -------------------------------------------------------
+       * 4. MARK AS READ
+       * ------------------------------------------------------- */
       socket.on("markAsRead", async ({ conversationId, userId }) => {
         if (!conversationId || !userId) return;
+
         try {
-            await connectToDatabase();
-            // Add user to readBy array for all unread messages
-            await Message.updateMany(
-                { conversationId, sender: { $ne: userId }, readBy: { $ne: userId } },
-                { $addToSet: { readBy: userId } }
-            );
-            
-            // Reset unread count
-            const conversation = await Conversation.findById(conversationId);
-            if (conversation) {
-                const isUser = userId.toString() === conversation.userId.toString();
-                const update = isUser ? { userUnreadCount: 0 } : { expertUnreadCount: 0 };
-                await Conversation.findByIdAndUpdate(conversationId, update);
-            }
-            
-            io.to(conversationId).emit("messagesRead", { conversationId, readByUserId: userId });
-        } catch (error) { console.error("Socket [markAsRead] Error:", error); }
+          await connectToDatabase();
+
+          await Message.updateMany(
+            {
+              conversationId,
+              sender: { $ne: userId },
+              readBy: { $ne: userId },
+            },
+            { $addToSet: { readBy: userId } }
+          );
+
+          const conv = await Conversation.findById(conversationId);
+          if (conv) {
+            const isUser = userId.toString() === conv.userId.toString();
+            await Conversation.findByIdAndUpdate(conversationId, {
+              [isUser ? "userUnreadCount" : "expertUnreadCount"]: 0,
+            });
+          }
+
+          io.to(conversationId).emit("messagesRead", {
+            conversationId,
+            readByUserId: userId,
+          });
+        } catch (err) {
+          console.error("markAsRead Error:", err);
+        }
       });
 
-      // 5. Typing Indicators
+      /* -------------------------------------------------------
+       * 5. TYPING INDICATORS
+       * ------------------------------------------------------- */
       socket.on("typing", (d) => socket.to(d.conversationId).emit("typing", d));
-      socket.on("stopTyping", (d) => socket.to(d.conversationId).emit("stopTyping", d));
+      socket.on("stopTyping", (d) =>
+        socket.to(d.conversationId).emit("stopTyping", d)
+      );
 
-      // 6. Disconnect
+      /* -------------------------------------------------------
+       * 6. DISCONNECT — Update Online Status
+       * ------------------------------------------------------- */
       socket.on("disconnect", async () => {
-        if (userId && model) {
-          try {
-             await connectToDatabase();
-             const TargetModel = model === "User" ? User : Expert;
-             await TargetModel.findByIdAndUpdate(userId, { isOnline: false, lastSeen: new Date() });
-             socket.broadcast.emit("userStatusChanged", { userId, isOnline: false, lastSeen: new Date() });
-          } catch (e) { console.error(e); }
+        if (!userId) return;
+
+        try {
+          await connectToDatabase();
+
+          if (role === "expert") {
+            await ExpertProfile.findOneAndUpdate(
+              { user: userId },
+              { isOnline: false, lastSeen: new Date() }
+            );
+          } else {
+            await User.findByIdAndUpdate(userId, {
+              isOnline: false,
+              lastSeen: new Date(),
+            });
+          }
+
+          socket.broadcast.emit("userStatusChanged", {
+            userId,
+            isOnline: false,
+            lastSeen: new Date(),
+          });
+        } catch (err) {
+          console.error("Disconnect Error:", err);
         }
       });
     });
 
     res.socket.server.io = io;
   }
+
   res.end();
 };
 

@@ -1,6 +1,6 @@
 /*
  * File: src/actions/chat.js
- * SR-DEV: Server Actions for Chat & Messaging
+ * FIXED for new User + ExpertProfile Architecture
  */
 
 "use server";
@@ -8,129 +8,131 @@
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/lib/db";
+
 import Conversation from "@/models/Conversation";
 import Message from "@/models/Message";
 
-// IMPORTANT: Import referenced models to ensure Schemas are registered
-import Expert from "@/models/Expert";
-import User from "@/models/User"; 
+import ExpertProfile from "@/models/ExpertProfile";  // NEW
+import User from "@/models/User";                   // Identity model
 
-/**
- * @name findOrCreateConversation
- * @description Finds an existing chat or creates a new one with an expert.
- * Used when the user clicks "Message" on an Expert's profile.
- */
-export async function findOrCreateConversation(expertId) {
+
+/* -----------------------------------------------------
+ * 1. Start or Return Conversation
+ * ----------------------------------------------------- */
+export async function findOrCreateConversation(expertProfileId) {
   const session = await getServerSession(authOptions);
-  if (!session || !session.user) {
-    return { success: false, message: "Unauthorized" };
-  }
-
-  const userId = session.user.id;
+  if (!session?.user) return { success: false, message: "Unauthorized" };
 
   try {
     await connectToDatabase();
 
-    // Upsert: Find one where both participants match, or create it.
-    // $setOnInsert ensures we don't overwrite existing data if found.
+    /* -----------------------------------------
+     * Convert Profile ID → Expert User ID
+     * ----------------------------------------- */
+    let expertUserId = expertProfileId;
+
+    const profile = await ExpertProfile.findById(expertProfileId).select("user");
+    if (profile?.user) {
+      expertUserId = profile.user.toString();
+    }
+
+    /* -----------------------------------------
+     * Create or Return Conversation (User ↔ User)
+     * ----------------------------------------- */
     const conversation = await Conversation.findOneAndUpdate(
-      { userId: userId, expertId: expertId },
-      { 
-        $setOnInsert: { 
-          userId: userId, 
-          expertId: expertId,
+      {
+        userId: session.user.id,      // Client User ID
+        expertId: expertUserId,       // Expert USER ID
+      },
+      {
+        $setOnInsert: {
+          userId: session.user.id,
+          expertId: expertUserId,
           userUnreadCount: 0,
           expertUnreadCount: 0,
-          isActive: true
-        } 
+          isActive: true,
+        },
       },
       { new: true, upsert: true }
     );
 
-    return { 
-      success: true, 
-      conversationId: conversation._id.toString() 
+    return {
+      success: true,
+      conversationId: conversation._id.toString(),
     };
-
-  } catch (error) {
-    console.error("[ChatAction] FindOrCreate Error:", error);
-    return { success: false, message: "Failed to initialize conversation." };
+  } catch (err) {
+    console.error("[ChatAction] Create Error:", err);
+    return { success: false, message: "Failed to start chat." };
   }
 }
 
-/**
- * @name getConversations
- * @description Fetches the user's inbox list.
- */
+
+/* -----------------------------------------------------
+ * 2. Get Inbox List
+ * ----------------------------------------------------- */
 export async function getConversations() {
   const session = await getServerSession(authOptions);
-  if (!session || !session.user) return [];
-
-  const userId = session.user.id;
+  if (!session?.user) return [];
 
   try {
     await connectToDatabase();
 
-    // Fetch chats where user is a participant
-    // Populate expert details for the list UI (Avatar, Name, Online Status)
-    const conversations = await Conversation.find({ userId: userId })
+    // Fetch all conversations where current user is the client
+    const conversations = await Conversation.find({
+      userId: session.user.id,
+    })
       .populate({
         path: "expertId",
-        select: "name profilePicture specialization isOnline lastSeen",
-        model: Expert
+        model: User, // FIXED: populate from the User model
+        select: "name image isOnline lastSeen",
       })
-      .sort({ lastMessageAt: -1 }) // Most recent first
+      .sort({ lastMessageAt: -1 })
       .lean();
 
-    // Serialize MongoDB objects to plain JSON
     return JSON.parse(JSON.stringify(conversations));
-
-  } catch (error) {
-    console.error("[ChatAction] GetConversations Error:", error);
+  } catch (err) {
+    console.error("[ChatAction] GetConversations Error:", err);
     return [];
   }
 }
 
-/**
- * @name getMessages
- * @description Fetches chat history for a specific conversation.
- * Includes security check to ensure user belongs to the chat.
- */
+
+/* -----------------------------------------------------
+ * 3. Get Messages in a Conversation
+ * ----------------------------------------------------- */
 export async function getMessages(conversationId) {
   const session = await getServerSession(authOptions);
-  if (!session || !session.user) return [];
-
-  const userId = session.user.id;
+  if (!session?.user) return [];
 
   try {
     await connectToDatabase();
 
-    // 1. Verify Ownership (Security)
+    // Check ownership (security)
     const conversation = await Conversation.findOne({
       _id: conversationId,
-      userId: userId,
+      userId: session.user.id,
     });
 
     if (!conversation) {
-      console.warn(`[ChatAction] Unauthorized access attempt by ${userId} for chat ${conversationId}`);
+      console.warn(
+        `[ChatAction] Unauthorized access attempt by ${session.user.id} to chat ${conversationId}`
+      );
       return [];
     }
 
-    // 2. Fetch Messages
-    // Populate 'replyTo' to show the original message context
-    const messages = await Message.find({ conversationId: conversationId })
-      .sort({ createdAt: 1 }) // Oldest first (for chronological chat)
+    // Fetch messages with reply context
+    const messages = await Message.find({ conversationId })
+      .sort({ createdAt: 1 })
       .populate({
         path: "replyTo",
+        model: Message,
         select: "content contentType senderModel",
-        model: Message
       })
       .lean();
 
     return JSON.parse(JSON.stringify(messages));
-
-  } catch (error) {
-    console.error("[ChatAction] GetMessages Error:", error);
+  } catch (err) {
+    console.error("[ChatAction] GetMessages Error:", err);
     return [];
   }
 }
