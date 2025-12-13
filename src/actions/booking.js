@@ -91,14 +91,15 @@ async function validateBookingRequest(expertId, serviceName, type, fullAppointme
     return {
       success: true,
       data: {
+        expertUserId: expert.user,        // <-- ADD THIS
         expertName: expert.name,
         expertImage: expert.profilePicture,
         specialization: expert.specialization,
         serviceName: service.name,
         duration: service.duration,
         price: price,
-        fullAppointmentDateTime: fullAppointmentDateTime,
-        time: clientLocalTimeString, // Use client string as reference time
+        fullAppointmentDateTime,
+        time: clientLocalTimeString,
       },
     };
   } catch (error) {
@@ -153,20 +154,27 @@ export async function createAppointmentAction(bookingData) {
     // 2. Create Appointment
     const newAppointment = await Appointment.create({
       userId: session.user.id,
-      expertId: bookingData.expertId,
-      appointmentDate: data.fullAppointmentDateTime, 
-      appointmentTime: bookingData.time, 
       
-      // Snapshot Data
+      // FIXED MAPPING
+      expertId: data.expertUserId,              // <-- Expert's User ID
+      expertProfileId: bookingData.expertId,    // <-- ExpertProfile ID passed from UI
+    
+      appointmentDate: data.fullAppointmentDateTime,
+      appointmentTime: bookingData.time,
+    
+      // Snapshot properties
       serviceName: data.serviceName,
       appointmentType: bookingData.type,
       duration: data.duration,
       price: data.price,
-      
-      status: "confirmed", 
+    
+      status: "confirmed",
       paymentStatus: "paid",
-      
-      meetingLink: bookingData.type === "Video Call" ? generateMeetingLink() : null,
+    
+      meetingLink:
+        bookingData.type === "Video Call"
+          ? `${process.env.APP_URL}/video-call/${Date.now()}`
+          : null,
     });
 
     // 3. Send Confirmation Email (Async - don't block)

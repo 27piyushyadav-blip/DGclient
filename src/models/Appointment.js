@@ -1,88 +1,120 @@
-import mongoose, { Schema } from "mongoose";
+import mongoose from "mongoose";
 
-const AppointmentSchema = new Schema(
+const AppointmentSchema = new mongoose.Schema(
   {
-    // --- Relationships ---
+    // ---------------------------
+    // RELATIONSHIPS
+    // ---------------------------
+
+    // Who booked the appointment
     userId: {
-      type: Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
-      index: true, // Fast lookup for "My Appointments"
-    },
-    expertId: {
-      type: Schema.Types.ObjectId,
-      ref: "Expert",
-      required: true,
-      index: true, // Fast lookup for Expert availability checks
+      index: true,
     },
 
-    // --- Scheduling ---
+    // Identity of expert (User)
+    expertId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
+
+    // ExpertProfile used to generate pricing + services
+    expertProfileId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ExpertProfile",
+      required: true,
+      index: true,
+    },
+
+    // ---------------------------
+    // SCHEDULING
+    // ---------------------------
     appointmentDate: {
       type: Date,
-      required: [true, "Appointment date is required"],
-    },
-    appointmentTime: {
-      type: String, // Format: "HH:MM" (24h) e.g., "14:30"
-      required: [true, "Time slot is required"],
+      required: true,
     },
 
-    // --- Snapshot Data (Point-in-Time) ---
-    // Critical for historical accuracy & invoicing
+    appointmentTime: {
+      type: String, // 24h format: "14:30"
+      required: true,
+    },
+
+    // ---------------------------
+    // SNAPSHOT DATA
+    // ---------------------------
     serviceName: {
       type: String,
       required: true,
     },
+
     appointmentType: {
       type: String,
       enum: ["Video Call", "Clinic Visit"],
       required: true,
     },
+
     duration: {
-      type: Number, // in minutes
+      type: Number, // minutes
       required: true,
     },
+
     price: {
       type: Number,
-      required: true, // The actual amount charged
+      required: true,
     },
 
-    // --- Status & Lifecycle ---
+    // ---------------------------
+    // STATUS + PAYMENT
+    // ---------------------------
     status: {
       type: String,
       enum: ["pending", "confirmed", "cancelled", "completed", "no-show"],
       default: "pending",
       index: true,
     },
+
     paymentStatus: {
       type: String,
       enum: ["pending", "paid", "failed", "refunded"],
       default: "pending",
     },
+
     paymentId: {
-      type: String, // ID from Razorpay/Stripe
+      type: String,
       trim: true,
     },
 
-    // --- Session Details ---
+    // ---------------------------
+    // SESSION META
+    // ---------------------------
     meetingLink: {
-      type: String, // Generated for Video Calls
-      trim: true,
-    },
-    whiteboardUrl: {
-      type: String, // For saving session notes/drawings
-    },
-    notes: {
-      type: String, // User's pre-session notes
-      maxlength: 1000,
+      type: String,
       trim: true,
     },
 
-    // --- Cancellation Meta ---
+    whiteboardUrl: {
+      type: String,
+    },
+
+    notes: {
+      type: String,
+      trim: true,
+      maxlength: 1000,
+    },
+
+    // ---------------------------
+    // CANCELLATION META
+    // ---------------------------
     cancelledBy: {
       type: String,
       enum: ["user", "expert", "admin", null],
       default: null,
     },
+
     cancellationReason: {
       type: String,
       trim: true,
@@ -93,10 +125,9 @@ const AppointmentSchema = new Schema(
   }
 );
 
-// --- CRITICAL: Prevent Double Booking ---
-// A unique index ensures an Expert cannot have two 'active' (pending/confirmed)
-// appointments at the exact same time.
-// Cancelled appointments are ignored by this index, allowing re-booking.
+// --------------------------------------------
+// PREVENT DOUBLE BOOKING FOR EXPERT
+// --------------------------------------------
 AppointmentSchema.index(
   { expertId: 1, appointmentDate: 1, appointmentTime: 1 },
   {
@@ -105,7 +136,5 @@ AppointmentSchema.index(
   }
 );
 
-const Appointment =
-  mongoose.models.Appointment || mongoose.model("Appointment", AppointmentSchema);
-
-export default Appointment;
+export default mongoose.models.Appointment ||
+  mongoose.model("Appointment", AppointmentSchema);
