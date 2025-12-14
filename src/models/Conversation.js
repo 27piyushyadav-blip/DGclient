@@ -1,13 +1,14 @@
 /*
  * File: src/models/Conversation.js
- * SR-DEV: Production-Grade Conversation Schema
+ * SR-DEV: Enhanced Conversation Schema for Premium Chat
+ * Architecture: User ↔ User (Expert is a User with ExpertProfile)
  */
 
 import mongoose, { Schema } from "mongoose";
 
 const ConversationSchema = new Schema(
   {
-    // --- Participants ---
+    // -------------------- PARTICIPANTS --------------------
     userId: {
       type: Schema.Types.ObjectId,
       ref: "User",
@@ -16,14 +17,12 @@ const ConversationSchema = new Schema(
     },
     expertId: {
       type: Schema.Types.ObjectId,
-      ref: "Expert",
+      ref: "User", // ✅ Expert is now also a User
       required: true,
       index: true,
     },
 
-    // --- Preview Data (For Chat List Performance) ---
-    // We duplicate the last message here to avoid expensive joins/lookups
-    // just to render the inbox list.
+    // -------------------- PREVIEW / INBOX META --------------------
     lastMessage: {
       type: String,
       default: null,
@@ -32,9 +31,11 @@ const ConversationSchema = new Schema(
     lastMessageAt: {
       type: Date,
       default: Date.now,
+      index: true,
     },
     lastMessageSender: {
-      type: Schema.Types.ObjectId, // ID of who sent the last text
+      type: Schema.Types.ObjectId,
+      ref: "User",
       default: null,
     },
     lastMessageStatus: {
@@ -43,7 +44,7 @@ const ConversationSchema = new Schema(
       default: "sent",
     },
 
-    // --- Unread Counters ---
+    // -------------------- UNREAD COUNTERS --------------------
     userUnreadCount: {
       type: Number,
       default: 0,
@@ -55,7 +56,7 @@ const ConversationSchema = new Schema(
       min: 0,
     },
 
-    // --- Status ---
+    // -------------------- STATE --------------------
     isActive: {
       type: Boolean,
       default: true,
@@ -70,14 +71,16 @@ const ConversationSchema = new Schema(
   }
 );
 
-// --- INDEXES ---
+// -------------------- INDEXES --------------------
 
-// 1. Uniqueness: One chat per User-Expert pair
-ConversationSchema.index({ userId: 1, expertId: 1 }, { unique: true });
+// One conversation per User–Expert pair
+ConversationSchema.index(
+  { userId: 1, expertId: 1 },
+  { unique: true }
+);
 
-// 2. Sorting: Fast retrieval of inbox sorted by recent activity
+// Fast inbox sorting
 ConversationSchema.index({ lastMessageAt: -1 });
 
-const Conversation = mongoose.models.Conversation || mongoose.model("Conversation", ConversationSchema);
-
-export default Conversation;
+export default mongoose.models.Conversation ||
+  mongoose.model("Conversation", ConversationSchema);

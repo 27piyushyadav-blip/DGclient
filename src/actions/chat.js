@@ -1,6 +1,13 @@
 /*
  * File: src/actions/chat.js
- * FIXED for new User + ExpertProfile Architecture
+ * FIXED: Robust manual serialization to prevent
+ * "Only plain objects can be passed to Client Components"
+ *
+ * Key Fixes:
+ * - Explicit ObjectId → string conversion
+ * - Safe date serialization
+ * - replyTo population hardened
+ * - User.image → profilePicture mapping preserved
  */
 
 "use server";
@@ -11,38 +18,33 @@ import { connectToDatabase } from "@/lib/db";
 
 import Conversation from "@/models/Conversation";
 import Message from "@/models/Message";
-
-import ExpertProfile from "@/models/ExpertProfile";  // NEW
-import User from "@/models/User";                   // Identity model
-
+import ExpertProfile from "@/models/ExpertProfile";
+import User from "@/models/User";
 
 /* -----------------------------------------------------
  * 1. Start or Return Conversation
  * ----------------------------------------------------- */
 export async function findOrCreateConversation(expertProfileId) {
   const session = await getServerSession(authOptions);
-  if (!session?.user) return { success: false, message: "Unauthorized" };
+  if (!session?.user) {
+    return { success: false, message: "Unauthorized" };
+  }
 
   try {
     await connectToDatabase();
 
-    /* -----------------------------------------
-     * Convert Profile ID → Expert User ID
-     * ----------------------------------------- */
+    // Resolve ExpertProfile → User ID
     let expertUserId = expertProfileId;
-
     const profile = await ExpertProfile.findById(expertProfileId).select("user");
+
     if (profile?.user) {
       expertUserId = profile.user.toString();
     }
 
-    /* -----------------------------------------
-     * Create or Return Conversation (User ↔ User)
-     * ----------------------------------------- */
     const conversation = await Conversation.findOneAndUpdate(
       {
-        userId: session.user.id,      // Client User ID
-        expertId: expertUserId,       // Expert USER ID
+        userId: session.user.id,
+        expertId: expertUserId,
       },
       {
         $setOnInsert: {
@@ -61,14 +63,13 @@ export async function findOrCreateConversation(expertProfileId) {
       conversationId: conversation._id.toString(),
     };
   } catch (err) {
-    console.error("[ChatAction] Create Error:", err);
+    console.error("[ChatAction] findOrCreateConversation:", err);
     return { success: false, message: "Failed to start chat." };
   }
 }
 
-
 /* -----------------------------------------------------
- * 2. Get Inbox List
+ * 2. Get Inbox Conversations
  * ----------------------------------------------------- */
 export async function getConversations() {
   const session = await getServerSession(authOptions);
@@ -77,25 +78,49 @@ export async function getConversations() {
   try {
     await connectToDatabase();
 
-    // Fetch all conversations where current user is the client
     const conversations = await Conversation.find({
       userId: session.user.id,
     })
       .populate({
         path: "expertId",
-        model: User, // FIXED: populate from the User model
+        model: User,
         select: "name image isOnline lastSeen",
       })
       .sort({ lastMessageAt: -1 })
       .lean();
 
-    return JSON.parse(JSON.stringify(conversations));
+    // Manual Serialization (critical for RSC safety)
+    const plain = conversations.map((c) => ({
+      ...c,
+      _id: c._id.toString(),
+      userId: c.userId.toString(),
+      expertId: c.expertId
+        ? {
+            ...c.expertId,
+            _id: c.expertId._id.toString(),
+            profilePicture: c.expertId.image, // frontend compatibility
+          }
+        : null,
+      lastMessageSender: c.lastMessageSender
+        ? c.lastMessageSender.toString()
+        : null,
+      lastMessageAt: c.lastMessageAt
+        ? new Date(c.lastMessageAt).toISOString()
+        : null,
+      createdAt: c.createdAt
+        ? new Date(c.createdAt).toISOString()
+        : null,
+      updatedAt: c.updatedAt
+        ? new Date(c.updatedAt).toISOString()
+        : null,
+    }));
+
+    return JSON.parse(JSON.stringify(plain));
   } catch (err) {
-    console.error("[ChatAction] GetConversations Error:", err);
+    console.error("[ChatAction] getConversations:", err);
     return [];
   }
 }
-
 
 /* -----------------------------------------------------
  * 3. Get Messages in a Conversation
@@ -107,20 +132,14 @@ export async function getMessages(conversationId) {
   try {
     await connectToDatabase();
 
-    // Check ownership (security)
+    // Ownership check
     const conversation = await Conversation.findOne({
       _id: conversationId,
       userId: session.user.id,
     });
 
-    if (!conversation) {
-      console.warn(
-        `[ChatAction] Unauthorized access attempt by ${session.user.id} to chat ${conversationId}`
-      );
-      return [];
-    }
+    if (!conversation) return [];
 
-    // Fetch messages with reply context
     const messages = await Message.find({ conversationId })
       .sort({ createdAt: 1 })
       .populate({
@@ -130,9 +149,32 @@ export async function getMessages(conversationId) {
       })
       .lean();
 
-    return JSON.parse(JSON.stringify(messages));
+    // Manual Serialization (fixes ObjectId buffer issue)
+    const plain = messages.map((m) => ({
+      ...m,
+      _id: m._id.toString(),
+      conversationId: m.conversationId.toString(),
+      sender: m.sender ? m.sender.toString() : null,
+      replyTo: m.replyTo
+        ? {
+            ...m.replyTo,
+            _id: m.replyTo._id.toString(),
+          }
+        : null,
+      readBy: Array.isArray(m.readBy)
+        ? m.readBy.map((id) => id.toString())
+        : [],
+      createdAt: m.createdAt
+        ? new Date(m.createdAt).toISOString()
+        : null,
+      updatedAt: m.updatedAt
+        ? new Date(m.updatedAt).toISOString()
+        : null,
+    }));
+
+    return JSON.parse(JSON.stringify(plain));
   } catch (err) {
-    console.error("[ChatAction] GetMessages Error:", err);
+    console.error("[ChatAction] getMessages:", err);
     return [];
   }
 }

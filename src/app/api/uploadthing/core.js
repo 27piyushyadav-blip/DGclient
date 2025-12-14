@@ -1,41 +1,36 @@
+/*
+ * File: src/app/api/uploadthing/core.js
+ */
 import { createUploadthing } from "uploadthing/next";
-import { getServerSession } from "next-auth";
+import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
 const f = createUploadthing();
 
-/**
- * Shared Auth Middleware
- * Verifies the user is logged in via NextAuth before allowing upload.
- */
-const handleAuth = async () => {
+const auth = async (req) => {
   const session = await getServerSession(authOptions);
-  if (!session || !session.user) {
-    throw new Error("Unauthorized");
-  }
+  if (!session?.user) throw new Error("Unauthorized");
   return { userId: session.user.id };
 };
 
 export const ourFileRouter = {
-  // 1. Chat Attachments (Images, Audio, PDF)
-  chatAttachment: f({
-    image: { maxFileSize: "8MB", maxFileCount: 1 },
-    audio: { maxFileSize: "16MB", maxFileCount: 1 }, // Larger for voice notes
-    pdf: { maxFileSize: "16MB", maxFileCount: 1 },
-  })
-    .middleware(async () => await handleAuth())
+  // 1. Profile Pictures
+  profilePicture: f({ image: { maxFileSize: "4MB", maxFileCount: 1 } })
+    .middleware(auth)
     .onUploadComplete(async ({ metadata, file }) => {
-      console.log(`[UploadThing] Chat file uploaded by ${metadata.userId}: ${file.url}`);
-      return { uploadedBy: metadata.userId, url: file.url };
+      console.log("Profile Upload:", file.url);
     }),
 
-  // 2. User Profile Picture (Strictly Images)
-  profilePicture: f({
-    image: { maxFileSize: "4MB", maxFileCount: 1 },
+  // 2. Chat Attachments (Audio/Image/PDF) [!code ++]
+  chatAttachment: f({ 
+    image: { maxFileSize: "8MB", maxFileCount: 1 },
+    pdf: { maxFileSize: "8MB", maxFileCount: 1 },
+    audio: { maxFileSize: "16MB", maxFileCount: 1 }, // For voice notes
+    blob: { maxFileSize: "16MB", maxFileCount: 1 }   // Fallback for raw audio blobs
   })
-    .middleware(async () => await handleAuth())
-    .onUploadComplete(async ({ metadata, file }) => {
-      console.log(`[UploadThing] Profile pic uploaded by ${metadata.userId}: ${file.url}`);
-      return { uploadedBy: metadata.userId, url: file.url };
+    .middleware(auth)
+    .onUploadComplete(async ({ file }) => {
+      console.log("Chat Attachment:", file.url);
+      return { url: file.url };
     }),
 };
