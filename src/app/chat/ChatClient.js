@@ -1,7 +1,6 @@
 /*
  * File: src/app/chat/ChatClient.js
- * SR-DEV: Premium Chat UI (Audio, Files, Optimistic Updates)
- * Adapted for MindNamo Structure
+ * FIXED: Solved "Double Message" issue on file upload by syncing optimistic content URL.
  */
 
 "use client";
@@ -16,7 +15,7 @@ import { getMessages } from "@/actions/chat";
 import io from "socket.io-client";
 import { useUploadThing } from "@/lib/uploadthing";
 
-// --- Icons (Same as before) ---
+// --- Icons (Keep existing icons) ---
 const SendIcon = (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>);
 const MicIcon = (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>);
 const PlayIcon = (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="0" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>);
@@ -187,7 +186,6 @@ export default function ChatClient({ initialConversations, currentUser }) {
 
   // --- EVENT HANDLERS ---
   const onUserStatusChanged = useCallback(({ userId, isOnline, lastSeen }) => {
-      // In this new architecture, expertId is the User ID
       if (selectedConversation?.expertId?._id === userId) {
           setRemoteStatus(prev => ({ ...prev, isOnline, lastSeen: lastSeen || prev.lastSeen }));
       }
@@ -232,6 +230,7 @@ export default function ChatClient({ initialConversations, currentUser }) {
     return optimisticMsg;
   };
 
+  // [!code fix] UPDATED FILE UPLOAD HANDLER
   const handleFileSelect = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -239,36 +238,98 @@ export default function ChatClient({ initialConversations, currentUser }) {
     if (file.type.startsWith("image/")) contentType = "image";
     else if (file.type === "application/pdf") contentType = "pdf";
     else { alert("Only images and PDFs are supported."); return; }
+    
     const blobUrl = URL.createObjectURL(file);
-    addOptimisticMessage(blobUrl, contentType);
-    try { const res = await startUpload([file]); if (res && res[0]) { sendMessageSocket(res[0].url, contentType); } } catch (error) { console.error("File upload failed:", error); } finally { if (fileInputRef.current) fileInputRef.current.value = ""; }
+    
+    // 1. Create optimistic message (Clock state)
+    const optimisticMsg = addOptimisticMessage(blobUrl, contentType);
+    
+    try { 
+        const res = await startUpload([file]); 
+        if (res && res[0]) { 
+            const realUrl = res[0].url;
+
+            // 2. [FIX] Update local content to match real URL *before* socket echo arrives
+            // This ensures onReceiveMessage finds it by content match
+            setMessages(prev => prev.map(msg => 
+                msg._id === optimisticMsg._id ? { ...msg, content: realUrl } : msg
+            ));
+
+            sendMessageSocket(realUrl, contentType); 
+        } 
+    } catch (error) { 
+        console.error("File upload failed:", error);
+        // Remove optimistic message on fail
+        setMessages(prev => prev.filter(m => m._id !== optimisticMsg._id));
+    } finally { 
+        if (fileInputRef.current) fileInputRef.current.value = ""; 
+    }
   };
 
   const startRecording = async () => {
     try { const stream = await navigator.mediaDevices.getUserMedia({ audio: true }); let mimeType = "audio/webm"; if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) mimeType = "audio/webm;codecs=opus"; else if (MediaRecorder.isTypeSupported("audio/mp4")) mimeType = "audio/mp4"; mimeTypeRef.current = mimeType; const mediaRecorder = new MediaRecorder(stream, { mimeType }); mediaRecorderRef.current = mediaRecorder; audioChunksRef.current = []; mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); }; mediaRecorder.start(200); setIsRecording(true); setRecordingTime(0); recordingIntervalRef.current = setInterval(() => { setRecordingTime(p => p + 1); }, 1000); } catch (error) { console.error("Error accessing microphone:", error); alert("Could not access microphone."); }
   };
 
+  // [!code fix] UPDATED STOP RECORDING HANDLER
   const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) { mediaRecorderRef.current.stop(); setTimeout(async () => { const mimeType = mimeTypeRef.current; const audioBlob = new Blob(audioChunksRef.current, { type: mimeType }); if (audioBlob.size === 0) { alert("Recording failed: Empty audio."); setIsRecording(false); clearInterval(recordingIntervalRef.current); return; } const ext = mimeType.includes("mp4") ? "m4a" : "webm"; const audioFile = new File([audioBlob], `voice-message.${ext}`, { type: mimeType }); setIsRecording(false); clearInterval(recordingIntervalRef.current); const blobUrl = URL.createObjectURL(audioBlob); addOptimisticMessage(blobUrl, "audio"); try { const res = await startUpload([audioFile]); if (res && res[0]) { sendMessageSocket(res[0].url, "audio"); } } catch (error) { console.error("Upload error:", error); } if (mediaRecorderRef.current?.stream) { mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop()); } }, 200); }
+    if (mediaRecorderRef.current && isRecording) { 
+        mediaRecorderRef.current.stop(); 
+        setTimeout(async () => { 
+            const mimeType = mimeTypeRef.current; 
+            const audioBlob = new Blob(audioChunksRef.current, { type: mimeType }); 
+            if (audioBlob.size === 0) { 
+                alert("Recording failed: Empty audio."); 
+                setIsRecording(false); 
+                clearInterval(recordingIntervalRef.current); 
+                return; 
+            } 
+            const ext = mimeType.includes("mp4") ? "m4a" : "webm"; 
+            const audioFile = new File([audioBlob], `voice-message.${ext}`, { type: mimeType }); 
+            setIsRecording(false); 
+            clearInterval(recordingIntervalRef.current); 
+            
+            const blobUrl = URL.createObjectURL(audioBlob);
+            
+            // 1. Create optimistic message
+            const optimisticMsg = addOptimisticMessage(blobUrl, "audio"); 
+            
+            try { 
+                const res = await startUpload([audioFile]); 
+                if (res && res[0]) { 
+                    const realUrl = res[0].url;
+
+                    // 2. [FIX] Update local content
+                    setMessages(prev => prev.map(msg => 
+                        msg._id === optimisticMsg._id ? { ...msg, content: realUrl } : msg
+                    ));
+
+                    sendMessageSocket(realUrl, "audio"); 
+                } 
+            } catch (error) { 
+                console.error("Upload error:", error);
+                setMessages(prev => prev.filter(m => m._id !== optimisticMsg._id));
+            } 
+            
+            if (mediaRecorderRef.current?.stream) { 
+                mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop()); 
+            } 
+        }, 200); 
+    }
   };
 
   const cancelRecording = () => { if (mediaRecorderRef.current && isRecording) { mediaRecorderRef.current.stop(); if (mediaRecorderRef.current.stream) { mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop()); } setIsRecording(false); clearInterval(recordingIntervalRef.current); setRecordingTime(0); } };
 
   const sendMessageSocket = (content, contentType = "text") => {
     if (!selectedConversationId || !socket) return;
-    // Note: expertId is now a User object, so we access ._id
     const receiverId = selectedConversation.expertId._id;
     socket.emit("send_message", { 
         conversationId: selectedConversationId, 
         senderId: currentUser.id, 
-        receiverId: receiverId, // Sending to the Expert's User ID
+        receiverId: receiverId,
         content: content, 
         type: contentType,
         replyTo: replyingTo ? replyingTo._id : null
     });
-    
-    // Optimistic UI update handled by addOptimisticMessage for local view
-    // We don't need to manually update chat list here as optimistic message does it
   };
 
   const handleSendMessage = (e) => { e.preventDefault(); if (!newMessage.trim()) return; addOptimisticMessage(newMessage, "text"); sendMessageSocket(newMessage, "text"); setNewMessage(""); inputRef.current?.focus(); };
@@ -279,6 +340,7 @@ export default function ChatClient({ initialConversations, currentUser }) {
       setMessages((prev) => {
         // If message is from me, replace the temp optimistic one
         if (message.sender === currentUser.id) {
+           // Finds pending message where content matches (which we ensured in steps above)
            const pendingIndex = prev.findIndex(m => m.status === "sending" && m.content === message.content);
            if (pendingIndex !== -1) {
               const updated = [...prev];
@@ -288,7 +350,6 @@ export default function ChatClient({ initialConversations, currentUser }) {
         }
         return [...prev, message];
       });
-      // if (socket) { socket.emit("markAsRead", { conversationId: selectedConversationId, userId: currentUser.id }); }
     }
     let previewText = message.content;
     if (message.contentType === 'audio') previewText = "🎤 Audio Message"; else if (message.contentType === 'image') previewText = "📷 Image"; else if (message.contentType === 'pdf') previewText = "📄 Document";
@@ -307,11 +368,7 @@ export default function ChatClient({ initialConversations, currentUser }) {
     setChatOpacity(0);
     setTimeout(() => { isInitialLoadPhase.current = false; }, 2000);
 
-    // Join room for this conversation
     socket.emit("join_room", selectedConversationId);
-    
-    // We don't have separate Expert model now, status is on UserProfile or ExpertProfile
-    // But socket events usually broadcast status changes if set up correctly
     
     setConversations(prev => prev.map(c => c._id === selectedConversationId ? { ...c, userUnreadCount: 0 } : c));
     setIsTyping(false);

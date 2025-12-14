@@ -1,62 +1,75 @@
+/*
+ * File: src/app/sitemap.js
+ * FIXED:
+ * - Replaced deprecated Expert model with ExpertProfile
+ * - Uses `isOnboarded: true` to determine active expert profiles
+ * - Safe for Next.js App Router sitemap generation
+ */
+
 import { connectToDatabase } from "@/lib/db";
-import Expert from "@/models/Expert";
+import ExpertProfile from "@/models/ExpertProfile";
 import Organization from "@/models/Organization";
 
 export default async function sitemap() {
-  const baseUrl = process.env.APP_URL || 'https://mindnamo.com';
+  const baseUrl = process.env.APP_URL || "https://mindnamo.com";
 
-  // 1. Define Static Routes
+  /* -----------------------------------------------------
+   * 1. Static Routes
+   * ----------------------------------------------------- */
   const routes = [
-    '',
-    '/experts',
-    '/organizations',
-    '/support',
-    '/terms',
-    '/privacy',
-    '/login',
-    '/register',
+    "",
+    "/experts",
+    "/organizations",
+    "/support",
+    "/terms",
+    "/privacy",
+    "/login",
+    "/register",
   ].map((route) => ({
     url: `${baseUrl}${route}`,
     lastModified: new Date(),
-    changeFrequency: 'weekly',
-    priority: route === '' ? 1 : 0.8,
+    changeFrequency: "weekly",
+    priority: route === "" ? 1 : 0.8,
   }));
 
-  // 2. Fetch Dynamic Data
+  /* -----------------------------------------------------
+   * 2. Dynamic Routes
+   * ----------------------------------------------------- */
   let expertUrls = [];
   let orgUrls = [];
 
   try {
     await connectToDatabase();
 
-    // Fetch all verified Experts
-    const experts = await Expert.find({ isVerified: true })
-      .select('_id updatedAt')
+    // ✅ Expert Profiles (new schema)
+    const experts = await ExpertProfile.find({ isOnboarded: true })
+      .select("_id updatedAt")
       .lean();
 
     expertUrls = experts.map((expert) => ({
-      url: `${baseUrl}/experts/${expert._id}`,
+      url: `${baseUrl}/experts/${expert._id.toString()}`,
       lastModified: expert.updatedAt || new Date(),
-      changeFrequency: 'daily',
-      priority: 0.9, // High priority for core content
+      changeFrequency: "daily",
+      priority: 0.9,
     }));
 
-    // Fetch all active Organizations
+    // ✅ Organizations
     const organizations = await Organization.find({ isActive: true })
-      .select('slug updatedAt')
+      .select("slug updatedAt")
       .lean();
 
     orgUrls = organizations.map((org) => ({
       url: `${baseUrl}/organizations/${org.slug}`,
       lastModified: org.updatedAt || new Date(),
-      changeFrequency: 'weekly',
+      changeFrequency: "weekly",
       priority: 0.8,
     }));
-
   } catch (error) {
-    console.error("[Sitemap] Error generating dynamic routes:", error);
+    console.error("[Sitemap] Error generating sitemap:", error);
   }
 
-  // 3. Combine and Return
+  /* -----------------------------------------------------
+   * 3. Combine & Return
+   * ----------------------------------------------------- */
   return [...routes, ...expertUrls, ...orgUrls];
 }
