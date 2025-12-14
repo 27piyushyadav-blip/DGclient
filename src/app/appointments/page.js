@@ -1,6 +1,8 @@
 /*
  * File: src/app/appointments/page.js
- * SR-DEV: Appointments Page Wrapper (Breadcrumb Header)
+ * FIXED: Adapted for User + ExpertProfile architecture.
+ * - Removes reference to deleted 'Expert' model.
+ * - Maps 'expertProfileId' to the card's ID field so links work correctly.
  */
 
 import { Suspense } from "react";
@@ -9,7 +11,8 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { redirect } from "next/navigation";
 import { connectToDatabase } from "@/lib/db";
 import Appointment from "@/models/Appointment";
-import Expert from "@/models/Expert";
+import User from "@/models/User"; 
+import ExpertProfile from "@/models/ExpertProfile"; 
 import AppointmentsClient from "./AppointmentsClient";
 import { Loader2Icon } from "@/components/Icons";
 import Link from "next/link";
@@ -25,16 +28,44 @@ const LoadingSpinner = () => (
 async function getAppointments(userId) {
   try {
     await connectToDatabase();
+    
+    // 1. Fetch Appointments & Populate Relations
     const appointments = await Appointment.find({ userId })
       .sort({ appointmentDate: -1 })
       .populate({
-        path: "expertId",
-        select: "name profilePicture specialization",
-        model: Expert
+        path: "expertId", // This is the User ID (Identity)
+        select: "name image", 
+        model: User
+      })
+      .populate({
+        path: "expertProfileId", // This is the Profile ID (Specialization)
+        select: "specialization", 
+        model: ExpertProfile
       })
       .lean();
-    return JSON.parse(JSON.stringify(appointments));
+
+    // 2. Transform Data for Frontend
+    const formattedAppointments = appointments.map(appt => {
+      const expertUser = appt.expertId || {};
+      const expertProfile = appt.expertProfileId || {};
+
+      return {
+        ...appt,
+        // We restructure this object to match what AppointmentCard expects
+        expertId: {
+          // [!code fix] Use PROFILE ID for the link, not User ID
+          _id: expertProfile._id ? expertProfile._id.toString() : (appt.expertProfileId?.toString() || expertUser._id?.toString()), 
+          
+          name: expertUser.name || "Unknown Expert",
+          profilePicture: expertUser.image, 
+          specialization: expertProfile.specialization || "Specialist"
+        }
+      };
+    });
+
+    return JSON.parse(JSON.stringify(formattedAppointments));
   } catch (error) {
+    console.error("Fetch Appointments Error:", error);
     return [];
   }
 }

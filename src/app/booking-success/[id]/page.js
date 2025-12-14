@@ -1,8 +1,8 @@
 /*
  * File: src/app/booking-success/[id]/page.js
- * SR-DEV: Booking Success Page
- * Displays confirmation details after a successful checkout.
- * Securely fetches appointment data server-side.
+ * FIXED: Adapted for User + ExpertProfile architecture.
+ * - Removes reference to deleted 'Expert' model.
+ * - Merges Identity (User) and Specialization (Profile) for display.
  */
 
 import { getServerSession } from "next-auth/next";
@@ -10,7 +10,8 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { redirect, notFound } from "next/navigation";
 import { connectToDatabase } from "@/lib/db";
 import Appointment from "@/models/Appointment";
-import Expert from "@/models/Expert";
+import User from "@/models/User"; // [!code ++]
+import ExpertProfile from "@/models/ExpertProfile"; // [!code ++]
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import ProfileImage from "@/components/ProfileImage";
@@ -28,19 +29,42 @@ async function getAppointment(id, userId) {
   
   try {
     await connectToDatabase();
+    
+    // 1. Fetch Appointment with Population
     const appointment = await Appointment.findOne({ 
       _id: id, 
       userId 
     })
     .populate({
-      path: "expertId",
-      select: "name profilePicture specialization",
-      model: Expert
+      path: "expertId", // This is the User ID (Identity)
+      select: "name image", 
+      model: User
+    })
+    .populate({
+      path: "expertProfileId", // This is the Profile ID (Specialization)
+      select: "specialization", 
+      model: ExpertProfile
     })
     .lean();
 
     if (!appointment) return null;
-    return JSON.parse(JSON.stringify(appointment));
+
+    // 2. Transform for Client
+    // We flatten the user and profile data into one 'expert' object for easy use
+    const expertUser = appointment.expertId || {};
+    const expertProfile = appointment.expertProfileId || {};
+
+    const formattedAppointment = {
+        ...appointment,
+        expertId: {
+            _id: expertUser._id,
+            name: expertUser.name || "Unknown Expert",
+            profilePicture: expertUser.image,
+            specialization: expertProfile.specialization || "Specialist"
+        }
+    };
+
+    return JSON.parse(JSON.stringify(formattedAppointment));
   } catch (error) {
     console.error("Error fetching appointment:", error);
     return null;
@@ -51,13 +75,10 @@ export default async function BookingSuccessPage({ params }) {
   const session = await getServerSession(authOptions);
   
   if (!session) {
-    // If session expired during checkout, redirect to login but preserve destination
-    // Note: In next.js 15 params is a promise, so we await it first in the next step
     const { id } = await params; 
     redirect(`/login?callbackUrl=/booking-success/${id}`);
   }
 
-  // Await params for Next.js 15 compatibility
   const { id } = await params;
   const appointment = await getAppointment(id, session.user.id);
 
@@ -65,10 +86,9 @@ export default async function BookingSuccessPage({ params }) {
     notFound();
   }
 
-  const expert = appointment.expertId;
+  const expert = appointment.expertId; // Now contains merged User + Profile data
   const isVideo = appointment.appointmentType === "Video Call";
   
-  // Format Date & Time
   const dateObj = new Date(appointment.appointmentDate);
   const formattedDate = format(dateObj, "EEEE, MMMM d, yyyy");
 
