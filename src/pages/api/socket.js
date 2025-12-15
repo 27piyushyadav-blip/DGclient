@@ -32,31 +32,27 @@ const ioHandler = (req, res) => {
     const io = new Server(res.socket.server, {
       path: "/api/socket_io",
       addTrailingSlash: false,
-
-      // ✅ MULTI-APP CORS CONFIG
       cors: {
         origin: [
-          "http://localhost:3000", // User App
-          "http://localhost:3001", // Admin / Expert App
-          "https://mindnamo.com", // User Production
-          "https://admin.mindnamo.com", // Admin Production
+          "http://localhost:3000",
+          "http://localhost:3001",
+          "http://localhost:3002",
+          "https://mindnamo.com",
+          "https://admin.mindnamo.com",
         ],
         methods: ["GET", "POST"],
         credentials: true,
       },
     });
 
-    /* ---------------------------------------------------
-     * SOCKET CONNECTION
-     * --------------------------------------------------- */
     io.on("connection", async (socket) => {
       const { userId, role } = socket.handshake.query;
 
       /* -------------------------------------------------
-       * 1. USER CONNECTED → ONLINE STATUS
+       * USER CONNECT → ONLINE STATUS
        * ------------------------------------------------- */
       if (userId) {
-        socket.join(userId); // personal room
+        socket.join(userId);
 
         try {
           await connectToDatabase();
@@ -74,9 +70,9 @@ const ioHandler = (req, res) => {
           }
 
           socket.broadcast.emit("userStatusChanged", {
-            userId,
+            userId: userId.toString(),
             isOnline: true,
-            lastSeen: new Date(),
+            lastSeen: new Date().toISOString(),
           });
         } catch (err) {
           console.error("[Socket] Online status error:", err);
@@ -84,14 +80,14 @@ const ioHandler = (req, res) => {
       }
 
       /* -------------------------------------------------
-       * 2. JOIN CONVERSATION ROOM
+       * JOIN CONVERSATION
        * ------------------------------------------------- */
       socket.on("join_room", (conversationId) => {
-        socket.join(conversationId);
+        if (conversationId) socket.join(conversationId);
       });
 
       /* -------------------------------------------------
-       * 3. SEND MESSAGE
+       * SEND MESSAGE (FIXED + NORMALIZED)
        * ------------------------------------------------- */
       socket.on("send_message", async (data) => {
         const {
@@ -99,8 +95,9 @@ const ioHandler = (req, res) => {
           senderId,
           receiverId,
           content,
-          type,
+          contentType,
           replyTo,
+          senderModel,
         } = data;
 
         if (!conversationId || !senderId || !content) return;
@@ -108,24 +105,23 @@ const ioHandler = (req, res) => {
         try {
           await connectToDatabase();
 
-          // Save message
           const msg = await Message.create({
             conversationId,
             sender: senderId,
-            senderModel: "User", // unified model
+            senderModel: senderModel || "User",
             content,
-            contentType: type || "text",
+            contentType: contentType || "text",
             replyTo: replyTo || null,
             readBy: [senderId],
           });
 
           await msg.populate("replyTo");
 
-          // Message preview
+          /* Preview */
           let preview = content;
-          if (type === "image") preview = "📷 Image";
-          else if (type === "audio") preview = "🎤 Audio Message";
-          else if (type === "pdf") preview = "📄 Document";
+          if (contentType === "image") preview = "📷 Image";
+          else if (contentType === "audio") preview = "🎤 Audio Message";
+          else if (contentType === "pdf") preview = "📄 Document";
 
           const conversation = await Conversation.findById(conversationId);
           if (!conversation) return;
@@ -133,7 +129,6 @@ const ioHandler = (req, res) => {
           const isSenderUser =
             senderId.toString() === conversation.userId.toString();
 
-          // Update conversation metadata
           await Conversation.findByIdAndUpdate(conversationId, {
             lastMessage: preview,
             lastMessageAt: msg.createdAt,
@@ -145,20 +140,33 @@ const ioHandler = (req, res) => {
             },
           });
 
-          // Emit message to room
-          io.to(conversationId).emit("receive_message", msg);
+          /* -------------------------------------------------
+           * 🔥 CRITICAL FIX: NORMALIZE MESSAGE OBJECT
+           * ------------------------------------------------- */
+          const msgObj = msg.toObject();
+          msgObj._id = msgObj._id.toString();
+          msgObj.sender = msgObj.sender.toString();
+          msgObj.conversationId = msgObj.conversationId.toString();
+          msgObj.readBy = msgObj.readBy.map((id) => id.toString());
 
-          // Sidebar preview update
+          if (msgObj.replyTo?._id) {
+            msgObj.replyTo._id = msgObj.replyTo._id.toString();
+          }
+
+          msgObj.createdAt = msgObj.createdAt.toISOString();
+          msgObj.updatedAt = msgObj.updatedAt.toISOString();
+
+          io.to(conversationId).emit("receive_message", msgObj);
+
           io.to(conversationId).emit("conversationUpdated", {
-            conversationId,
+            conversationId: conversationId.toString(),
             lastMessage: preview,
-            lastMessageAt: msg.createdAt,
-            lastMessageSender: senderId,
+            lastMessageAt: msgObj.createdAt,
+            lastMessageSender: senderId.toString(),
           });
 
-          // Direct notification
           if (receiverId) {
-            io.to(receiverId).emit("receiveDirectMessage", msg);
+            io.to(receiverId).emit("receiveDirectMessage", msgObj);
           }
         } catch (err) {
           console.error("[Socket] send_message error:", err);
@@ -166,7 +174,7 @@ const ioHandler = (req, res) => {
       });
 
       /* -------------------------------------------------
-       * 4. READ RECEIPTS
+       * READ RECEIPTS
        * ------------------------------------------------- */
       socket.on("markAsRead", async ({ conversationId, userId }) => {
         try {
@@ -192,8 +200,8 @@ const ioHandler = (req, res) => {
           });
 
           io.to(conversationId).emit("messagesRead", {
-            conversationId,
-            readByUserId: userId,
+            conversationId: conversationId.toString(),
+            readByUserId: userId.toString(),
           });
         } catch (err) {
           console.error("[Socket] markAsRead error:", err);
@@ -201,18 +209,18 @@ const ioHandler = (req, res) => {
       });
 
       /* -------------------------------------------------
-       * 5. TYPING INDICATORS
+       * TYPING
        * ------------------------------------------------- */
-      socket.on("typing", (data) => {
-        socket.to(data.conversationId).emit("typing", data);
-      });
+      socket.on("typing", (data) =>
+        socket.to(data.conversationId).emit("typing", data)
+      );
 
-      socket.on("stopTyping", (data) => {
-        socket.to(data.conversationId).emit("stopTyping", data);
-      });
+      socket.on("stopTyping", (data) =>
+        socket.to(data.conversationId).emit("stopTyping", data)
+      );
 
       /* -------------------------------------------------
-       * 6. DELETE MESSAGE
+       * DELETE MESSAGE
        * ------------------------------------------------- */
       socket.on("deleteMessage", async ({ conversationId, messageId }) => {
         try {
@@ -221,14 +229,16 @@ const ioHandler = (req, res) => {
             content: "🚫 This message was deleted",
           });
 
-          io.to(conversationId).emit("messageDeleted", { messageId });
+          io.to(conversationId).emit("messageDeleted", {
+            messageId: messageId.toString(),
+          });
         } catch (err) {
           console.error("[Socket] deleteMessage error:", err);
         }
       });
 
       /* -------------------------------------------------
-       * 7. DISCONNECT → OFFLINE STATUS
+       * DISCONNECT → OFFLINE
        * ------------------------------------------------- */
       socket.on("disconnect", async () => {
         if (!userId) return;
@@ -249,9 +259,9 @@ const ioHandler = (req, res) => {
           }
 
           socket.broadcast.emit("userStatusChanged", {
-            userId,
+            userId: userId.toString(),
             isOnline: false,
-            lastSeen: new Date(),
+            lastSeen: new Date().toISOString(),
           });
         } catch (err) {
           console.error("[Socket] disconnect error:", err);

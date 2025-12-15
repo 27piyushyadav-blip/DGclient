@@ -142,20 +142,30 @@ export default function ChatClient({ initialConversations, currentUser }) {
   // --- SOCKET CONNECTION ---
   useEffect(() => {
     let newSocket;
+  
     const initSocket = async () => {
-      await fetch("/api/socket");
-      newSocket = io(undefined, { 
-          path: "/api/socket_io",
-          query: { userId: currentUser.id, role: "user" },
-          transports: ["websocket", "polling"],
-          withCredentials: true
+      await fetch("/api/socket"); // ensure server boot
+      newSocket = io(undefined, {
+        path: "/api/socket_io",
+        query: {
+          userId: currentUser.id,
+          role: "user", // ✅ REQUIRED
+        },
+        transports: ["websocket", "polling"],
+        withCredentials: true,
       });
-      newSocket.on("connect", () => console.log("✅ User Socket Connected"));
+  
+      newSocket.on("connect", () =>
+        console.log("✅ User Socket Connected")
+      );
+  
       setSocket(newSocket);
     };
+  
     initSocket();
-    return () => { if (newSocket) newSocket.disconnect(); };
+    return () => newSocket?.disconnect();
   }, [currentUser.id]);
+  
 
   useEffect(() => { setIsMounted(true); }, []);
   useLayoutEffect(() => { if (replyingTo) inputRef.current?.focus(); }, [replyingTo]);
@@ -207,13 +217,12 @@ export default function ChatClient({ initialConversations, currentUser }) {
       _id: tempId,
       conversationId: selectedConversationId,
       sender: currentUser.id,
-      senderModel: "User",
-      content: content,
-      contentType: contentType,
-      replyTo: replyingTo,
+      senderModel: "User", // ✅ correct
+      content,
+      contentType,
       createdAt: new Date().toISOString(),
       readBy: [currentUser.id],
-      status: "sending" 
+      status: "sending",
     };
     setMessages(prev => [...prev, optimisticMsg]);
     setReplyingTo(null);
@@ -320,44 +329,92 @@ export default function ChatClient({ initialConversations, currentUser }) {
   const cancelRecording = () => { if (mediaRecorderRef.current && isRecording) { mediaRecorderRef.current.stop(); if (mediaRecorderRef.current.stream) { mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop()); } setIsRecording(false); clearInterval(recordingIntervalRef.current); setRecordingTime(0); } };
 
   const sendMessageSocket = (content, contentType = "text") => {
-    if (!selectedConversationId || !socket) return;
-    const receiverId = selectedConversation.expertId._id;
-    socket.emit("send_message", { 
-        conversationId: selectedConversationId, 
-        senderId: currentUser.id, 
-        receiverId: receiverId,
-        content: content, 
-        type: contentType,
-        replyTo: replyingTo ? replyingTo._id : null
+    if (!selectedConversationId || !socket || !selectedConversation?.expertId?._id) return;
+  
+    socket.emit("send_message", {
+      conversationId: selectedConversationId,
+      senderId: currentUser.id,
+      receiverId: selectedConversation.expertId._id,
+      content,
+      contentType, // ✅ FIX: standardized key
+      senderModel: "User",
+      replyTo: replyingTo ? replyingTo._id : null,
     });
   };
+  
+  
 
   const handleSendMessage = (e) => { e.preventDefault(); if (!newMessage.trim()) return; addOptimisticMessage(newMessage, "text"); sendMessageSocket(newMessage, "text"); setNewMessage(""); inputRef.current?.focus(); };
   const handleDeleteMessage = (messageId) => { if (!socket) return; socket.emit("deleteMessage", { conversationId: selectedConversationId, messageId }); setMessages(prev => prev.filter(m => m._id !== messageId)); setDeleteConfirmId(null); };
   
-  const onReceiveMessage = useCallback((message) => {
-    if (message.conversationId === selectedConversationId) {
-      setMessages((prev) => {
-        // If message is from me, replace the temp optimistic one
-        if (message.sender === currentUser.id) {
-           // Finds pending message where content matches (which we ensured in steps above)
-           const pendingIndex = prev.findIndex(m => m.status === "sending" && m.content === message.content);
-           if (pendingIndex !== -1) {
+  const onReceiveMessage = useCallback(
+    (message) => {
+      if (message.conversationId === selectedConversationId) {
+        setMessages((prev) => {
+          // Replace optimistic message if it exists
+          if (message.sender === currentUser.id) {
+            const pendingIndex = prev.findIndex(
+              (m) => m.status === "sending" && m.content === message.content
+            );
+            if (pendingIndex !== -1) {
               const updated = [...prev];
-              updated[pendingIndex] = { ...updated[pendingIndex], ...message, status: 'sent' };
+              updated[pendingIndex] = {
+                ...updated[pendingIndex],
+                ...message,
+                status: "sent",
+              };
               return updated;
-           }
+            }
+          }
+  
+          return [...prev, message];
+        });
+  
+        // ✅ FIX: instantly mark as read if user is viewing this chat
+        if (message.sender !== currentUser.id && socket) {
+          socket.emit("markAsRead", {
+            conversationId: selectedConversationId,
+            userId: currentUser.id,
+          });
         }
-        return [...prev, message];
+      }
+  
+      // Update chat list preview
+      let previewText = message.content;
+      if (message.contentType === "audio") previewText = "🎤 Audio Message";
+      else if (message.contentType === "image") previewText = "📷 Image";
+      else if (message.contentType === "pdf") previewText = "📄 Document";
+  
+      updateChatList({
+        conversationId: message.conversationId,
+        lastMessage: previewText,
+        lastMessageAt: message.createdAt,
+        lastMessageStatus: "sent",
       });
-    }
-    let previewText = message.content;
-    if (message.contentType === 'audio') previewText = "🎤 Audio Message"; else if (message.contentType === 'image') previewText = "📷 Image"; else if (message.contentType === 'pdf') previewText = "📄 Document";
-    updateChatList({ conversationId: message.conversationId, lastMessage: previewText, lastMessageAt: message.createdAt, lastMessageStatus: "sent" });
-  }, [selectedConversationId, currentUser.id, socket, updateChatList]);
+    },
+    [selectedConversationId, currentUser.id, socket, updateChatList]
+  );
+  
+  
 
   const onMessagesRead = useCallback(({ conversationId, readByUserId }) => { if (conversationId === selectedConversationId) { setMessages((prev) => prev.map(msg => { if (msg.sender === currentUser.id && !msg.readBy.includes(readByUserId)) { return { ...msg, readBy: [...msg.readBy, readByUserId] }; } return msg; })); } }, [selectedConversationId, currentUser.id]);
-  const onMessageDeleted = useCallback(({ messageId }) => { setMessages((prev) => prev.filter((msg) => msg._id !== messageId)); }, []);
+  const onMessageDeleted = useCallback(({ messageId }) => {
+    setMessages((prev) =>
+      prev.map((msg) => {
+        if (msg._id === messageId) {
+          return {
+            ...msg,
+            isDeleted: true,
+            content: "🚫 This message was deleted",
+            contentType: "text",
+          };
+        }
+        return msg;
+      })
+    );
+  }, []);
+  
+  
   const onConversationUpdated = useCallback((updatedConvo) => { updateChatList(updatedConvo); }, [updateChatList]);
 
   // 1. SETUP EFFECT
@@ -381,14 +438,35 @@ export default function ChatClient({ initialConversations, currentUser }) {
   }, [selectedConversationId, currentUser.id, socket]);
 
   // 2. EVENTS EFFECT
-  useEffect(() => {
-    if (!socket) return;
-    socket.on("receive_message", onReceiveMessage);
-    // Add other socket event listeners if your backend emits them (typing, etc.)
-    return () => {
-      socket.off("receive_message", onReceiveMessage);
-    };
-  }, [selectedConversationId, socket, onReceiveMessage]);
+  // 2. EVENTS EFFECT — FIXED
+useEffect(() => {
+  if (!socket) return;
+
+  // Register listeners
+  socket.on("receive_message", onReceiveMessage);
+  socket.on("typing", onTyping);
+  socket.on("stopTyping", onStopTyping);
+  socket.on("userStatusChanged", onUserStatusChanged);
+  socket.on("messagesRead", onMessagesRead);
+
+  // Cleanup (VERY important to avoid duplicates)
+  return () => {
+    socket.off("receive_message", onReceiveMessage);
+    socket.off("typing", onTyping);
+    socket.off("stopTyping", onStopTyping);
+    socket.off("userStatusChanged", onUserStatusChanged);
+    socket.off("messagesRead", onMessagesRead);
+  };
+}, [
+  socket,
+  selectedConversationId,
+  onReceiveMessage,
+  onTyping,
+  onStopTyping,
+  onUserStatusChanged,
+  onMessagesRead,
+]);
+
   
   // Scroll Logic
   useLayoutEffect(() => { if (messages.length > 0 && messagesContainerRef.current && !isMessagesPending) { const container = messagesContainerRef.current; if (!initialScrollDone.current) { container.scrollTop = container.scrollHeight; initialScrollDone.current = true; setChatOpacity(1); } else { const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150; if (isNearBottom) { container.scrollTo({ top: container.scrollHeight, behavior: "auto" }); } } } else if (messages.length === 0 && !isMessagesPending) { setChatOpacity(1); } }, [messages, isMessagesPending]);
@@ -449,5 +527,5 @@ function SmartImage({ src, alt, onClick, onLoad }) { const [displaySrc, setDispl
 function MediaViewerModal({ src, type, onClose }) { if (!src) return null; return ( <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-md animate-in fade-in duration-200" onClick={onClose}> <button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors z-50"><XIcon className="h-6 w-6" /></button> <div className="relative w-full h-full max-w-6xl max-h-[90vh] flex items-center justify-center p-4" onClick={e => e.stopPropagation()}>{type === 'image' && <img src={src} alt="Full view" className="max-w-full max-h-full object-contain rounded-md shadow-2xl" />}</div> </div> ); }
 function ConversationItem({ convo, isSelected, onClick, isMounted, currentUserId, isTyping }) { const isLastMessageMine = convo.lastMessageSender === currentUserId; const isReadByExpert = convo.expertUnreadCount === 0; const isSending = convo.lastMessageStatus === 'sending'; return ( <button onClick={onClick} className={cn("flex w-full items-start gap-4 px-4 py-4 text-left hover:bg-accent/50 transition-all duration-200", isSelected && "bg-accent")}> <ProfileImage src={convo.expertId.profilePicture} name={convo.expertId.name} sizeClass="h-12 w-12 shrink-0" /> <div className="flex-1 overflow-hidden min-w-0"> <div className="flex justify-between items-start mb-1 gap-2"><h3 className="font-semibold text-base text-foreground truncate">{convo.expertId.name}</h3><span className="text-xs text-muted-foreground shrink-0 pt-1">{isMounted ? formatLastMessageTime(convo.lastMessageAt) : null}</span></div> <div className="flex justify-between items-center gap-2"><div className="flex items-center gap-1 overflow-hidden flex-1">{isTyping ? <p className="text-sm text-primary font-medium truncate animate-pulse">typing...</p> : <>{isLastMessageMine && ( isSending ? <ClockIcon className="h-3 w-3 text-muted-foreground shrink-0" /> : <CheckCheckIcon className={cn("h-4 w-4 shrink-0", isReadByExpert ? "text-blue-500" : "text-muted-foreground")} /> )}<p className="text-sm text-muted-foreground truncate">{convo.lastMessage || "No messages yet"}</p></>}</div>{convo.userUnreadCount > 0 && <span className="flex items-center justify-center bg-primary text-primary-foreground text-xs font-bold rounded-full h-5 min-w-[20px] px-1.5 shrink-0">{convo.userUnreadCount}</span>}</div> </div> </button> ); }
 function VoiceMessagePlayer({ src, isSender }) { const [isPlaying, setIsPlaying] = useState(false); const [progress, setProgress] = useState(0); const [duration, setDuration] = useState(0); const audioRef = useRef(null); useEffect(() => { const audio = audioRef.current; if (!audio) return; const updateProgress = () => { const current = audio.currentTime; const total = audio.duration; if (Number.isFinite(total) && total > 0) { setProgress((current / total) * 100); setDuration(total); } else { setProgress(0); setDuration(0); } }; const setAudioData = () => { const d = audio.duration; if (Number.isFinite(d)) setDuration(d); }; const handleEnded = () => { setIsPlaying(false); setProgress(0); }; audio.addEventListener('timeupdate', updateProgress); audio.addEventListener('loadedmetadata', setAudioData); audio.addEventListener('durationchange', setAudioData); audio.addEventListener('ended', handleEnded); return () => { audio.removeEventListener('timeupdate', updateProgress); audio.removeEventListener('loadedmetadata', setAudioData); audio.removeEventListener('durationchange', setAudioData); audio.removeEventListener('ended', handleEnded); }; }, []); const togglePlay = () => { const audio = audioRef.current; if (!audio) return; if (isPlaying) audio.pause(); else audio.play(); setIsPlaying(!isPlaying); }; const handleSeek = (e) => { const audio = audioRef.current; if (!audio) return; const newTime = (e.target.value / 100) * audio.duration; audio.currentTime = newTime; setProgress(e.target.value); }; const formatTime = (time) => { if (!Number.isFinite(time) || isNaN(time)) return "0:00"; const mins = Math.floor(time / 60); const secs = Math.floor(time % 60); return `${mins}:${secs.toString().padStart(2, '0')}`; }; return ( <div className="flex items-center gap-3 pr-4 min-w-[200px] py-1"> <audio ref={audioRef} src={src} className="hidden" /> <button onClick={togglePlay} className={cn("flex items-center justify-center h-10 w-10 rounded-full transition-colors shrink-0", isSender ? "bg-primary-foreground/20 hover:bg-primary-foreground/30 text-primary-foreground" : "bg-primary/10 hover:bg-primary/20 text-primary")}>{isPlaying ? <PauseIcon className="h-5 w-5" /> : <PlayIcon className="h-5 w-5 ml-0.5" />}</button> <div className="flex-1 flex flex-col gap-1"><input type="range" min="0" max="100" value={progress || 0} onChange={handleSeek} className={cn("w-full h-1 rounded-lg appearance-none cursor-pointer", isSender ? "bg-primary-foreground/30 accent-primary-foreground" : "bg-muted-foreground/20 accent-primary")} /><div className={cn("flex justify-between text-[10px] font-medium", isSender ? "text-primary-foreground/80" : "text-muted-foreground")}><span>{formatTime(audioRef.current?.currentTime || 0)}</span><span>{formatTime(duration)}</span></div></div> </div> ); }
-function MessageBubble({ message, isSender, isFirstInGroup, isLastInGroup, onReplyClick, onReplyView, onDeleteClick, showDeleteConfirm, onConfirmDelete, onCancelDelete, isMounted, currentUserId, onViewMedia, onImageLoad }) { const [showMenu, setShowMenu] = useState(false); const menuRef = useRef(null); const timestamp = isMounted ? new Date(message.createdAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }) : null; const canDelete = message.sender === currentUserId || message.senderModel === "User"; const isSending = message.status === "sending"; const isRead = message.readBy && message.readBy.some(id => id !== currentUserId); const isAudio = message.contentType === 'audio' || (typeof message.content === 'string' && message.content.startsWith('data:audio')); const isImage = message.contentType === 'image'; const isPdf = message.contentType === 'pdf'; useEffect(() => { const handleClickOutside = (event) => { if (menuRef.current && !menuRef.current.contains(event.target)) setShowMenu(false); }; if (showMenu) { document.addEventListener('mousedown', handleClickOutside); return () => document.removeEventListener('mousedown', handleClickOutside); } }, [showMenu]); return ( <div id={`message-${message._id}`} className={cn("flex w-full group", isFirstInGroup ? "mt-3" : "mt-1")}> <div className={cn("flex w-full", isSender ? "justify-end" : "justify-start")}> <div className={cn("px-4 py-2.5 pb-6 relative shadow-sm max-w-[75%]", isSender ? "bg-primary text-primary-foreground" : "bg-card text-card-foreground border border-border", "rounded-2xl", !isFirstInGroup && isSender && "rounded-tr-md", !isFirstInGroup && !isSender && "rounded-tl-md", !isLastInGroup && isSender && "rounded-br-md", !isLastInGroup && !isSender && "rounded-bl-md")}> {message.replyTo && ( <button onClick={() => onReplyView(message.replyTo._id)} className={cn("block p-2.5 rounded-lg mb-2 w-full text-left", "border-l-4", isSender ? "bg-black/10 border-primary-foreground/50" : "bg-muted/50 border-primary")}> <p className={cn("font-semibold text-xs mb-1", isSender ? "text-primary-foreground" : "text-primary")}>{message.replyTo.senderModel === "User" ? "You" : message.replyTo.senderModel}</p> {message.replyTo.contentType === 'image' ? <div className="flex items-center gap-2 mt-1"><ImageIcon className="h-4 w-4" /> <span className="text-xs opacity-80">Photo</span></div> : message.replyTo.contentType === 'pdf' ? <div className="flex items-center gap-2 mt-1"><FileIcon className="h-4 w-4" /> <span className="text-xs opacity-80">Document</span></div> : <p className={cn("text-sm truncate", isSender ? "text-primary-foreground/80" : "text-muted-foreground")}>{message.replyTo.content}</p>} </button> )} {isAudio ? <VoiceMessagePlayer src={message.content} isSender={isSender} /> : isImage ? <div className="mb-1 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity" onClick={() => onViewMedia(message.content, 'image')}><SmartImage src={message.content} alt="Shared image" onLoad={onImageLoad} /></div> : isPdf ? <a href={message.content} target="_blank" rel="noopener noreferrer" className={cn("flex items-center gap-3 p-3 rounded-lg transition-colors cursor-pointer", isSender ? "bg-primary-foreground/20 hover:bg-primary-foreground/30" : "bg-muted hover:bg-muted/80")}><div className={cn("p-2 rounded-full", isSender ? "bg-primary-foreground/20" : "bg-background")}><FileIcon className="h-5 w-5" /></div><div className="flex-1 overflow-hidden"><p className="text-sm font-medium truncate">Document.pdf</p><p className={cn("text-xs", isSender ? "text-primary-foreground/80" : "text-muted-foreground")}>Tap to view</p></div><DownloadIcon className="h-4 w-4 opacity-70" /></a> : <p className="text-[15px] leading-relaxed break-words whitespace-pre-wrap pr-16">{message.content}</p>} <div className="absolute right-3 bottom-1.5 flex items-center gap-1"><span className={cn("text-[11px]", isSender ? "text-primary-foreground/70" : "text-muted-foreground")}>{timestamp}</span>{isSender && ( isSending ? <ClockIcon className="h-3 w-3 text-primary-foreground/70" /> : <CheckCheckIcon className={cn("h-3.5 w-3.5", isRead ? "text-blue-300" : "text-primary-foreground/70")} /> )}</div> <div className={cn("absolute top-0 flex gap-1 transition-all opacity-0 group-hover:opacity-100", isSender ? "-left-16" : "-right-16")}><Button variant="ghost" size="icon" className="h-8 w-8 rounded-full bg-background border border-border shadow-md hover:bg-accent" onClick={onReplyClick} onMouseDown={(e) => e.preventDefault()}><ReplyIcon className="h-4 w-4 text-foreground" /></Button>{canDelete && (<div className="relative" ref={menuRef}><Button variant="ghost" size="icon" className="h-8 w-8 rounded-full bg-background border border-border shadow-md hover:bg-accent" onClick={() => setShowMenu(!showMenu)} onMouseDown={(e) => e.preventDefault()}><MoreVerticalIcon className="h-4 w-4 text-foreground" /></Button>{showMenu && (<div className="absolute top-full mt-1 right-0 bg-popover border border-border rounded-lg shadow-lg z-50 min-w-[150px]"><button onClick={() => { onDeleteClick(); setShowMenu(false); }} className="w-full px-4 py-2 text-left text-sm hover:bg-accent flex items-center gap-2 text-destructive"><TrashIcon />Delete Message</button></div>)}</div>)}</div> {showDeleteConfirm && (<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"><div className="bg-card border border-border rounded-lg p-6 max-w-sm mx-4 shadow-xl"><h3 className="text-lg font-semibold mb-2">Delete Message?</h3><p className="text-sm text-muted-foreground mb-4">This message will be deleted for everyone. This action cannot be undone.</p><div className="flex gap-2 justify-end"><Button variant="ghost" onClick={onCancelDelete}>Cancel</Button><Button variant="destructive" onClick={onConfirmDelete}>Delete</Button></div></div></div>)} </div> </div> </div> ); }
+function MessageBubble({ message, isSender, isFirstInGroup, isLastInGroup, onReplyClick, onReplyView, onDeleteClick, showDeleteConfirm, onConfirmDelete, onCancelDelete, isMounted, currentUserId, onViewMedia, onImageLoad }) { const [showMenu, setShowMenu] = useState(false); const menuRef = useRef(null); const timestamp = isMounted ? new Date(message.createdAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }) : null;  const canDelete = message.sender === currentUserId || message.senderModel === "User"; const isDeleted = message.isDeleted === true; const isSending = message.status === "sending"; const isRead = message.readBy && message.readBy.some(id => id !== currentUserId); const isAudio = message.contentType === 'audio' || (typeof message.content === 'string' && message.content.startsWith('data:audio')); const isImage = message.contentType === 'image'; const isPdf = message.contentType === 'pdf'; useEffect(() => { const handleClickOutside = (event) => { if (menuRef.current && !menuRef.current.contains(event.target)) setShowMenu(false); }; if (showMenu) { document.addEventListener('mousedown', handleClickOutside); return () => document.removeEventListener('mousedown', handleClickOutside); } }, [showMenu]); return ( <div id={`message-${message._id}`} className={cn("flex w-full group", isFirstInGroup ? "mt-3" : "mt-1")}> <div className={cn("flex w-full", isSender ? "justify-end" : "justify-start")}> <div className={cn("px-4 py-2.5 pb-6 relative shadow-sm max-w-[75%]", isSender ? "bg-primary text-primary-foreground" : "bg-card text-card-foreground border border-border", "rounded-2xl", !isFirstInGroup && isSender && "rounded-tr-md", !isFirstInGroup && !isSender && "rounded-tl-md", !isLastInGroup && isSender && "rounded-br-md", !isLastInGroup && !isSender && "rounded-bl-md")}> {message.replyTo && ( <button onClick={() => onReplyView(message.replyTo._id)} className={cn("block p-2.5 rounded-lg mb-2 w-full text-left", "border-l-4", isSender ? "bg-black/10 border-primary-foreground/50" : "bg-muted/50 border-primary")}> <p className={cn("font-semibold text-xs mb-1", isSender ? "text-primary-foreground" : "text-primary")}>{message.replyTo.senderModel === "User" ? "You" : message.replyTo.senderModel}</p> {message.replyTo.contentType === 'image' ? <div className="flex items-center gap-2 mt-1"><ImageIcon className="h-4 w-4" /> <span className="text-xs opacity-80">Photo</span></div> : message.replyTo.contentType === 'pdf' ? <div className="flex items-center gap-2 mt-1"><FileIcon className="h-4 w-4" /> <span className="text-xs opacity-80">Document</span></div> : <p className={cn("text-sm truncate", isSender ? "text-primary-foreground/80" : "text-muted-foreground")}>{message.replyTo.content}</p>} </button> )} {isAudio ? <VoiceMessagePlayer src={message.content} isSender={isSender} /> : isImage ? <div className="mb-1 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity" onClick={() => onViewMedia(message.content, 'image')}><SmartImage src={message.content} alt="Shared image" onLoad={onImageLoad} /></div> : isPdf ? <a href={message.content} target="_blank" rel="noopener noreferrer" className={cn("flex items-center gap-3 p-3 rounded-lg transition-colors cursor-pointer", isSender ? "bg-primary-foreground/20 hover:bg-primary-foreground/30" : "bg-muted hover:bg-muted/80")}><div className={cn("p-2 rounded-full", isSender ? "bg-primary-foreground/20" : "bg-background")}><FileIcon className="h-5 w-5" /></div><div className="flex-1 overflow-hidden"><p className="text-sm font-medium truncate">Document.pdf</p><p className={cn("text-xs", isSender ? "text-primary-foreground/80" : "text-muted-foreground")}>Tap to view</p></div><DownloadIcon className="h-4 w-4 opacity-70" /></a> : <p className="text-[15px] leading-relaxed break-words whitespace-pre-wrap pr-16">{message.content}</p>} <div className="absolute right-3 bottom-1.5 flex items-center gap-1"><span className={cn("text-[11px]", isSender ? "text-primary-foreground/70" : "text-muted-foreground")}>{timestamp}</span>{isSender && ( isSending ? <ClockIcon className="h-3 w-3 text-primary-foreground/70" /> : <CheckCheckIcon className={cn("h-3.5 w-3.5", isRead ? "text-blue-300" : "text-primary-foreground/70")} /> )}</div> <div className={cn("absolute top-0 flex gap-1 transition-all opacity-0 group-hover:opacity-100", isSender ? "-left-16" : "-right-16")}>{!isDeleted && (<Button variant="ghost" size="icon" className="h-8 w-8 rounded-full bg-background border border-border shadow-md hover:bg-accent" onClick={onReplyClick} onMouseDown={(e) => e.preventDefault()}><ReplyIcon className="h-4 w-4 text-foreground" /></Button>)}{canDelete && !isDeleted && (<div className="relative" ref={menuRef}><Button variant="ghost" size="icon" className="h-8 w-8 rounded-full bg-background border border-border shadow-md hover:bg-accent" onClick={() => setShowMenu(!showMenu)} onMouseDown={(e) => e.preventDefault()}><MoreVerticalIcon className="h-4 w-4 text-foreground" /></Button>{showMenu && (<div className="absolute top-full mt-1 right-0 bg-popover border border-border rounded-lg shadow-lg z-50 min-w-[150px]"><button onClick={() => { onDeleteClick(); setShowMenu(false); }} className="w-full px-4 py-2 text-left text-sm hover:bg-accent flex items-center gap-2 text-destructive"><TrashIcon />Delete Message</button></div>)}</div>)}</div> {showDeleteConfirm && (<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"><div className="bg-card border border-border rounded-lg p-6 max-w-sm mx-4 shadow-xl"><h3 className="text-lg font-semibold mb-2">Delete Message?</h3><p className="text-sm text-muted-foreground mb-4">This message will be deleted for everyone. This action cannot be undone.</p><div className="flex gap-2 justify-end"><Button variant="ghost" onClick={onCancelDelete}>Cancel</Button><Button variant="destructive" onClick={onConfirmDelete}>Delete</Button></div></div></div>)} </div> </div> </div> ); }
 function ReplyPreview({ message, onCancel }) { const isImage = message.contentType === 'image'; const isPdf = message.contentType === 'pdf'; const isAudio = message.contentType === 'audio'; return ( <div className="flex items-center justify-between p-3 mb-3 rounded-lg bg-accent border-l-4 border-primary"> <div className="flex-1 overflow-hidden"> <p className="font-semibold text-sm text-primary mb-1">Replying to {message.senderModel === "User" ? "yourself" : message.senderModel}</p> {isImage ? <div className="flex items-center gap-2"><ImageIcon className="h-4 w-4 text-muted-foreground" /><span className="text-sm text-muted-foreground">Photo</span></div> : isPdf ? <div className="flex items-center gap-2"><FileIcon className="h-4 w-4 text-muted-foreground" /><span className="text-sm text-muted-foreground">Document</span></div> : isAudio ? <div className="flex items-center gap-2"><MicIcon className="h-4 w-4 text-muted-foreground" /><span className="text-sm text-muted-foreground">Voice Message</span></div> : <p className="text-sm text-muted-foreground truncate">{message.content}</p>} </div> <Button variant="ghost" size="icon" onClick={onCancel} className="ml-2 hover:bg-background shrink-0"><XIcon className="h-5 w-5 text-muted-foreground" /></Button> </div> ); }
