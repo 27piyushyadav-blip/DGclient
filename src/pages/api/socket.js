@@ -87,13 +87,12 @@ const ioHandler = (req, res) => {
       });
 
       /* -------------------------------------------------
-       * SEND MESSAGE (FIXED + NORMALIZED)
+       * SEND MESSAGE
        * ------------------------------------------------- */
       socket.on("send_message", async (data) => {
         const {
           conversationId,
           senderId,
-          receiverId,
           content,
           contentType,
           replyTo,
@@ -104,6 +103,9 @@ const ioHandler = (req, res) => {
 
         try {
           await connectToDatabase();
+
+          const conversation = await Conversation.findById(conversationId);
+          if (!conversation) return;
 
           const msg = await Message.create({
             conversationId,
@@ -117,14 +119,10 @@ const ioHandler = (req, res) => {
 
           await msg.populate("replyTo");
 
-          /* Preview */
           let preview = content;
           if (contentType === "image") preview = "📷 Image";
           else if (contentType === "audio") preview = "🎤 Audio Message";
           else if (contentType === "pdf") preview = "📄 Document";
-
-          const conversation = await Conversation.findById(conversationId);
-          if (!conversation) return;
 
           const isSenderUser =
             senderId.toString() === conversation.userId.toString();
@@ -141,7 +139,7 @@ const ioHandler = (req, res) => {
           });
 
           /* -------------------------------------------------
-           * 🔥 CRITICAL FIX: NORMALIZE MESSAGE OBJECT
+           * NORMALIZE MESSAGE OBJECT (CRITICAL)
            * ------------------------------------------------- */
           const msgObj = msg.toObject();
           msgObj._id = msgObj._id.toString();
@@ -156,18 +154,18 @@ const ioHandler = (req, res) => {
           msgObj.createdAt = msgObj.createdAt.toISOString();
           msgObj.updatedAt = msgObj.updatedAt.toISOString();
 
+          /* Message stream */
           io.to(conversationId).emit("receive_message", msgObj);
 
-          io.to(conversationId).emit("conversationUpdated", {
-            conversationId: conversationId.toString(),
-            lastMessage: preview,
-            lastMessageAt: msgObj.createdAt,
-            lastMessageSender: senderId.toString(),
-          });
-
-          if (receiverId) {
-            io.to(receiverId).emit("receiveDirectMessage", msgObj);
-          }
+          /* Sidebar update */
+          io.to(conversation.userId.toString()).emit(
+            "receiveDirectMessage",
+            msgObj
+          );
+          io.to(conversation.expertId.toString()).emit(
+            "receiveDirectMessage",
+            msgObj
+          );
         } catch (err) {
           console.error("[Socket] send_message error:", err);
         }
@@ -220,13 +218,22 @@ const ioHandler = (req, res) => {
       );
 
       /* -------------------------------------------------
-       * DELETE MESSAGE
+       * DELETE MESSAGE (HARDENED)
        * ------------------------------------------------- */
       socket.on("deleteMessage", async ({ conversationId, messageId }) => {
         try {
+          await connectToDatabase();
+
+          const msg = await Message.findById(messageId);
+          if (!msg) return;
+
+          // Ownership guard
+          if (msg.sender.toString() !== userId) return;
+
           await Message.findByIdAndUpdate(messageId, {
             isDeleted: true,
             content: "🚫 This message was deleted",
+            contentType: "text",
           });
 
           io.to(conversationId).emit("messageDeleted", {

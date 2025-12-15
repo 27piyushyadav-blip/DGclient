@@ -178,3 +178,59 @@ export async function getMessages(conversationId) {
     return [];
   }
 }
+
+
+/* -----------------------------------------------------
+ * 4. Get Single Conversation (For Real-time Updates)
+ * ----------------------------------------------------- */
+export async function getConversationById(conversationId) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) return null;
+
+  try {
+    await connectToDatabase();
+
+    const conversation = await Conversation.findOne({
+      _id: conversationId,
+      userId: session.user.id, // ✅ USER ownership check
+    })
+      .populate({
+        path: "expertId",
+        model: User,
+        select: "name image isOnline lastSeen",
+      })
+      .lean();
+
+    if (!conversation) return null;
+
+    return JSON.parse(
+      JSON.stringify({
+        ...conversation,
+        _id: conversation._id.toString(),
+        userId: conversation.userId.toString(),
+        expertId: conversation.expertId
+          ? {
+              ...conversation.expertId,
+              _id: conversation.expertId._id.toString(),
+              profilePicture: conversation.expertId.image,
+            }
+          : null,
+        lastMessageSender: conversation.lastMessageSender
+          ? conversation.lastMessageSender.toString()
+          : null,
+        lastMessageAt: conversation.lastMessageAt
+          ? new Date(conversation.lastMessageAt).toISOString()
+          : null,
+        createdAt: conversation.createdAt
+          ? new Date(conversation.createdAt).toISOString()
+          : null,
+        updatedAt: conversation.updatedAt
+          ? new Date(conversation.updatedAt).toISOString()
+          : null,
+      })
+    );
+  } catch (err) {
+    console.error("[ChatAction] getConversationById:", err);
+    return null;
+  }
+}
