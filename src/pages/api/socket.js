@@ -2,7 +2,9 @@
  * File: src/pages/api/socket.js
  * SR-DEV: Production Socket Server (Premium Chat)
  * Architecture: User ↔ User (Expert is a User with ExpertProfile)
- * Supports: User App + Admin/Expert App
+ * FIXED:
+ * - Initial online status sync on join_room
+ * - Prevents late-join "Offline" bug
  */
 
 import { Server } from "socket.io";
@@ -80,10 +82,45 @@ const ioHandler = (req, res) => {
       }
 
       /* -------------------------------------------------
-       * JOIN CONVERSATION
+       * JOIN CONVERSATION (FIXED: SYNC STATUS ON JOIN)
        * ------------------------------------------------- */
-      socket.on("join_room", (conversationId) => {
-        if (conversationId) socket.join(conversationId);
+      socket.on("join_room", async (conversationId) => {
+        if (!conversationId) return;
+        socket.join(conversationId);
+
+        // ✅ FIX: Immediately fetch and emit the OTHER party's status to the joiner.
+        // This ensures that if the other user is ALREADY online, the UI updates immediately.
+        try {
+          await connectToDatabase();
+          const conv = await Conversation.findById(conversationId);
+          
+          if (conv && userId) {
+            let targetId = null;
+            let statusData = null;
+
+            // Determine who the "other" person is based on the joiner's role
+            if (role === 'expert') {
+              // Joiner is Expert -> They are talking to a USER
+              targetId = conv.userId;
+              statusData = await User.findById(targetId).select('isOnline lastSeen');
+            } else {
+              // Joiner is User -> They are talking to an EXPERT
+              targetId = conv.expertId;
+              statusData = await ExpertProfile.findById(targetId).select('isOnline lastSeen');
+            }
+
+            if (targetId && statusData) {
+              // Emit ONLY to the client who just joined (socket.emit, not broadcast)
+              socket.emit("userStatusChanged", {
+                userId: targetId.toString(),
+                isOnline: statusData.isOnline || false,
+                lastSeen: statusData.lastSeen ? statusData.lastSeen.toISOString() : new Date().toISOString()
+              });
+            }
+          }
+        } catch (err) {
+          console.error("[Socket] Join Sync Error:", err);
+        }
       });
 
       /* -------------------------------------------------
@@ -138,9 +175,7 @@ const ioHandler = (req, res) => {
             },
           });
 
-          /* -------------------------------------------------
-           * NORMALIZE MESSAGE OBJECT (CRITICAL)
-           * ------------------------------------------------- */
+          /* Normalize message object */
           const msgObj = msg.toObject();
           msgObj._id = msgObj._id.toString();
           msgObj.sender = msgObj.sender.toString();
@@ -157,7 +192,7 @@ const ioHandler = (req, res) => {
           /* Message stream */
           io.to(conversationId).emit("receive_message", msgObj);
 
-          /* Sidebar update */
+          /* Sidebar updates */
           io.to(conversation.userId.toString()).emit(
             "receiveDirectMessage",
             msgObj
@@ -206,6 +241,27 @@ const ioHandler = (req, res) => {
         }
       });
 
+      socket.on("getUserPresence", async ({ userId }) => {
+        try {
+          if (!userId) return;
+      
+          const user = await User.findById(userId)
+            .select("isOnline lastSeen")
+            .lean();
+      
+          if (!user) return;
+      
+          // 🔑 Send presence ONLY to requester
+          socket.emit("userPresence", {
+            userId,
+            isOnline: user.isOnline,
+            lastSeen: user.lastSeen,
+          });
+        } catch (err) {
+          console.error("getUserPresence error:", err);
+        }
+      });
+
       /* -------------------------------------------------
        * TYPING
        * ------------------------------------------------- */
@@ -218,7 +274,7 @@ const ioHandler = (req, res) => {
       );
 
       /* -------------------------------------------------
-       * DELETE MESSAGE (HARDENED)
+       * DELETE MESSAGE (OWNERSHIP GUARDED)
        * ------------------------------------------------- */
       socket.on("deleteMessage", async ({ conversationId, messageId }) => {
         try {
@@ -227,7 +283,6 @@ const ioHandler = (req, res) => {
           const msg = await Message.findById(messageId);
           if (!msg) return;
 
-          // Ownership guard
           if (msg.sender.toString() !== userId) return;
 
           await Message.findByIdAndUpdate(messageId, {
