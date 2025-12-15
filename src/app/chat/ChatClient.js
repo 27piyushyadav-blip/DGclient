@@ -524,7 +524,7 @@ export default function ChatClient({ initialConversations, currentUser }) {
 
         // [FIX] Force-clear typing state when a real message arrives
         isTyping: false,
-      });
+      }); 
 
       // [FIX] Also clear active chat typing indicator
       if (
