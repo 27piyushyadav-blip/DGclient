@@ -93,6 +93,9 @@ export default function ChatClient({ initialConversations, currentUser }) {
   const isInitialLoadPhase = useRef(true);
   const initialScrollDone = useRef(false);
 
+   // ✅ ADD HERE
+   const activeExpertIdRef = useRef(null);
+
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const mimeTypeRef = useRef("audio/webm");
@@ -127,6 +130,11 @@ export default function ChatClient({ initialConversations, currentUser }) {
   const selectedConversation = conversations.find(
     (c) => c._id === selectedConversationId
   );
+
+   // Sync active expert ID for stable socket listeners
+   useEffect(() => {
+    activeExpertIdRef.current = selectedConversation?.expertId?._id || null;
+  }, [selectedConversation]);
 
   // --- REMOTE STATUS SYNC ---
   useEffect(() => {
@@ -178,6 +186,14 @@ export default function ChatClient({ initialConversations, currentUser }) {
     });
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (recordingIntervalRef.current) {
+        clearInterval(recordingIntervalRef.current);
+      }
+    };
+  }, []);
+
   const handleScrollToBottom = () => {
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTo({ top: messagesContainerRef.current.scrollHeight, behavior: "auto" });
@@ -196,10 +212,16 @@ export default function ChatClient({ initialConversations, currentUser }) {
 
   // --- EVENT HANDLERS ---
   const onUserStatusChanged = useCallback(({ userId, isOnline, lastSeen }) => {
-    if (selectedConversation?.expertId?._id === userId) {
-      setRemoteStatus(prev => ({ ...prev, isOnline, lastSeen: lastSeen || prev.lastSeen }));
+    // Stable comparison using ref (no dependency on selectedConversation)
+    if (activeExpertIdRef.current === userId) {
+      setRemoteStatus(prev => ({
+        ...prev,
+        isOnline,
+        lastSeen: lastSeen || prev.lastSeen,
+      }));
     }
-  }, [selectedConversation]);
+  }, []);
+  
 
   const onTyping = useCallback(({ conversationId, typerId }) => {
     if (conversationId === selectedConversationId && typerId !== currentUser.id) setIsTyping(true);
@@ -281,86 +303,83 @@ export default function ChatClient({ initialConversations, currentUser }) {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
+  
       let mimeType = "audio/webm";
       if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) {
         mimeType = "audio/webm;codecs=opus";
       } else if (MediaRecorder.isTypeSupported("audio/mp4")) {
         mimeType = "audio/mp4";
       }
-
+  
       mimeTypeRef.current = mimeType;
-
+  
       const mediaRecorder = new MediaRecorder(stream, { mimeType });
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
-
-      // Collect chunks
+  
       mediaRecorder.ondataavailable = (e) => {
         if (e.data.size > 0) audioChunksRef.current.push(e.data);
       };
-
-      // ✅ Process ONLY after recorder fully stops
+  
       mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
-
-        // Prevent empty recordings
         if (audioBlob.size === 0) return;
-
+  
         const ext = mimeType.includes("mp4") ? "m4a" : "webm";
         const audioFile = new File(
           [audioBlob],
           `voice-message.${ext}`,
           { type: mimeType }
         );
-
+  
         const blobUrl = URL.createObjectURL(audioBlob);
-
-        // 1️⃣ Optimistic message
+  
         const optimisticMsg = addOptimisticMessage(blobUrl, "audio");
-
+  
         try {
           const res = await startUpload([audioFile]);
-          if (res && res[0]) {
+          if (res?.[0]) {
             const realUrl = res[0].url;
-
-            // 2️⃣ Sync optimistic content BEFORE socket echo
+  
+            // 🔑 Sync optimistic message BEFORE socket echo
             setMessages(prev =>
-              prev.map(msg =>
-                msg._id === optimisticMsg._id
-                  ? { ...msg, content: realUrl }
-                  : msg
+              prev.map(m =>
+                m._id === optimisticMsg._id
+                  ? { ...m, content: realUrl }
+                  : m
               )
             );
-
+  
             sendMessageSocket(realUrl, "audio");
           }
-        } catch (error) {
-          console.error("Upload error:", error);
-          setMessages(prev =>
-            prev.filter(m => m._id !== optimisticMsg._id)
-          );
+        } catch (err) {
+          console.error("Audio upload failed:", err);
+          setMessages(prev => prev.filter(m => m._id !== optimisticMsg._id));
         }
-
-        // Cleanup
-        stream.getTracks().forEach(track => track.stop());
+  
+        stream.getTracks().forEach(t => t.stop());
       };
-
-      // Request frequent data flush for stability
-      mediaRecorder.start(100);
-
+  
+      // ✅ IMPORTANT: NO timeSlice
+      mediaRecorder.start();
+  
       setIsRecording(true);
       setRecordingTime(0);
-
+  
+      if (recordingIntervalRef.current) {
+        clearInterval(recordingIntervalRef.current);
+      }
+  
       recordingIntervalRef.current = setInterval(() => {
         setRecordingTime(t => t + 1);
       }, 1000);
-
-    } catch (error) {
-      console.error("Error accessing microphone:", error);
-      alert("Could not access microphone.");
+  
+    } catch (err) {
+      console.error("Microphone access error:", err);
+      alert("Could not access microphone");
     }
   };
+  
 
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
