@@ -14,6 +14,7 @@ import Conversation from "@/models/Conversation";
 import Message from "@/models/Message";
 import User from "@/models/User";
 import ExpertProfile from "@/models/ExpertProfile";
+import UserProfile from "@/models/UserProfile";
 
 /* -------------------------------------------------------
  * Next.js API Config
@@ -65,10 +66,11 @@ const ioHandler = (req, res) => {
               { isOnline: true, lastSeen: new Date() }
             );
           } else {
-            await User.findByIdAndUpdate(userId, {
-              isOnline: true,
-              lastSeen: new Date(),
-            });
+            // [!code change] Update UserProfile instead of User
+            await UserProfile.findOneAndUpdate(
+              { user: userId },
+              { isOnline: true, lastSeen: new Date() }
+            );
           }
 
           socket.broadcast.emit("userStatusChanged", {
@@ -102,7 +104,8 @@ const ioHandler = (req, res) => {
             if (role === 'expert') {
               // Joiner is Expert -> They are talking to a USER
               targetId = conv.userId;
-              statusData = await User.findById(targetId).select('isOnline lastSeen');
+              // [!code change] Fetch from UserProfile
+              statusData = await UserProfile.findOne({ user: targetId }).select('isOnline lastSeen');
             } else {
               // Joiner is User -> They are talking to an EXPERT
               targetId = conv.expertId;
@@ -244,18 +247,24 @@ const ioHandler = (req, res) => {
       socket.on("getUserPresence", async ({ userId }) => {
         try {
           if (!userId) return;
-      
-          const user = await User.findById(userId)
-            .select("isOnline lastSeen")
-            .lean();
-      
-          if (!user) return;
+
+          // 1. Check role first to decide which table to look in
+          const userMeta = await User.findById(userId).select("role").lean();
+          if (!userMeta) return;
+
+          let statusData = null;
+
+          if (userMeta.role === 'expert') {
+             statusData = await ExpertProfile.findOne({ user: userId }).select("isOnline lastSeen").lean();
+          } else {
+             statusData = await UserProfile.findOne({ user: userId }).select("isOnline lastSeen").lean();
+          }
       
           // 🔑 Send presence ONLY to requester
           socket.emit("userPresence", {
             userId,
-            isOnline: user.isOnline,
-            lastSeen: user.lastSeen,
+            isOnline: statusData?.isOnline || false,
+            lastSeen: statusData?.lastSeen || null,
           });
         } catch (err) {
           console.error("getUserPresence error:", err);
@@ -314,10 +323,11 @@ const ioHandler = (req, res) => {
               { isOnline: false, lastSeen: new Date() }
             );
           } else {
-            await User.findByIdAndUpdate(userId, {
-              isOnline: false,
-              lastSeen: new Date(),
-            });
+            // [!code change] Update UserProfile instead of User
+            await UserProfile.findOneAndUpdate(
+              { user: userId },
+              { isOnline: false, lastSeen: new Date() }
+            );
           }
 
           socket.broadcast.emit("userStatusChanged", {
