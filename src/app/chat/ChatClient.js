@@ -52,7 +52,7 @@ const isSameDay = (d1, d2) => {
 const formatDateHeader = (d) => {
   if (!d) return "";
   const date = new Date(d);
-  const today = new Date();
+  const today = new Date(new Date().toISOString());
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
   if (isSameDay(date, today)) return "Today";
@@ -63,7 +63,7 @@ const formatDateHeader = (d) => {
 const formatLastMessageTime = (d) => {
   if (!d) return "";
   const date = new Date(d);
-  const today = new Date();
+  const today = new Date(new Date().toISOString());
   if (isSameDay(date, today)) return date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: 'UTC' });
 };
@@ -72,7 +72,7 @@ const formatLastSeen = (d, online) => {
   if (online) return "Online";
   if (!d) return "";
   const date = new Date(d);
-  const today = new Date();
+  const today = new Date(new Date().toISOString());
   if (isSameDay(date, today)) {
     return `Last seen today at ${date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}`;
   }
@@ -787,5 +787,280 @@ function ConversationItem({ convo, isSelected, onClick, isMounted, currentUserId
   const isSending = convo.lastMessageStatus === 'sending'; return (<button onClick={onClick} className={cn("flex w-full items-start gap-4 px-4 py-4 text-left hover:bg-accent/50 transition-all duration-200", isSelected && "bg-accent")}> <ProfileImage src={convo.expertId.profilePicture} name={convo.expertId.name} sizeClass="h-12 w-12 shrink-0" /> <div className="flex-1 overflow-hidden min-w-0"> <div className="flex justify-between items-start mb-1 gap-2"><h3 className="font-semibold text-base text-foreground truncate">{convo.expertId.name}</h3><span className="text-xs text-muted-foreground shrink-0 pt-1">{isMounted ? formatLastMessageTime(convo.lastMessageAt) : null}</span></div> <div className="flex justify-between items-center gap-2"><div className="flex items-center gap-1 overflow-hidden flex-1">{isTyping ? <p className="text-sm text-primary font-medium truncate animate-pulse">typing...</p> : <>{isLastMessageMine && (isSending ? <ClockIcon className="h-3 w-3 text-muted-foreground shrink-0" /> : <CheckCheckIcon className={cn("h-4 w-4 shrink-0", isReadByExpert ? "text-blue-500" : "text-muted-foreground")} />)}<p className="text-sm text-muted-foreground truncate">{convo.lastMessage || "No messages yet"}</p></>}</div>{convo.userUnreadCount > 0 && <span className="flex items-center justify-center bg-primary text-primary-foreground text-xs font-bold rounded-full h-5 min-w-[20px] px-1.5 shrink-0">{convo.userUnreadCount}</span>}</div> </div> </button>);
 }
 function VoiceMessagePlayer({ src, isSender }) { const [isPlaying, setIsPlaying] = useState(false); const [progress, setProgress] = useState(0); const [duration, setDuration] = useState(0); const audioRef = useRef(null); useEffect(() => { const audio = audioRef.current; if (!audio) return; const updateProgress = () => { const current = audio.currentTime; const total = audio.duration; if (Number.isFinite(total) && total > 0) { setProgress((current / total) * 100); setDuration(total); } else { setProgress(0); setDuration(0); } }; const setAudioData = () => { const d = audio.duration; if (Number.isFinite(d)) setDuration(d); }; const handleEnded = () => { setIsPlaying(false); setProgress(0); }; audio.addEventListener('timeupdate', updateProgress); audio.addEventListener('loadedmetadata', setAudioData); audio.addEventListener('durationchange', setAudioData); audio.addEventListener('ended', handleEnded); return () => { audio.removeEventListener('timeupdate', updateProgress); audio.removeEventListener('loadedmetadata', setAudioData); audio.removeEventListener('durationchange', setAudioData); audio.removeEventListener('ended', handleEnded); }; }, []); const togglePlay = () => { const audio = audioRef.current; if (!audio) return; if (isPlaying) audio.pause(); else audio.play(); setIsPlaying(!isPlaying); }; const handleSeek = (e) => { const audio = audioRef.current; if (!audio) return; const newTime = (e.target.value / 100) * audio.duration; audio.currentTime = newTime; setProgress(e.target.value); }; const formatTime = (time) => { if (!Number.isFinite(time) || isNaN(time)) return "0:00"; const mins = Math.floor(time / 60); const secs = Math.floor(time % 60); return `${mins}:${secs.toString().padStart(2, '0')}`; }; return (<div className="flex items-center gap-3 pr-4 min-w-[200px] py-1"> <audio ref={audioRef} src={src} className="hidden" /> <button onClick={togglePlay} className={cn("flex items-center justify-center h-10 w-10 rounded-full transition-colors shrink-0", isSender ? "bg-primary-foreground/20 hover:bg-primary-foreground/30 text-primary-foreground" : "bg-primary/10 hover:bg-primary/20 text-primary")}>{isPlaying ? <PauseIcon className="h-5 w-5" /> : <PlayIcon className="h-5 w-5 ml-0.5" />}</button> <div className="flex-1 flex flex-col gap-1"><input type="range" min="0" max="100" value={progress || 0} onChange={handleSeek} className={cn("w-full h-1 rounded-lg appearance-none cursor-pointer", isSender ? "bg-primary-foreground/30 accent-primary-foreground" : "bg-muted-foreground/20 accent-primary")} /><div className={cn("flex justify-between text-[10px] font-medium", isSender ? "text-primary-foreground/80" : "text-muted-foreground")}><span>{formatTime(audioRef.current?.currentTime || 0)}</span><span>{formatTime(duration)}</span></div></div> </div>); }
-function MessageBubble({ message, isSender, isFirstInGroup, isLastInGroup, onReplyClick, onReplyView, onDeleteClick, showDeleteConfirm, onConfirmDelete, onCancelDelete, isMounted, currentUserId, onViewMedia, onImageLoad }) { const [showMenu, setShowMenu] = useState(false); const menuRef = useRef(null); const timestamp = isMounted ? new Date(message.createdAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }) : null; const canDelete = message.sender === currentUserId || message.senderModel === "User"; const isDeleted = message.isDeleted === true; const isSending = message.status === "sending"; const isRead = message.readBy && message.readBy.some(id => id !== currentUserId); const isAudio = message.contentType === 'audio' || (typeof message.content === 'string' && message.content.startsWith('data:audio')); const isImage = message.contentType === 'image'; const isPdf = message.contentType === 'pdf'; useEffect(() => { const handleClickOutside = (event) => { if (menuRef.current && !menuRef.current.contains(event.target)) setShowMenu(false); }; if (showMenu) { document.addEventListener('mousedown', handleClickOutside); return () => document.removeEventListener('mousedown', handleClickOutside); } }, [showMenu]); return (<div id={`message-${message._id}`} className={cn("flex w-full group", isFirstInGroup ? "mt-3" : "mt-1")}> <div className={cn("flex w-full", isSender ? "justify-end" : "justify-start")}> <div className={cn("px-4 py-2.5 pb-6 relative shadow-sm max-w-[75%]", isSender ? "bg-primary text-primary-foreground" : "bg-card text-card-foreground border border-border", "rounded-2xl", !isFirstInGroup && isSender && "rounded-tr-md", !isFirstInGroup && !isSender && "rounded-tl-md", !isLastInGroup && isSender && "rounded-br-md", !isLastInGroup && !isSender && "rounded-bl-md")}> {message.replyTo && (<button onClick={() => onReplyView(message.replyTo._id)} className={cn("block p-2.5 rounded-lg mb-2 w-full text-left", "border-l-4", isSender ? "bg-black/10 border-primary-foreground/50" : "bg-muted/50 border-primary")}> <p className={cn("font-semibold text-xs mb-1", isSender ? "text-primary-foreground" : "text-primary")}>{message.replyTo.senderModel === "User" ? "You" : message.replyTo.senderModel}</p> {message.replyTo.contentType === 'image' ? <div className="flex items-center gap-2 mt-1"><ImageIcon className="h-4 w-4" /> <span className="text-xs opacity-80">Photo</span></div> : message.replyTo.contentType === 'pdf' ? <div className="flex items-center gap-2 mt-1"><FileIcon className="h-4 w-4" /> <span className="text-xs opacity-80">Document</span></div> : <p className={cn("text-sm truncate", isSender ? "text-primary-foreground/80" : "text-muted-foreground")}>{message.replyTo.content}</p>} </button>)} {isAudio ? <VoiceMessagePlayer src={message.content} isSender={isSender} /> : isImage ? <div className="mb-1 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity" onClick={() => onViewMedia(message.content, 'image')}><SmartImage src={message.content} alt="Shared image" onLoad={onImageLoad} /></div> : isPdf ? <a href={message.content} target="_blank" rel="noopener noreferrer" className={cn("flex items-center gap-3 p-3 rounded-lg transition-colors cursor-pointer", isSender ? "bg-primary-foreground/20 hover:bg-primary-foreground/30" : "bg-muted hover:bg-muted/80")}><div className={cn("p-2 rounded-full", isSender ? "bg-primary-foreground/20" : "bg-background")}><FileIcon className="h-5 w-5" /></div><div className="flex-1 overflow-hidden"><p className="text-sm font-medium truncate">Document.pdf</p><p className={cn("text-xs", isSender ? "text-primary-foreground/80" : "text-muted-foreground")}>Tap to view</p></div><DownloadIcon className="h-4 w-4 opacity-70" /></a> : <p className="text-[15px] leading-relaxed break-words whitespace-pre-wrap pr-16">{message.content}</p>} <div className="absolute right-3 bottom-1.5 flex items-center gap-1"><span className={cn("text-[11px]", isSender ? "text-primary-foreground/70" : "text-muted-foreground")}>{timestamp}</span>{isSender && (isSending ? <ClockIcon className="h-3 w-3 text-primary-foreground/70" /> : <CheckCheckIcon className={cn("h-3.5 w-3.5", isRead ? "text-blue-300" : "text-primary-foreground/70")} />)}</div> <div className={cn("absolute top-0 flex gap-1 transition-all opacity-0 group-hover:opacity-100", isSender ? "-left-16" : "-right-16")}>{!isDeleted && (<Button variant="ghost" size="icon" className="h-8 w-8 rounded-full bg-background border border-border shadow-md hover:bg-accent" onClick={onReplyClick} onMouseDown={(e) => e.preventDefault()}><ReplyIcon className="h-4 w-4 text-foreground" /></Button>)}{canDelete && !isDeleted && (<div className="relative" ref={menuRef}><Button variant="ghost" size="icon" className="h-8 w-8 rounded-full bg-background border border-border shadow-md hover:bg-accent" onClick={() => setShowMenu(!showMenu)} onMouseDown={(e) => e.preventDefault()}><MoreVerticalIcon className="h-4 w-4 text-foreground" /></Button>{showMenu && (<div className="absolute top-full mt-1 right-0 bg-popover border border-border rounded-lg shadow-lg z-50 min-w-[150px]"><button onClick={() => { onDeleteClick(); setShowMenu(false); }} className="w-full px-4 py-2 text-left text-sm hover:bg-accent flex items-center gap-2 text-destructive"><TrashIcon />Delete Message</button></div>)}</div>)}</div> {showDeleteConfirm && (<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"><div className="bg-card border border-border rounded-lg p-6 max-w-sm mx-4 shadow-xl"><h3 className="text-lg font-semibold mb-2">Delete Message?</h3><p className="text-sm text-muted-foreground mb-4">This message will be deleted for everyone. This action cannot be undone.</p><div className="flex gap-2 justify-end"><Button variant="ghost" onClick={onCancelDelete}>Cancel</Button><Button variant="destructive" onClick={onConfirmDelete}>Delete</Button></div></div></div>)} </div> </div> </div>); }
+function MessageBubble({
+  message,
+  isSender,
+  isFirstInGroup,
+  isLastInGroup,
+  onReplyClick,
+  onReplyView,
+  onDeleteClick,
+  showDeleteConfirm,
+  onConfirmDelete,
+  onCancelDelete,
+  isMounted,
+  currentUserId,
+  onViewMedia,
+  onImageLoad,
+}) {
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef(null);
+
+  const timestamp = isMounted
+    ? new Date(message.createdAt).toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      })
+    : null;
+
+  const isDeleted = message.isDeleted === true;
+  const isSending = message.status === "sending";
+  const isRead =
+    message.readBy && message.readBy.some((id) => id !== currentUserId);
+
+  const canDelete =
+    message.sender === currentUserId || message.senderModel === "User";
+
+  const isAudio = message.contentType === "audio";
+  const isImage = message.contentType === "image";
+  const isPdf = message.contentType === "pdf";
+
+  // Close menu on outside click
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setShowMenu(false);
+      }
+    };
+
+    if (showMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [showMenu]);
+
+  return (
+    <div
+      id={`message-${message._id}`}
+      className={cn("flex w-full group", isFirstInGroup ? "mt-3" : "mt-1")}
+    >
+      <div className={cn("flex w-full", isSender ? "justify-end" : "justify-start")}>
+        <div
+          className={cn(
+            "px-4 py-2.5 pb-6 relative shadow-sm max-w-[75%]",
+            isSender
+              ? "bg-indigo-600 text-white"
+              : "bg-white text-zinc-800 border border-zinc-200",
+            "rounded-2xl",
+            !isFirstInGroup && isSender && "rounded-tr-md",
+            !isFirstInGroup && !isSender && "rounded-tl-md",
+            !isLastInGroup && isSender && "rounded-br-md",
+            !isLastInGroup && !isSender && "rounded-bl-md"
+          )}
+        >
+          {/* -------------------- REPLY PREVIEW -------------------- */}
+          {message.replyTo && !isDeleted && (
+            <button
+              onClick={() => onReplyView(message.replyTo._id)}
+              className={cn(
+                "block p-2.5 rounded-lg mb-2 w-full text-left border-l-4",
+                isSender
+                  ? "bg-black/10 border-white/50"
+                  : "bg-zinc-50 border-indigo-500"
+              )}
+            >
+              <p
+                className={cn(
+                  "font-semibold text-xs mb-1",
+                  isSender ? "text-white" : "text-indigo-600"
+                )}
+              >
+                {message.replyTo.senderModel === "User"
+                  ? "You"
+                  : message.replyTo.senderModel}
+              </p>
+
+              {message.replyTo.contentType === "image" ? (
+                <div className="flex items-center gap-2">
+                  <ImageIcon className="h-4 w-4" />
+                  <span className="text-xs opacity-80">Photo</span>
+                </div>
+              ) : message.replyTo.contentType === "pdf" ? (
+                <div className="flex items-center gap-2">
+                  <FileIcon className="h-4 w-4" />
+                  <span className="text-xs opacity-80">Document</span>
+                </div>
+              ) : (
+                <p
+                  className={cn(
+                    "text-sm truncate",
+                    isSender ? "text-white/80" : "text-zinc-600"
+                  )}
+                >
+                  {message.replyTo.content}
+                </p>
+              )}
+            </button>
+          )}
+
+          {/* -------------------- MESSAGE CONTENT -------------------- */}
+          {isDeleted ? (
+            <p className="italic text-sm opacity-70 select-none pointer-events-none">
+              🚫 This message was deleted
+            </p>
+          ) : isAudio ? (
+            <VoiceMessagePlayer src={message.content} isSender={isSender} />
+          ) : isImage ? (
+            <div
+              className="mb-1 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
+              onClick={() => onViewMedia(message.content, "image")}
+            >
+              <SmartImage
+                src={message.content}
+                alt="Shared image"
+                onLoad={onImageLoad}
+              />
+            </div>
+          ) : isPdf ? (
+            <a
+              href={message.content}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cn(
+                "flex items-center gap-3 p-3 rounded-lg transition-colors",
+                isSender
+                  ? "bg-white/10 hover:bg-white/20"
+                  : "bg-zinc-100 hover:bg-zinc-200"
+              )}
+            >
+              <div
+                className={cn(
+                  "p-2 rounded-full",
+                  isSender ? "bg-white/20" : "bg-white"
+                )}
+              >
+                <FileIcon className="h-5 w-5" />
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <p className="text-sm font-medium truncate">Document</p>
+                <p
+                  className={cn(
+                    "text-xs",
+                    isSender ? "text-white/80" : "text-zinc-500"
+                  )}
+                >
+                  Tap to view
+                </p>
+              </div>
+              <DownloadIcon className="h-4 w-4 opacity-70" />
+            </a>
+          ) : (
+            <p className="text-[15px] leading-relaxed break-words whitespace-pre-wrap pr-16">
+              {message.content}
+            </p>
+          )}
+
+          {/* -------------------- META (TIME + TICKS) -------------------- */}
+          <div className="absolute right-3 bottom-1.5 flex items-center gap-1">
+            <span
+              className={cn(
+                "text-[11px]",
+                isSender ? "text-white/70" : "text-zinc-400"
+              )}
+            >
+              {timestamp}
+            </span>
+
+            {isSender &&
+              (isSending ? (
+                <ClockIcon className="h-3 w-3 text-white/70" />
+              ) : (
+                <CheckCheckIcon
+                  className={cn(
+                    "h-3.5 w-3.5",
+                    isRead ? "text-blue-300" : "text-white/70"
+                  )}
+                />
+              ))}
+          </div>
+
+          {/* -------------------- ACTION BUTTONS -------------------- */}
+          {!isDeleted && (
+            <div
+              className={cn(
+                "absolute top-0 flex gap-1 transition-all opacity-0 group-hover:opacity-100",
+                isSender ? "-left-16" : "-right-16"
+              )}
+            >
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-full bg-white border border-zinc-200 shadow-md hover:bg-zinc-50"
+                onClick={onReplyClick}
+                onMouseDown={(e) => e.preventDefault()}
+              >
+                <ReplyIcon className="h-4 w-4 text-zinc-600" />
+              </Button>
+
+              {canDelete && (
+                <div className="relative" ref={menuRef}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-full bg-white border border-zinc-200 shadow-md hover:bg-zinc-50"
+                    onClick={() => setShowMenu(!showMenu)}
+                    onMouseDown={(e) => e.preventDefault()}
+                  >
+                    <MoreVerticalIcon className="h-4 w-4 text-zinc-600" />
+                  </Button>
+
+                  {showMenu && (
+                    <div className="absolute top-full mt-1 right-0 bg-white border border-zinc-200 rounded-lg shadow-lg z-50 min-w-[150px]">
+                      <button
+                        onClick={() => {
+                          onDeleteClick();
+                          setShowMenu(false);
+                        }}
+                        className="w-full px-4 py-2 text-left text-sm hover:bg-zinc-50 flex items-center gap-2 text-red-600"
+                      >
+                        <TrashIcon />
+                        Delete Message
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* -------------------- DELETE CONFIRM MODAL -------------------- */}
+          {showDeleteConfirm && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 max-w-sm mx-4 shadow-xl">
+                <h3 className="text-lg font-semibold mb-2">
+                  Delete Message?
+                </h3>
+                <p className="text-sm text-zinc-500 mb-4">
+                  This message will be deleted for everyone. This action cannot
+                  be undone.
+                </p>
+                <div className="flex gap-2 justify-end">
+                  <Button variant="ghost" onClick={onCancelDelete}>
+                    Cancel
+                  </Button>
+                  <Button variant="destructive" onClick={onConfirmDelete}>
+                    Delete
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ReplyPreview({ message, onCancel }) { const isImage = message.contentType === 'image'; const isPdf = message.contentType === 'pdf'; const isAudio = message.contentType === 'audio'; return (<div className="flex items-center justify-between p-3 mb-3 rounded-lg bg-accent border-l-4 border-primary"> <div className="flex-1 overflow-hidden"> <p className="font-semibold text-sm text-primary mb-1">Replying to {message.senderModel === "User" ? "yourself" : message.senderModel}</p> {isImage ? <div className="flex items-center gap-2"><ImageIcon className="h-4 w-4 text-muted-foreground" /><span className="text-sm text-muted-foreground">Photo</span></div> : isPdf ? <div className="flex items-center gap-2"><FileIcon className="h-4 w-4 text-muted-foreground" /><span className="text-sm text-muted-foreground">Document</span></div> : isAudio ? <div className="flex items-center gap-2"><MicIcon className="h-4 w-4 text-muted-foreground" /><span className="text-sm text-muted-foreground">Voice Message</span></div> : <p className="text-sm text-muted-foreground truncate">{message.content}</p>} </div> <Button variant="ghost" size="icon" onClick={onCancel} className="ml-2 hover:bg-background shrink-0"><XIcon className="h-5 w-5 text-muted-foreground" /></Button> </div>); }
