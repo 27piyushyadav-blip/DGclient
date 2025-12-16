@@ -1,10 +1,7 @@
 /*
  * File: src/pages/api/socket.js
- * SR-DEV: Production Socket Server (Premium Chat)
- * Architecture: User ↔ User (Expert is a User with ExpertProfile)
- * FIXED:
- * - Initial online status sync on join_room
- * - Prevents late-join "Offline" bug
+ * ROLE: Unified Socket Server (Chat + Video + Whiteboard)
+ * ARCH: User ↔ User (Expert is a User with ExpertProfile)
  */
 
 import { Server } from "socket.io";
@@ -51,9 +48,9 @@ const ioHandler = (req, res) => {
     io.on("connection", async (socket) => {
       const { userId, role } = socket.handshake.query;
 
-      /* -------------------------------------------------
-       * USER CONNECT → ONLINE STATUS
-       * ------------------------------------------------- */
+      /* =====================================================
+       * PRESENCE → CONNECT
+       * ===================================================== */
       if (userId) {
         socket.join(userId);
 
@@ -66,7 +63,6 @@ const ioHandler = (req, res) => {
               { isOnline: true, lastSeen: new Date() }
             );
           } else {
-            // [!code change] Update UserProfile instead of User
             await UserProfile.findOneAndUpdate(
               { user: userId },
               { isOnline: true, lastSeen: new Date() }
@@ -83,52 +79,96 @@ const ioHandler = (req, res) => {
         }
       }
 
-      /* -------------------------------------------------
-       * JOIN CONVERSATION (FIXED: SYNC STATUS ON JOIN)
-       * ------------------------------------------------- */
+      /* =====================================================
+       * CHAT → JOIN ROOM (SYNC OTHER USER STATUS)
+       * ===================================================== */
       socket.on("join_room", async (conversationId) => {
         if (!conversationId) return;
         socket.join(conversationId);
 
-        // ✅ FIX: Immediately fetch and emit the OTHER party's status to the joiner.
-        // This ensures that if the other user is ALREADY online, the UI updates immediately.
         try {
           await connectToDatabase();
           const conv = await Conversation.findById(conversationId);
-          
-          if (conv && userId) {
-            let targetId = null;
-            let statusData = null;
+          if (!conv || !userId) return;
 
-            // Determine who the "other" person is based on the joiner's role
-            if (role === 'expert') {
-              // Joiner is Expert -> They are talking to a USER
-              targetId = conv.userId;
-              // [!code change] Fetch from UserProfile
-              statusData = await UserProfile.findOne({ user: targetId }).select('isOnline lastSeen');
-            } else {
-              // Joiner is User -> They are talking to an EXPERT
-              targetId = conv.expertId;
-              statusData = await ExpertProfile.findById(targetId).select('isOnline lastSeen');
-            }
+          let targetId, statusData;
 
-            if (targetId && statusData) {
-              // Emit ONLY to the client who just joined (socket.emit, not broadcast)
-              socket.emit("userStatusChanged", {
-                userId: targetId.toString(),
-                isOnline: statusData.isOnline || false,
-                lastSeen: statusData.lastSeen ? statusData.lastSeen.toISOString() : new Date().toISOString()
-              });
-            }
+          if (role === "expert") {
+            targetId = conv.userId;
+            statusData = await UserProfile.findOne({ user: targetId }).select(
+              "isOnline lastSeen"
+            );
+          } else {
+            targetId = conv.expertId;
+            statusData = await ExpertProfile.findById(targetId).select(
+              "isOnline lastSeen"
+            );
+          }
+
+          if (targetId && statusData) {
+            socket.emit("userStatusChanged", {
+              userId: targetId.toString(),
+              isOnline: statusData.isOnline || false,
+              lastSeen:
+                statusData.lastSeen?.toISOString() ||
+                new Date().toISOString(),
+            });
           }
         } catch (err) {
-          console.error("[Socket] Join Sync Error:", err);
+          console.error("[Socket] Join sync error:", err);
         }
       });
 
-      /* -------------------------------------------------
-       * SEND MESSAGE
-       * ------------------------------------------------- */
+      /* =====================================================
+       * VIDEO CALL → WebRTC SIGNALING
+       * ===================================================== */
+      socket.on("join-video", (roomId) => {
+        socket.join(roomId);
+        socket.to(roomId).emit("wb-request-state", {
+          requesterId: socket.id,
+        });
+      });
+
+      socket.on("client-ready", (roomId) => {
+        socket.to(roomId).emit("user-connected", socket.id);
+      });
+
+      socket.on("offer", (payload) => {
+        socket.to(payload.roomId).emit("offer", payload);
+      });
+
+      socket.on("answer", (payload) => {
+        socket.to(payload.roomId).emit("answer", payload);
+      });
+
+      socket.on("ice-candidate", (payload) => {
+        socket.to(payload.roomId).emit("ice-candidate", payload);
+      });
+
+      /* =====================================================
+       * WHITEBOARD
+       * ===================================================== */
+      socket.on("wb-draw", (data) => {
+        socket.to(data.roomId).emit("wb-draw", data);
+      });
+
+      socket.on("wb-clear", (roomId) => {
+        socket.to(roomId).emit("wb-clear");
+      });
+
+      socket.on("wb-request-state", ({ roomId }) => {
+        socket.to(roomId).emit("wb-request-state", {
+          requesterId: socket.id,
+        });
+      });
+
+      socket.on("wb-send-state", ({ image, requesterId }) => {
+        io.to(requesterId).emit("wb-update-state", { image });
+      });
+
+      /* =====================================================
+       * CHAT → SEND MESSAGE
+       * ===================================================== */
       socket.on("send_message", async (data) => {
         const {
           conversationId,
@@ -143,7 +183,6 @@ const ioHandler = (req, res) => {
 
         try {
           await connectToDatabase();
-
           const conversation = await Conversation.findById(conversationId);
           if (!conversation) return;
 
@@ -159,59 +198,43 @@ const ioHandler = (req, res) => {
 
           await msg.populate("replyTo");
 
-          let preview = content;
-          if (contentType === "image") preview = "📷 Image";
-          else if (contentType === "audio") preview = "🎤 Audio Message";
-          else if (contentType === "pdf") preview = "📄 Document";
-
           const isSenderUser =
             senderId.toString() === conversation.userId.toString();
 
           await Conversation.findByIdAndUpdate(conversationId, {
-            lastMessage: preview,
+            lastMessage:
+              contentType === "text"
+                ? content
+                : contentType === "image"
+                ? "📷 Image"
+                : contentType === "audio"
+                ? "🎤 Audio"
+                : "📎 Attachment",
             lastMessageAt: msg.createdAt,
             lastMessageSender: senderId,
-            lastMessageStatus: "sent",
             $inc: {
               userUnreadCount: isSenderUser ? 0 : 1,
               expertUnreadCount: isSenderUser ? 1 : 0,
             },
           });
 
-          /* Normalize message object */
-          const msgObj = msg.toObject();
-          msgObj._id = msgObj._id.toString();
-          msgObj.sender = msgObj.sender.toString();
-          msgObj.conversationId = msgObj.conversationId.toString();
-          msgObj.readBy = msgObj.readBy.map((id) => id.toString());
-
-          if (msgObj.replyTo?._id) {
-            msgObj.replyTo._id = msgObj.replyTo._id.toString();
-          }
-
-          msgObj.createdAt = msgObj.createdAt.toISOString();
-          msgObj.updatedAt = msgObj.updatedAt.toISOString();
-
-          /* Message stream */
-          io.to(conversationId).emit("receive_message", msgObj);
-
-          /* Sidebar updates */
+          io.to(conversationId).emit("receive_message", msg);
           io.to(conversation.userId.toString()).emit(
             "receiveDirectMessage",
-            msgObj
+            msg
           );
           io.to(conversation.expertId.toString()).emit(
             "receiveDirectMessage",
-            msgObj
+            msg
           );
         } catch (err) {
           console.error("[Socket] send_message error:", err);
         }
       });
 
-      /* -------------------------------------------------
+      /* =====================================================
        * READ RECEIPTS
-       * ------------------------------------------------- */
+       * ===================================================== */
       socket.on("markAsRead", async ({ conversationId, userId }) => {
         try {
           await connectToDatabase();
@@ -228,8 +251,7 @@ const ioHandler = (req, res) => {
           const conv = await Conversation.findById(conversationId);
           if (!conv) return;
 
-          const isUser =
-            userId.toString() === conv.userId.toString();
+          const isUser = userId.toString() === conv.userId.toString();
 
           await Conversation.findByIdAndUpdate(conversationId, {
             [isUser ? "userUnreadCount" : "expertUnreadCount"]: 0,
@@ -244,55 +266,25 @@ const ioHandler = (req, res) => {
         }
       });
 
-      socket.on("getUserPresence", async ({ userId }) => {
-        try {
-          if (!userId) return;
-
-          // 1. Check role first to decide which table to look in
-          const userMeta = await User.findById(userId).select("role").lean();
-          if (!userMeta) return;
-
-          let statusData = null;
-
-          if (userMeta.role === 'expert') {
-             statusData = await ExpertProfile.findOne({ user: userId }).select("isOnline lastSeen").lean();
-          } else {
-             statusData = await UserProfile.findOne({ user: userId }).select("isOnline lastSeen").lean();
-          }
-      
-          // 🔑 Send presence ONLY to requester
-          socket.emit("userPresence", {
-            userId,
-            isOnline: statusData?.isOnline || false,
-            lastSeen: statusData?.lastSeen || null,
-          });
-        } catch (err) {
-          console.error("getUserPresence error:", err);
-        }
+      /* =====================================================
+       * TYPING
+       * ===================================================== */
+      socket.on("typing", (data) => {
+        socket.to(data.conversationId).emit("typing", data);
       });
 
-      /* -------------------------------------------------
-       * TYPING
-       * ------------------------------------------------- */
-      socket.on("typing", (data) =>
-        socket.to(data.conversationId).emit("typing", data)
-      );
+      socket.on("stopTyping", (data) => {
+        socket.to(data.conversationId).emit("stopTyping", data);
+      });
 
-      socket.on("stopTyping", (data) =>
-        socket.to(data.conversationId).emit("stopTyping", data)
-      );
-
-      /* -------------------------------------------------
-       * DELETE MESSAGE (OWNERSHIP GUARDED)
-       * ------------------------------------------------- */
+      /* =====================================================
+       * DELETE MESSAGE
+       * ===================================================== */
       socket.on("deleteMessage", async ({ conversationId, messageId }) => {
         try {
           await connectToDatabase();
-
           const msg = await Message.findById(messageId);
-          if (!msg) return;
-
-          if (msg.sender.toString() !== userId) return;
+          if (!msg || msg.sender.toString() !== userId) return;
 
           await Message.findByIdAndUpdate(messageId, {
             isDeleted: true,
@@ -308,9 +300,9 @@ const ioHandler = (req, res) => {
         }
       });
 
-      /* -------------------------------------------------
-       * DISCONNECT → OFFLINE
-       * ------------------------------------------------- */
+      /* =====================================================
+       * PRESENCE → DISCONNECT
+       * ===================================================== */
       socket.on("disconnect", async () => {
         if (!userId) return;
 
@@ -323,7 +315,6 @@ const ioHandler = (req, res) => {
               { isOnline: false, lastSeen: new Date() }
             );
           } else {
-            // [!code change] Update UserProfile instead of User
             await UserProfile.findOneAndUpdate(
               { user: userId },
               { isOnline: false, lastSeen: new Date() }

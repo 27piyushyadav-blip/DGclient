@@ -170,6 +170,15 @@ export default function AppointmentCard({ appointment, onCancelClick }) {
                </Link>
             )}
 
+            {/* [!code ++] TEMPORARY: Test Button for Video Call */}
+            {isVideoCall && (
+               <Link href={`/video-call/${appointment._id}`} target="_blank">
+                  <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-sm h-9 gap-2 mt-1">
+                     <Video className="w-4 h-4" /> Join Call (Test Mode)
+                  </Button>
+               </Link>
+            )}
+
             {/* 2. Cancel Button (Secondary) */}
             {isUpcoming && !canJoin && (
                <Button variant="outline" size="sm" onClick={onCancelClick} className="w-full justify-center h-9 border-zinc-300 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
