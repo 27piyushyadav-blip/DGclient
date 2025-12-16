@@ -1,12 +1,19 @@
 /*
  * File: src/components/video/Whiteboard.js
- * SR-DEV: Collaborative Whiteboard Component
+ * Mindnamo – Client / User Side Whiteboard
+ *
  * FEATURES:
- * - Realtime drawing sync
+ * - Realtime drawing sync (wb-draw)
  * - White background export
  * - Parent capture via ref
- * - Resize safe redraw
+ * - Resize-safe redraw
  * - Expert cursor watermark (wb-cursor)
+ *
+ * FIXES:
+ * - Proper handling of `hidden` cursor flag
+ * - Prevents NaN / undefined cursor coordinates
+ * - Cursor never blocks drawing (pointer-events-none)
+ * - Safe conditional rendering
  */
 
 "use client";
@@ -27,7 +34,7 @@ const COLORS = [
   { id: "green", hex: "#22c55e" },
 ];
 
-// 🔁 Replace with your actual transparent logo
+// Replace with actual expert logo
 const EXPERT_WATERMARK_URL = "https://github.com/shadcn.png";
 
 /* ----------------------------------------
@@ -60,6 +67,8 @@ export default function Whiteboard({ socket, roomId, canvasRef }) {
 
   const [activeColor, setActiveColor] = useState("#000000");
   const [isEraser, setIsEraser] = useState(false);
+
+  // Remote expert cursor
   const [remoteCursor, setRemoteCursor] = useState(null);
 
   // Drawing refs
@@ -121,8 +130,13 @@ export default function Whiteboard({ socket, roomId, canvasRef }) {
       img.src = image;
     };
 
-    const onCursor = ({ x, y }) => {
-      setRemoteCursor({ x, y });
+    // ✅ Correctly handles hidden flag
+    const onCursor = ({ x, y, hidden }) => {
+      if (hidden) {
+        setRemoteCursor(null);
+      } else if (typeof x === "number" && typeof y === "number") {
+        setRemoteCursor({ x, y });
+      }
     };
 
     socket.on("wb-draw", onDraw);
@@ -163,7 +177,6 @@ export default function Whiteboard({ socket, roomId, canvasRef }) {
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(temp, 0, 0, canvas.width, canvas.height);
-
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
     };
@@ -290,12 +303,12 @@ export default function Whiteboard({ socket, roomId, canvasRef }) {
         onTouchEnd={stopDrawing}
       />
 
-      {/* Expert Cursor Watermark */}
+      {/* ✅ Expert Cursor Watermark */}
       {remoteCursor && containerRef.current && (
         <img
           src={EXPERT_WATERMARK_URL}
           alt="Expert Cursor"
-          className="absolute w-8 h-8 rounded-full border-2 border-indigo-500 shadow-md opacity-70 pointer-events-none z-50"
+          className="absolute w-8 h-8 rounded-full border-2 border-indigo-500 shadow-md opacity-80 z-50 pointer-events-none transition-all duration-75 ease-out"
           style={{
             left: `${remoteCursor.x * containerRef.current.offsetWidth}px`,
             top: `${remoteCursor.y * containerRef.current.offsetHeight}px`,
@@ -328,15 +341,12 @@ export default function Whiteboard({ socket, roomId, canvasRef }) {
         <Button size="icon" onClick={() => setIsEraser(false)}>
           <Pen className="w-4 h-4" />
         </Button>
-
         <Button size="icon" onClick={() => setIsEraser(true)}>
           <Eraser className="w-4 h-4" />
         </Button>
-
         <Button size="icon" onClick={() => clearCanvas(true)}>
           <Trash2 className="w-4 h-4 text-red-600" />
         </Button>
-
         <Button size="icon" onClick={handleDownload}>
           <Download className="w-4 h-4" />
         </Button>
