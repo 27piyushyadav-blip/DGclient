@@ -1,15 +1,24 @@
 /*
  * File: src/components/video/Whiteboard.js
  * SR-DEV: Collaborative Whiteboard Component
- * ACTION: ADDED handleCaptureDataURL function for parent component access via ref.
+ * FEATURES:
+ * - Realtime drawing sync
+ * - White background export
+ * - Parent capture via ref
+ * - Resize safe redraw
+ * - Expert cursor watermark (wb-cursor)
  */
 
 "use client";
 
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Pen, Eraser, Trash2, Download, Undo } from "lucide-react";
+import { Pen, Eraser, Trash2, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+/* ----------------------------------------
+ * Config
+ * -------------------------------------- */
 
 const COLORS = [
   { id: "black", hex: "#000000" },
@@ -18,106 +27,110 @@ const COLORS = [
   { id: "green", hex: "#22c55e" },
 ];
 
-// Helper function to capture image data URL with white background
-const captureCanvasDataURL = (canvas) => {
-    if (!canvas) return null;
-    
-    // Create a temporary canvas
-    const tempCanvas = document.createElement("canvas");
-    tempCanvas.width = canvas.width;
-    tempCanvas.height = canvas.height;
-    const tempCtx = tempCanvas.getContext("2d");
-    
-    // Fill background with white (since main canvas is transparent by default)
-    tempCtx.fillStyle = "#ffffff";
-    tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-    
-    // Draw existing content from the main canvas
-    tempCtx.drawImage(canvas, 0, 0);
+// 🔁 Replace with your actual transparent logo
+const EXPERT_WATERMARK_URL = "https://github.com/shadcn.png";
 
-    return tempCanvas.toDataURL('image/png');
+/* ----------------------------------------
+ * Helpers
+ * -------------------------------------- */
+
+// Export canvas with white background
+const captureCanvasDataURL = (canvas) => {
+  if (!canvas) return null;
+
+  const temp = document.createElement("canvas");
+  temp.width = canvas.width;
+  temp.height = canvas.height;
+
+  const ctx = temp.getContext("2d");
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, temp.width, temp.height);
+  ctx.drawImage(canvas, 0, 0);
+
+  return temp.toDataURL("image/png");
 };
 
+/* ----------------------------------------
+ * Component
+ * -------------------------------------- */
 
 export default function Whiteboard({ socket, roomId, canvasRef }) {
-  const localCanvasRef = useRef(null); 
+  const localCanvasRef = useRef(null);
   const containerRef = useRef(null);
+
   const [activeColor, setActiveColor] = useState("#000000");
   const [isEraser, setIsEraser] = useState(false);
-  
-  // Drawing State
+  const [remoteCursor, setRemoteCursor] = useState(null);
+
+  // Drawing refs
   const isDrawing = useRef(false);
   const lastX = useRef(0);
   const lastY = useRef(0);
 
-  // Expose the capture function to the parent component via the ref prop
+  /* ----------------------------------------
+   * Expose API to parent
+   * -------------------------------------- */
   useEffect(() => {
-    if (canvasRef) {
-      canvasRef.current = {
-        getWhiteboardDataURL: () => captureCanvasDataURL(localCanvasRef.current),
-        element: localCanvasRef.current
-      };
-    }
-  }, [canvasRef, localCanvasRef.current]); 
+    if (!canvasRef) return;
 
+    canvasRef.current = {
+      element: localCanvasRef.current,
+      getWhiteboardDataURL: () =>
+        captureCanvasDataURL(localCanvasRef.current),
+    };
+  }, [canvasRef]);
 
-  // --- 1. Socket Event Listeners ---
+  /* ----------------------------------------
+   * Socket Listeners
+   * -------------------------------------- */
   useEffect(() => {
     if (!socket) return;
 
-    // Handle incoming draw events
     const onDraw = ({ x0, y0, x1, y1, color, width }) => {
       const canvas = localCanvasRef.current;
       if (!canvas) return;
+
       drawLine(
-        x0 * canvas.width, 
-        y0 * canvas.height, 
-        x1 * canvas.width, 
-        y1 * canvas.height, 
-        color, 
-        width, 
-        false // Do not emit back
+        x0 * canvas.width,
+        y0 * canvas.height,
+        x1 * canvas.width,
+        y1 * canvas.height,
+        color,
+        width,
+        false
       );
     };
 
-    // Handle clear board
-    const onClear = () => {
-      const canvas = localCanvasRef.current;
-      if (!canvas) return;
-      const ctx = canvas.getContext("2d");
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    };
+    const onClear = () => clearCanvas(false);
 
-    // Handle state sync request (New user joined)
     const onRequestState = ({ requesterId }) => {
-      const canvas = localCanvasRef.current;
-      if (!canvas) return;
-      // Send current canvas as image data URL
-      const image = captureCanvasDataURL(canvas);
+      const image = captureCanvasDataURL(localCanvasRef.current);
       socket.emit("wb-send-state", { roomId, image, requesterId });
     };
 
-    // Handle state update (I am the new user)
     const onUpdateState = ({ image }) => {
       const canvas = localCanvasRef.current;
       if (!canvas) return;
+
       const img = new Image();
       img.onload = () => {
         const ctx = canvas.getContext("2d");
-        ctx.clearRect(0, 0, canvas.width, canvas.height); 
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0);
       };
       img.src = image;
+    };
+
+    const onCursor = ({ x, y }) => {
+      setRemoteCursor({ x, y });
     };
 
     socket.on("wb-draw", onDraw);
     socket.on("wb-clear", onClear);
     socket.on("wb-request-state", onRequestState);
     socket.on("wb-update-state", onUpdateState);
+    socket.on("wb-cursor", onCursor);
 
-    // Request initial state when mounting
     socket.emit("wb-request-state", roomId);
 
     return () => {
@@ -125,76 +138,68 @@ export default function Whiteboard({ socket, roomId, canvasRef }) {
       socket.off("wb-clear", onClear);
       socket.off("wb-request-state", onRequestState);
       socket.off("wb-update-state", onUpdateState);
+      socket.off("wb-cursor", onCursor);
     };
-  }, [socket, roomId, canvasRef]); 
+  }, [socket, roomId]);
 
-  // --- 2. Resize Logic ---
+  /* ----------------------------------------
+   * Resize Handling
+   * -------------------------------------- */
   useEffect(() => {
     const canvas = localCanvasRef.current;
     const container = containerRef.current;
     if (!canvas || !container) return;
 
     const resize = () => {
-      // Save current content
-      const tempCanvas = document.createElement("canvas");
-      const tempCtx = tempCanvas.getContext("2d");
-      tempCanvas.width = canvas.width;
-      tempCanvas.height = canvas.height;
-      tempCtx.drawImage(canvas, 0, 0);
+      const temp = document.createElement("canvas");
+      temp.width = canvas.width;
+      temp.height = canvas.height;
+      temp.getContext("2d").drawImage(canvas, 0, 0);
 
-      // Resize
       canvas.width = container.offsetWidth;
       canvas.height = container.offsetHeight;
 
-      // Restore content (scaled)
       const ctx = canvas.getContext("2d");
-      // Set white background initially
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
-      ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
-      
-      // Set defaults again as context resets on resize
+      ctx.drawImage(temp, 0, 0, canvas.width, canvas.height);
+
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
     };
 
     const observer = new ResizeObserver(resize);
     observer.observe(container);
-    
-    // Initial resize call
-    resize(); 
+    resize();
 
     return () => observer.disconnect();
   }, []);
 
-  // --- 3. Drawing Helpers ---
-  
+  /* ----------------------------------------
+   * Drawing Logic
+   * -------------------------------------- */
   const drawLine = (x0, y0, x1, y1, color, width, emit = true) => {
     const canvas = localCanvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d");
 
+    const ctx = canvas.getContext("2d");
     ctx.beginPath();
     ctx.moveTo(x0, y0);
     ctx.lineTo(x1, y1);
     ctx.strokeStyle = color;
     ctx.lineWidth = width;
-    ctx.lineCap = "round";
     ctx.stroke();
     ctx.closePath();
 
     if (emit && socket) {
-      const w = canvas.width;
-      const h = canvas.height;
       socket.emit("wb-draw", {
         roomId,
-        x0: x0 / w, // Normalize coordinates (0-1)
-        y0: y0 / h,
-        x1: x1 / w,
-        y1: y1 / h,
+        x0: x0 / canvas.width,
+        y0: y0 / canvas.height,
+        x1: x1 / canvas.width,
+        y1: y1 / canvas.height,
         color,
-        width
+        width,
       });
     }
   };
@@ -202,70 +207,77 @@ export default function Whiteboard({ socket, roomId, canvasRef }) {
   const startDrawing = (e) => {
     const canvas = localCanvasRef.current;
     if (!canvas) return;
-    
+
     isDrawing.current = true;
-    
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    
+
     const rect = canvas.getBoundingClientRect();
-    lastX.current = clientX - rect.left;
-    lastY.current = clientY - rect.top;
+    const x = e.touches ? e.touches[0].clientX : e.clientX;
+    const y = e.touches ? e.touches[0].clientY : e.clientY;
+
+    lastX.current = x - rect.left;
+    lastY.current = y - rect.top;
   };
 
   const draw = (e) => {
     if (!isDrawing.current) return;
-    e.preventDefault(); 
+    e.preventDefault();
 
     const canvas = localCanvasRef.current;
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    
     const rect = canvas.getBoundingClientRect();
-    const currentX = clientX - rect.left;
-    const currentY = clientY - rect.top;
+    const x = e.touches ? e.touches[0].clientX : e.clientX;
+    const y = e.touches ? e.touches[0].clientY : e.clientY;
+
+    const cx = x - rect.left;
+    const cy = y - rect.top;
 
     drawLine(
-      lastX.current, 
-      lastY.current, 
-      currentX, 
-      currentY, 
-      isEraser ? "#FFFFFF" : activeColor, 
-      isEraser ? 20 : 3, 
+      lastX.current,
+      lastY.current,
+      cx,
+      cy,
+      isEraser ? "#ffffff" : activeColor,
+      isEraser ? 20 : 3,
       true
     );
 
-    lastX.current = currentX;
-    lastY.current = currentY;
+    lastX.current = cx;
+    lastY.current = cy;
   };
 
   const stopDrawing = () => {
     isDrawing.current = false;
   };
 
-  const handleClear = () => {
+  const clearCanvas = (emit = true) => {
     const canvas = localCanvasRef.current;
     if (!canvas) return;
+
     const ctx = canvas.getContext("2d");
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    if (socket) socket.emit("wb-clear", roomId);
+
+    if (emit && socket) socket.emit("wb-clear", roomId);
   };
 
   const handleDownload = () => {
     const dataURL = captureCanvasDataURL(localCanvasRef.current);
     if (!dataURL) return;
+
     const link = document.createElement("a");
-    link.download = `mind-namo-whiteboard-${Date.now()}.png`;
+    link.download = `mindnamo-whiteboard-${Date.now()}.png`;
     link.href = dataURL;
     link.click();
   };
 
+  /* ----------------------------------------
+   * Render
+   * -------------------------------------- */
   return (
-    <div ref={containerRef} className="relative w-full h-full bg-white rounded-lg overflow-hidden shadow-inner cursor-crosshair">
-      
+    <div
+      ref={containerRef}
+      className="relative w-full h-full bg-white rounded-lg overflow-hidden shadow-inner cursor-crosshair"
+    >
       <canvas
         ref={localCanvasRef}
         className="block touch-none"
@@ -278,72 +290,61 @@ export default function Whiteboard({ socket, roomId, canvasRef }) {
         onTouchEnd={stopDrawing}
       />
 
-      {/* Floating Toolbar */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 shadow-lg rounded-full p-2 flex items-center gap-2 z-30">
-        
-        {/* Colors */}
-        <div className="flex gap-1 pr-2 border-r border-zinc-200 dark:border-zinc-700">
+      {/* Expert Cursor Watermark */}
+      {remoteCursor && containerRef.current && (
+        <img
+          src={EXPERT_WATERMARK_URL}
+          alt="Expert Cursor"
+          className="absolute w-8 h-8 rounded-full border-2 border-indigo-500 shadow-md opacity-70 pointer-events-none z-50"
+          style={{
+            left: `${remoteCursor.x * containerRef.current.offsetWidth}px`,
+            top: `${remoteCursor.y * containerRef.current.offsetHeight}px`,
+            transform: "translate(10px, 10px)",
+          }}
+        />
+      )}
+
+      {/* Toolbar */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white border shadow-lg rounded-full p-2 flex items-center gap-2 z-30">
+        <div className="flex gap-1 pr-2 border-r">
           {COLORS.map((c) => (
             <button
               key={c.id}
-              onClick={() => { setActiveColor(c.hex); setIsEraser(false); }}
+              onClick={() => {
+                setActiveColor(c.hex);
+                setIsEraser(false);
+              }}
               className={cn(
-                "w-6 h-6 rounded-full border-2 transition-transform hover:scale-110",
-                activeColor === c.hex && !isEraser ? "border-zinc-900 dark:border-white scale-110" : "border-transparent"
+                "w-6 h-6 rounded-full border-2",
+                activeColor === c.hex && !isEraser
+                  ? "border-black scale-110"
+                  : "border-transparent"
               )}
               style={{ backgroundColor: c.hex }}
-              aria-label={`Select ${c.id}`}
             />
           ))}
         </div>
 
-        {/* Tools */}
-        <Button 
-          variant={!isEraser && activeColor === "#000000" ? "secondary" : "ghost"}
-          size="icon" 
-          className="h-8 w-8 rounded-full"
-          onClick={() => { setActiveColor("#000000"); setIsEraser(false); }}
-          title="Pen Tool"
-        >
+        <Button size="icon" onClick={() => setIsEraser(false)}>
           <Pen className="w-4 h-4" />
         </Button>
 
-        <Button 
-          variant={isEraser ? "secondary" : "ghost"} 
-          size="icon" 
-          className="h-8 w-8 rounded-full"
-          onClick={() => setIsEraser(!isEraser)}
-          title="Eraser"
-        >
+        <Button size="icon" onClick={() => setIsEraser(true)}>
           <Eraser className="w-4 h-4" />
         </Button>
 
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className="h-8 w-8 rounded-full text-red-600 hover:text-red-700 hover:bg-red-50/50"
-          onClick={handleClear}
-          title="Clear Board"
-        >
-          <Trash2 className="w-4 h-4" />
+        <Button size="icon" onClick={() => clearCanvas(true)}>
+          <Trash2 className="w-4 h-4 text-red-600" />
         </Button>
 
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className="h-8 w-8 rounded-full text-zinc-500"
-          onClick={handleDownload}
-          title="Save Image"
-        >
+        <Button size="icon" onClick={handleDownload}>
           <Download className="w-4 h-4" />
         </Button>
-
-      </div>
-      
-      <div className="absolute bottom-4 left-4 bg-black/5 text-[10px] text-black/50 px-2 py-1 rounded pointer-events-none">
-         Synced • {roomId}
       </div>
 
+      <div className="absolute bottom-4 left-4 text-[10px] text-black/50">
+        Synced • {roomId}
+      </div>
     </div>
   );
 }

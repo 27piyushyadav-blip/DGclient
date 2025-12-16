@@ -74,22 +74,25 @@ export default function AppointmentCard({ appointment, onCancelClick }) {
 
   useEffect(() => {
     if (!isUpcoming || !isVideoCall || !appointment.meetingId) {
+      // Keep this check to ensure we have a meeting ID and it's not cancelled
       setCanJoin(false);
       return;
     }
 
     const checkTime = () => {
+      // ---------------------------------------------
+      // TEMP: FOR TESTING - ALWAYS ALLOW JOIN
+      // ---------------------------------------------
+      setCanJoin(true); 
+      
+      /* ORIGINAL LOGIC (Commented out for testing)
       const now = new Date();
-
-      // Combine date + time safely
       const start = new Date(
         `${appointment.appointmentDate.split("T")[0]}T${timeString}:00`
       );
-
       const diffMins = (start - now) / 60000;
-
-      // Allow join: 10 mins before → until duration ends
       setCanJoin(diffMins <= 10 && diffMins > -duration);
+      */
     };
 
     checkTime();
