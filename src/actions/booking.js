@@ -1,8 +1,10 @@
 /*
  * File: src/actions/booking.js
- * FIXED: Migration to ExpertProfile + User architecture
- *       + Correct availability/leaves logic
- *       + Correct expertId / expertProfileId mapping
+ * FIXED:
+ * - ExpertProfile + User architecture
+ * - Availability + leave validation
+ * - Prevent double booking
+ * - Video-call room consistency using Appointment _id
  */
 
 "use server";
@@ -11,9 +13,10 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/lib/db";
 
-import ExpertProfile from "@/models/ExpertProfile";   // FIXED: Use Profile instead of Expert
+import ExpertProfile from "@/models/ExpertProfile";
 import User from "@/models/User";
 import Appointment from "@/models/Appointment";
+import mongoose from "mongoose";
 
 import { revalidatePath } from "next/cache";
 import { sendEmail } from "@/lib/nodemailer";
@@ -34,10 +37,12 @@ async function validateBookingRequest(
   try {
     await connectToDatabase();
 
-    // Extract day name (Mon, Tue...)
-    const dayName = formatInTimeZone(fullAppointmentDateTime, "UTC", "EEEE");
+    const dayName = formatInTimeZone(
+      fullAppointmentDateTime,
+      "UTC",
+      "EEEE"
+    );
 
-    // 1. Fetch ExpertProfile + Linked User (identity)
     const expert = await ExpertProfile.findById(expertProfileId)
       .populate({
         path: "user",
@@ -49,68 +54,73 @@ async function validateBookingRequest(
     if (!expert || !expert.user)
       return { error: "Expert not found or unavailable." };
 
-    // 2. Validate Service
-    const service = expert.services?.find((s) => s.name === serviceName);
+    const service = expert.services?.find(
+      (s) => s.name === serviceName
+    );
     if (!service) return { error: "Service not found." };
 
     const price =
-      type === "Video Call" ? service.videoPrice : service.clinicPrice;
+      type === "Video Call"
+        ? service.videoPrice
+        : service.clinicPrice;
 
     if (price == null)
       return { error: "This appointment type is not available." };
 
-    // 3. Reject Past Dates
     if (fullAppointmentDateTime < new Date())
       return { error: "Cannot book a past time." };
 
-    // 4. Validate Leave Ranges
     const isOnLeave = expert.leaves?.some((leave) => {
       const start = new Date(leave.startDate);
       const end = new Date(leave.endDate);
-
       start.setHours(0, 0, 0, 0);
       end.setHours(23, 59, 59, 999);
 
       return (
-        fullAppointmentDateTime.getTime() >= start.getTime() &&
-        fullAppointmentDateTime.getTime() <= end.getTime()
+        fullAppointmentDateTime >= start &&
+        fullAppointmentDateTime <= end
       );
     });
 
-    if (isOnLeave) return { error: "Expert is on leave on this date." };
+    if (isOnLeave)
+      return { error: "Expert is on leave on this date." };
 
-    // 5. Validate Availability
     const slot = expert.availability?.find(
       (s) => s.dayOfWeek === dayName
     );
 
     if (!slot)
-      return { error: `${expert.user.name} is not available on ${dayName}.` };
+      return {
+        error: `${expert.user.name} is not available on ${dayName}.`,
+      };
 
     const [startH, startM] = slot.startTime.split(":").map(Number);
     const [endH, endM] = slot.endTime.split(":").map(Number);
-
-    const [apptH, apptM] = clientLocalTimeString.split(":").map(Number);
+    const [apptH, apptM] = clientLocalTimeString
+      .split(":")
+      .map(Number);
 
     const startMin = startH * 60 + startM;
     const endMin = endH * 60 + endM;
-
     const apptMin = apptH * 60 + apptM;
     const apptEndMin = apptMin + duration;
 
     if (apptMin < startMin || apptEndMin > endMin)
-      return { error: "Selected time is outside availability window." };
+      return {
+        error: "Selected time is outside availability window.",
+      };
 
-    // 6. Prevent Double Booking
     const conflict = await Appointment.findOne({
       expertProfileId,
       appointmentDate: fullAppointmentDateTime,
       status: { $in: ["pending", "confirmed"] },
     });
 
-    if (conflict) return { error: "This slot was just booked by someone else." };
+    if (conflict)
+      return {
+        error: "This slot was just booked by someone else.",
+      };
 
-    // SUCCESS
     return {
       success: true,
       data: {
@@ -125,8 +135,8 @@ async function validateBookingRequest(
         time: clientLocalTimeString,
       },
     };
-  } catch (e) {
-    console.error("VALIDATION ERROR:", e);
+  } catch (err) {
+    console.error("VALIDATION ERROR:", err);
     return { error: "Server validation failed." };
   }
 }
@@ -147,7 +157,7 @@ export async function createAppointmentAction(bookingData) {
   );
 
   const validation = await validateBookingRequest(
-    bookingData.expertId, // Profile ID from URL
+    bookingData.expertId,
     bookingData.serviceName,
     bookingData.type,
     fullAppointmentDateTime,
@@ -161,10 +171,14 @@ export async function createAppointmentAction(bookingData) {
   const { data } = validation;
 
   try {
+    // ✅ Generate appointment ID upfront (room ID)
+    const appointmentId = new mongoose.Types.ObjectId();
+
     const appt = await Appointment.create({
+      _id: appointmentId,
       userId: session.user.id,
-      expertId: data.expertUserId, // USER ID (identity)
-      expertProfileId: bookingData.expertId, // PROFILE ID
+      expertId: data.expertUserId,
+      expertProfileId: bookingData.expertId,
 
       appointmentDate: data.fullAppointmentDateTime,
       appointmentTime: bookingData.time,
@@ -179,11 +193,10 @@ export async function createAppointmentAction(bookingData) {
 
       meetingLink:
         bookingData.type === "Video Call"
-          ? `${process.env.APP_URL}/video-call/${Date.now()}`
+          ? `${process.env.APP_URL}/video-call/${appointmentId}`
           : null,
     });
 
-    // EMAIL
     const formattedDate = formatInTimeZone(
       data.fullAppointmentDateTime,
       bookingData.timezone,
@@ -211,9 +224,12 @@ export async function createAppointmentAction(bookingData) {
 
     revalidatePath("/appointments");
 
-    return { success: true, appointmentId: appt._id.toString() };
-  } catch (e) {
-    console.error("CREATE APPOINTMENT ERROR:", e);
+    return {
+      success: true,
+      appointmentId: appt._id.toString(),
+    };
+  } catch (err) {
+    console.error("CREATE APPOINTMENT ERROR:", err);
     return { success: false, message: "Failed to create appointment." };
   }
 }
@@ -221,7 +237,10 @@ export async function createAppointmentAction(bookingData) {
 /* -----------------------------------------------------
  * CANCEL APPOINTMENT
  * ----------------------------------------------------- */
-export async function cancelAppointmentAction({ appointmentId, reason }) {
+export async function cancelAppointmentAction({
+  appointmentId,
+  reason,
+}) {
   const session = await getServerSession(authOptions);
   if (!session?.user)
     return { success: false, message: "Unauthorized." };
@@ -236,7 +255,8 @@ export async function cancelAppointmentAction({ appointmentId, reason }) {
     userId: session.user.id,
   }).populate("expertId", "name");
 
-  if (!appt) return { success: false, message: "Appointment not found." };
+  if (!appt)
+    return { success: false, message: "Appointment not found." };
 
   if (appt.status === "cancelled")
     return { success: false, message: "Already cancelled." };
