@@ -91,9 +91,11 @@ const AppointmentSchema = new mongoose.Schema(
     // ---------------------------
     // SESSION META
     // ---------------------------
-    meetingLink: {
+    meetingId: {
       type: String,
-      trim: true,
+      unique: true,
+      sparse: true,
+      index: true,
     },
 
     whiteboardUrl: {
