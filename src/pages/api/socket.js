@@ -148,20 +148,30 @@ const ioHandler = (req, res) => {
       /* =====================================================
        * WHITEBOARD
        * ===================================================== */
+      // Draw relay
       socket.on("wb-draw", (data) => {
         socket.to(data.roomId).emit("wb-draw", data);
       });
 
+      // Cursor relay (expert cursor watermark)
+      socket.on("wb-cursor", (data) => {
+        // data = { roomId, x, y }
+        socket.to(data.roomId).emit("wb-cursor", data);
+      });
+
+      // Clear board
       socket.on("wb-clear", (roomId) => {
         socket.to(roomId).emit("wb-clear");
       });
 
-      socket.on("wb-request-state", ({ roomId }) => {
+      // ✅ FIXED: Request whiteboard state
+      socket.on("wb-request-state", (roomId) => {
         socket.to(roomId).emit("wb-request-state", {
           requesterId: socket.id,
         });
       });
 
+      // Send board snapshot to requester
       socket.on("wb-send-state", ({ image, requesterId }) => {
         io.to(requesterId).emit("wb-update-state", { image });
       });
@@ -206,10 +216,10 @@ const ioHandler = (req, res) => {
               contentType === "text"
                 ? content
                 : contentType === "image"
-                ? "📷 Image"
-                : contentType === "audio"
-                ? "🎤 Audio"
-                : "📎 Attachment",
+                  ? "📷 Image"
+                  : contentType === "audio"
+                    ? "🎤 Audio"
+                    : "📎 Attachment",
             lastMessageAt: msg.createdAt,
             lastMessageSender: senderId,
             $inc: {
