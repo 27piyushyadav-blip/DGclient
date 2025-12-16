@@ -1,12 +1,5 @@
 /*
  * File: src/components/video/Whiteboard.js
- * Mindnamo – Client / User Side Whiteboard
- *
- * BEHAVIOR:
- * - Realtime drawing sync (wb-draw)
- * - Watermark auto-follows the latest drawn stroke (local + remote)
- * - Watermark offset bottom-right of stroke head
- * - No cursor logic, no timers, no hover tracking
  */
 
 "use client";
@@ -60,13 +53,13 @@ export default function Whiteboard({ socket, roomId, canvasRef }) {
   const localCanvasRef = useRef(null);
   const containerRef = useRef(null);
 
-  const canvasSizeRef = useRef({ width: 0, height: 0 });
+  const watermarkRef = useRef(null);
+
+  // FIX: Use state for dimensions so updates trigger a re-render
+  const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
 
   const [activeColor, setActiveColor] = useState("#000000");
   const [isEraser, setIsEraser] = useState(false);
-
-  // 🔑 Single source of truth for watermark
-  // normalized (0 → 1)
   const [watermarkPos, setWatermarkPos] = useState(null);
 
   const isDrawing = useRef(false);
@@ -165,10 +158,11 @@ export default function Whiteboard({ socket, roomId, canvasRef }) {
       canvas.width = container.offsetWidth;
       canvas.height = container.offsetHeight;
 
-      canvasSizeRef.current = {
+      // FIX: Update state instead of ref
+      setCanvasSize({
         width: canvas.width,
         height: canvas.height,
-      };
+      });
 
       const ctx = canvas.getContext("2d");
       ctx.fillStyle = "#ffffff";
@@ -185,14 +179,47 @@ export default function Whiteboard({ socket, roomId, canvasRef }) {
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    // This runs whenever the watermark position or canvas size changes
+
+    
+    if (watermarkPos) {
+      const { width, height } = canvasSize;
+      
+      const calculatedLeft = clamp(
+        watermarkPos.x * width + WATERMARK_OFFSET,
+        0,
+        width - WATERMARK_SIZE
+      );
+      
+      const calculatedTop = clamp(
+        watermarkPos.y * height + WATERMARK_OFFSET,
+        0,
+        height - WATERMARK_SIZE
+      );
+
+      console.group("🔍 Watermark Debugger");
+      console.log("State:", { watermarkPos, canvasSize });
+      console.log("Calculated Position (px):", { left: calculatedLeft, top: calculatedTop });
+      
+      // Check if the element actually exists in the DOM
+      if (watermarkRef.current) {
+        console.log("✅ DOM Element found:", watermarkRef.current);
+        // You can right-click the output above in Chrome Console -> "Reveal in Elements panel"
+      } else {
+        console.warn("⚠️ DOM Element is missing! (Check if width > 0 condition is met)");
+      }
+      
+      console.groupEnd();
+    }
+  }, [watermarkPos, canvasSize]);
+
   /* ----------------------------------------
    * Drawing Logic
    * -------------------------------------- */
   const drawLine = (x0, y0, x1, y1, color, width, emit = true) => {
     const canvas = localCanvasRef.current;
     if (!canvas) return;
-
-    console.log("hello")
 
     const ctx = canvas.getContext("2d");
     ctx.beginPath();
@@ -203,15 +230,12 @@ export default function Whiteboard({ socket, roomId, canvasRef }) {
     ctx.stroke();
     ctx.closePath();
 
-    // Only update state if this is a user action (emit === true)
     if (emit) {
-      // 1. Always update local watermark (UI Feedback)
       setWatermarkPos({
         x: x1 / canvas.width,
         y: y1 / canvas.height,
       });
 
-      // 2. Emit to socket only if connected
       if (socket) {
         socket.emit("wb-draw", {
           roomId,
@@ -295,7 +319,7 @@ export default function Whiteboard({ socket, roomId, canvasRef }) {
   /* ----------------------------------------
    * Render
    * -------------------------------------- */
-  const { width, height } = canvasSizeRef.current;
+  const { width, height } = canvasSize; // Reading from state now
 
   return (
     <div
@@ -315,8 +339,10 @@ export default function Whiteboard({ socket, roomId, canvasRef }) {
       />
 
       {/* Watermark */}
-      {watermarkPos && (
+      {watermarkPos && width > 0 && (
         <img
+          ref={watermarkRef} /* 2. Attach the ref here */
+          id="debug-watermark-img" /* 3. ID for easy querySelector access */
           src={EXPERT_WATERMARK_URL}
           alt="Expert Watermark"
           className="absolute w-8 h-8 rounded-full border-2 border-indigo-500 shadow-md opacity-80 z-50 pointer-events-none"
@@ -332,6 +358,8 @@ export default function Whiteboard({ socket, roomId, canvasRef }) {
               height - WATERMARK_SIZE
             ),
           }}
+          // 4. Add error handling to see if the image itself is broken
+          onError={(e) => console.error("❌ Watermark image failed to load:", e.target.src)}
         />
       )}
 

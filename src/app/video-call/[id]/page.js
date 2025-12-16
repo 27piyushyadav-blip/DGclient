@@ -1,7 +1,11 @@
 /*
  * File: src/app/video-call/[id]/page.js
  * ROLE: Video Call Client with Whiteboard
- * FEATURES: WebRTC, Socket.io, Canvas API, Mobile Responsive
+ * FEATURES:
+ * - WebRTC Video Call
+ * - Socket.io Whiteboard Sync
+ * - Canvas Drawing
+ * - Expert Watermark (VISIBLE ONLY WHILE DRAWING)
  */
 
 "use client";
@@ -13,12 +17,18 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Mic, MicOff, Video, VideoOff, PhoneOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export default function VideoCallPage() {
-  const params = useParams();
-  const router = useRouter();
+/* ----------------------------------------
+ * Watermark Config
+ * -------------------------------------- */
+const EXPERT_WATERMARK_URL = "https://github.com/shadcn.png";
+const WATERMARK_OFFSET = 12;
+const WATERMARK_SIZE = 32;
+const WATERMARK_HIDE_DELAY = 300; // ms
+const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
 
-  // IMPORTANT: params.id is the secure meetingId (NOT Mongo _id)
-  const meetingId = params.id;
+export default function VideoCallPage() {
+  const { id: meetingId } = useParams();
+  const router = useRouter();
 
   // ---------------- REFS ----------------
   const localVideoRef = useRef(null);
@@ -30,31 +40,30 @@ export default function VideoCallPage() {
   const socketRef = useRef(null);
   const iceQueueRef = useRef([]);
 
+  // Watermark state (ref-based = no re-render storms)
+  const watermarkRef = useRef(null);
+  const watermarkHideTimerRef = useRef(null);
+
   // ---------------- STATE ----------------
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState("Connecting...");
+  const [, forceRender] = useState(0); // used ONLY to refresh watermark overlay
 
   // ---------------- INIT ----------------
   useEffect(() => {
-    if (!meetingId) return;
-    if (socketRef.current) return; // prevent double init
+    if (!meetingId || socketRef.current) return;
 
     const processIceQueue = async () => {
-      if (!peerRef.current) return;
-      while (iceQueueRef.current.length) {
-        const candidate = iceQueueRef.current.shift();
-        try {
-          await peerRef.current.addIceCandidate(
-            new RTCIceCandidate(candidate)
-          );
-        } catch {}
+      while (iceQueueRef.current.length && peerRef.current) {
+        await peerRef.current.addIceCandidate(
+          new RTCIceCandidate(iceQueueRef.current.shift())
+        );
       }
     };
 
     const init = async () => {
       try {
-        // Ensure socket server boot
         await fetch("/api/socket").catch(() => {});
 
         const socket = io(undefined, {
@@ -63,22 +72,18 @@ export default function VideoCallPage() {
         });
 
         socketRef.current = socket;
-
-        // Join secure room
         socket.emit("join-video", meetingId);
 
-        // Media
+        // ---------- MEDIA ----------
         const stream = await navigator.mediaDevices.getUserMedia({
           video: true,
           audio: true,
         });
 
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = stream;
-          localVideoRef.current.muted = true;
-        }
+        localVideoRef.current.srcObject = stream;
+        localVideoRef.current.muted = true;
 
-        // Peer
+        // ---------- PEER ----------
         const peer = new RTCPeerConnection({
           iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
         });
@@ -87,24 +92,17 @@ export default function VideoCallPage() {
         stream.getTracks().forEach((t) => peer.addTrack(t, stream));
 
         peer.ontrack = (e) => {
-          const [remoteStream] = e.streams;
-          if (remoteVideoRef.current) {
-            remoteVideoRef.current.srcObject = remoteStream;
-            remoteVideoRef.current.play().catch(() => {});
-            setConnectionStatus("Connected");
-          }
+          remoteVideoRef.current.srcObject = e.streams[0];
+          setConnectionStatus("Connected");
         };
 
-        peer.onicecandidate = (e) => {
-          if (e.candidate) {
-            socket.emit("ice-candidate", {
-              candidate: e.candidate,
-              roomId: meetingId,
-            });
-          }
-        };
+        peer.onicecandidate = (e) =>
+          e.candidate &&
+          socket.emit("ice-candidate", {
+            candidate: e.candidate,
+            roomId: meetingId,
+          });
 
-        // ---------------- SIGNALING ----------------
         socket.emit("client-ready", meetingId);
 
         socket.on("user-connected", async () => {
@@ -114,9 +112,7 @@ export default function VideoCallPage() {
         });
 
         socket.on("offer", async ({ offer }) => {
-          await peer.setRemoteDescription(
-            new RTCSessionDescription(offer)
-          );
+          await peer.setRemoteDescription(offer);
           const answer = await peer.createAnswer();
           await peer.setLocalDescription(answer);
           socket.emit("answer", { answer, roomId: meetingId });
@@ -124,55 +120,32 @@ export default function VideoCallPage() {
         });
 
         socket.on("answer", async ({ answer }) => {
-          await peer.setRemoteDescription(
-            new RTCSessionDescription(answer)
-          );
+          await peer.setRemoteDescription(answer);
           processIceQueue();
         });
 
-        socket.on("ice-candidate", async ({ candidate }) => {
-          if (peer.remoteDescription) {
-            await peer.addIceCandidate(
-              new RTCIceCandidate(candidate)
-            );
-          } else {
-            iceQueueRef.current.push(candidate);
-          }
-        });
+        socket.on("ice-candidate", ({ candidate }) =>
+          peer.remoteDescription
+            ? peer.addIceCandidate(new RTCIceCandidate(candidate))
+            : iceQueueRef.current.push(candidate)
+        );
 
-        // ---------------- WHITEBOARD ----------------
+        /* ---------- WHITEBOARD ---------- */
         socket.on("wb-draw", drawOnCanvas);
 
         socket.on("wb-clear", () => {
           const c = canvasRef.current;
           if (!c) return;
+
           const ctx = c.getContext("2d");
           ctx.fillStyle = "#ffffff";
           ctx.fillRect(0, 0, c.width, c.height);
-        });
 
-        socket.on("wb-update-state", ({ image }) => {
-          const img = new Image();
-          img.onload = () =>
-            canvasRef.current
-              ?.getContext("2d")
-              .drawImage(img, 0, 0);
-          img.src = image;
+          watermarkRef.current = null;
+          forceRender((v) => v + 1);
         });
-
-        socket.on("wb-request-state", ({ requesterId }) => {
-          const c = canvasRef.current;
-          if (!c) return;
-          socket.emit("wb-send-state", {
-            roomId: meetingId,
-            requesterId,
-            image: c.toDataURL(),
-          });
-        });
-      } catch (err) {
-        console.error(err);
+      } catch {
         setConnectionStatus("Camera/Mic blocked");
-        alert("Please allow camera & microphone access.");
       }
     };
 
@@ -180,15 +153,12 @@ export default function VideoCallPage() {
 
     return () => {
       socketRef.current?.disconnect();
-      localVideoRef.current?.srcObject
-        ?.getTracks()
-        .forEach((t) => t.stop());
+      localVideoRef.current?.srcObject?.getTracks().forEach((t) => t.stop());
       peerRef.current?.close();
-      socketRef.current = null;
     };
   }, [meetingId]);
 
-  // ---------------- WHITEBOARD DRAW ----------------
+  // ---------------- DRAW ----------------
   const drawOnCanvas = ({ x0, y0, x1, y1, color, width }) => {
     const c = canvasRef.current;
     if (!c) return;
@@ -201,9 +171,24 @@ export default function VideoCallPage() {
     ctx.lineWidth = width;
     ctx.lineCap = "round";
     ctx.stroke();
+
+    // SHOW watermark while drawing
+    watermarkRef.current = { x: x1, y: y1 };
+    forceRender((v) => v + 1);
+
+    // Reset hide timer
+    if (watermarkHideTimerRef.current) {
+      clearTimeout(watermarkHideTimerRef.current);
+    }
+
+    // Hide watermark when drawing stops
+    watermarkHideTimerRef.current = setTimeout(() => {
+      watermarkRef.current = null;
+      forceRender((v) => v + 1);
+    }, WATERMARK_HIDE_DELAY);
   };
 
-  // ---------------- CANVAS RESIZE ----------------
+  // ---------------- RESIZE ----------------
   useEffect(() => {
     const resize = () => {
       if (!canvasRef.current || !containerRef.current) return;
@@ -227,38 +212,41 @@ export default function VideoCallPage() {
     return () => window.removeEventListener("resize", resize);
   }, []);
 
-  // ---------------- CONTROLS ----------------
-  const toggleMute = () => {
-    const track = localVideoRef.current?.srcObject?.getAudioTracks()[0];
-    if (!track) return;
-    track.enabled = !track.enabled;
-    setIsMuted(!track.enabled);
-  };
-
-  const toggleVideo = () => {
-    const track = localVideoRef.current?.srcObject?.getVideoTracks()[0];
-    if (!track) return;
-    track.enabled = !track.enabled;
-    setIsVideoOff(!track.enabled);
-  };
+  const wm = watermarkRef.current;
+  const c = canvasRef.current;
 
   // ---------------- UI ----------------
   return (
     <div className="flex flex-col lg:flex-row h-[100dvh] bg-zinc-950 overflow-hidden">
       {/* WHITEBOARD */}
-      <div
-        ref={containerRef}
-        className="flex-1 relative bg-white order-2 lg:order-1"
-      >
-        <canvas ref={canvasRef} className="w-full h-full" />
-        <div className="absolute top-4 left-4 bg-zinc-900/80 text-white px-3 py-1 rounded-full text-xs">
-          Live Whiteboard
-        </div>
+      <div ref={containerRef} className="flex-1 relative bg-white">
+        <canvas ref={canvasRef} className="w-full h-full touch-none" />
+
+        {wm && c && (
+          <img
+            src={EXPERT_WATERMARK_URL}
+            alt="Expert Watermark"
+            className="absolute pointer-events-none z-50 rounded-full border shadow-md"
+            style={{
+              width: WATERMARK_SIZE,
+              height: WATERMARK_SIZE,
+              left: clamp(
+                wm.x * c.width + WATERMARK_OFFSET,
+                0,
+                c.width - WATERMARK_SIZE
+              ),
+              top: clamp(
+                wm.y * c.height + WATERMARK_OFFSET,
+                0,
+                c.height - WATERMARK_SIZE
+              ),
+            }}
+          />
+        )}
       </div>
 
-      {/* VIDEO SIDEBAR */}
+      {/* VIDEO PANEL */}
       <div className="w-full lg:w-96 bg-zinc-900 flex flex-col border-l border-zinc-800">
-        {/* Remote */}
         <div className="flex-1 relative bg-black">
           <video
             ref={remoteVideoRef}
@@ -273,7 +261,6 @@ export default function VideoCallPage() {
           )}
         </div>
 
-        {/* Local */}
         <div className="flex-1 relative bg-zinc-800">
           <video
             ref={localVideoRef}
@@ -292,13 +279,32 @@ export default function VideoCallPage() {
           )}
         </div>
 
-        {/* CONTROLS */}
         <div className="p-4 flex justify-center gap-3 border-t border-zinc-800">
-          <Button size="icon" variant={isMuted ? "destructive" : "secondary"} onClick={toggleMute}>
+          <Button
+            size="icon"
+            variant={isMuted ? "destructive" : "secondary"}
+            onClick={() => {
+              const t =
+                localVideoRef.current?.srcObject?.getAudioTracks()[0];
+              if (!t) return;
+              t.enabled = !t.enabled;
+              setIsMuted(!t.enabled);
+            }}
+          >
             {isMuted ? <MicOff /> : <Mic />}
           </Button>
 
-          <Button size="icon" variant={isVideoOff ? "destructive" : "secondary"} onClick={toggleVideo}>
+          <Button
+            size="icon"
+            variant={isVideoOff ? "destructive" : "secondary"}
+            onClick={() => {
+              const t =
+                localVideoRef.current?.srcObject?.getVideoTracks()[0];
+              if (!t) return;
+              t.enabled = !t.enabled;
+              setIsVideoOff(!t.enabled);
+            }}
+          >
             {isVideoOff ? <VideoOff /> : <Video />}
           </Button>
 
