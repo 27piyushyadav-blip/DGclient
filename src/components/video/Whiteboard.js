@@ -2,18 +2,11 @@
  * File: src/components/video/Whiteboard.js
  * Mindnamo – Client / User Side Whiteboard
  *
- * FEATURES:
+ * BEHAVIOR:
  * - Realtime drawing sync (wb-draw)
- * - White background export
- * - Parent capture via ref
- * - Resize-safe redraw
- * - Expert cursor watermark (wb-cursor)
- *
- * FIXES:
- * - Proper handling of `hidden` cursor flag
- * - Prevents NaN / undefined cursor coordinates
- * - Cursor never blocks drawing (pointer-events-none)
- * - Safe conditional rendering
+ * - Watermark auto-follows the latest drawn stroke (local + remote)
+ * - Watermark offset bottom-right of stroke head
+ * - No cursor logic, no timers, no hover tracking
  */
 
 "use client";
@@ -34,14 +27,14 @@ const COLORS = [
   { id: "green", hex: "#22c55e" },
 ];
 
-// Replace with actual expert logo
 const EXPERT_WATERMARK_URL = "https://github.com/shadcn.png";
+const WATERMARK_OFFSET = 12;
+const WATERMARK_SIZE = 32;
 
 /* ----------------------------------------
  * Helpers
  * -------------------------------------- */
 
-// Export canvas with white background
 const captureCanvasDataURL = (canvas) => {
   if (!canvas) return null;
 
@@ -57,6 +50,8 @@ const captureCanvasDataURL = (canvas) => {
   return temp.toDataURL("image/png");
 };
 
+const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
+
 /* ----------------------------------------
  * Component
  * -------------------------------------- */
@@ -65,13 +60,15 @@ export default function Whiteboard({ socket, roomId, canvasRef }) {
   const localCanvasRef = useRef(null);
   const containerRef = useRef(null);
 
+  const canvasSizeRef = useRef({ width: 0, height: 0 });
+
   const [activeColor, setActiveColor] = useState("#000000");
   const [isEraser, setIsEraser] = useState(false);
 
-  // Remote expert cursor
-  const [remoteCursor, setRemoteCursor] = useState(null);
+  // 🔑 Single source of truth for watermark
+  // normalized (0 → 1)
+  const [watermarkPos, setWatermarkPos] = useState(null);
 
-  // Drawing refs
   const isDrawing = useRef(false);
   const lastX = useRef(0);
   const lastY = useRef(0);
@@ -108,9 +105,15 @@ export default function Whiteboard({ socket, roomId, canvasRef }) {
         width,
         false
       );
+
+      // Remote stroke → watermark follows
+      setWatermarkPos({ x: x1, y: y1 });
     };
 
-    const onClear = () => clearCanvas(false);
+    const onClear = () => {
+      clearCanvas(false);
+      setWatermarkPos(null);
+    };
 
     const onRequestState = ({ requesterId }) => {
       const image = captureCanvasDataURL(localCanvasRef.current);
@@ -130,20 +133,10 @@ export default function Whiteboard({ socket, roomId, canvasRef }) {
       img.src = image;
     };
 
-    // ✅ Correctly handles hidden flag
-    const onCursor = ({ x, y, hidden }) => {
-      if (hidden) {
-        setRemoteCursor(null);
-      } else if (typeof x === "number" && typeof y === "number") {
-        setRemoteCursor({ x, y });
-      }
-    };
-
     socket.on("wb-draw", onDraw);
     socket.on("wb-clear", onClear);
     socket.on("wb-request-state", onRequestState);
     socket.on("wb-update-state", onUpdateState);
-    socket.on("wb-cursor", onCursor);
 
     socket.emit("wb-request-state", roomId);
 
@@ -152,7 +145,6 @@ export default function Whiteboard({ socket, roomId, canvasRef }) {
       socket.off("wb-clear", onClear);
       socket.off("wb-request-state", onRequestState);
       socket.off("wb-update-state", onUpdateState);
-      socket.off("wb-cursor", onCursor);
     };
   }, [socket, roomId]);
 
@@ -172,6 +164,11 @@ export default function Whiteboard({ socket, roomId, canvasRef }) {
 
       canvas.width = container.offsetWidth;
       canvas.height = container.offsetHeight;
+
+      canvasSizeRef.current = {
+        width: canvas.width,
+        height: canvas.height,
+      };
 
       const ctx = canvas.getContext("2d");
       ctx.fillStyle = "#ffffff";
@@ -195,6 +192,8 @@ export default function Whiteboard({ socket, roomId, canvasRef }) {
     const canvas = localCanvasRef.current;
     if (!canvas) return;
 
+    console.log("hello")
+
     const ctx = canvas.getContext("2d");
     ctx.beginPath();
     ctx.moveTo(x0, y0);
@@ -204,16 +203,26 @@ export default function Whiteboard({ socket, roomId, canvasRef }) {
     ctx.stroke();
     ctx.closePath();
 
-    if (emit && socket) {
-      socket.emit("wb-draw", {
-        roomId,
-        x0: x0 / canvas.width,
-        y0: y0 / canvas.height,
-        x1: x1 / canvas.width,
-        y1: y1 / canvas.height,
-        color,
-        width,
+    // Only update state if this is a user action (emit === true)
+    if (emit) {
+      // 1. Always update local watermark (UI Feedback)
+      setWatermarkPos({
+        x: x1 / canvas.width,
+        y: y1 / canvas.height,
       });
+
+      // 2. Emit to socket only if connected
+      if (socket) {
+        socket.emit("wb-draw", {
+          roomId,
+          x0: x0 / canvas.width,
+          y0: y0 / canvas.height,
+          x1: x1 / canvas.width,
+          y1: y1 / canvas.height,
+          color,
+          width,
+        });
+      }
     }
   };
 
@@ -286,6 +295,8 @@ export default function Whiteboard({ socket, roomId, canvasRef }) {
   /* ----------------------------------------
    * Render
    * -------------------------------------- */
+  const { width, height } = canvasSizeRef.current;
+
   return (
     <div
       ref={containerRef}
@@ -303,16 +314,23 @@ export default function Whiteboard({ socket, roomId, canvasRef }) {
         onTouchEnd={stopDrawing}
       />
 
-      {/* ✅ Expert Cursor Watermark */}
-      {remoteCursor && containerRef.current && (
+      {/* Watermark */}
+      {watermarkPos && (
         <img
           src={EXPERT_WATERMARK_URL}
-          alt="Expert Cursor"
-          className="absolute w-8 h-8 rounded-full border-2 border-indigo-500 shadow-md opacity-80 z-50 pointer-events-none transition-all duration-75 ease-out"
+          alt="Expert Watermark"
+          className="absolute w-8 h-8 rounded-full border-2 border-indigo-500 shadow-md opacity-80 z-50 pointer-events-none"
           style={{
-            left: `${remoteCursor.x * containerRef.current.offsetWidth}px`,
-            top: `${remoteCursor.y * containerRef.current.offsetHeight}px`,
-            transform: "translate(10px, 10px)",
+            left: clamp(
+              watermarkPos.x * width + WATERMARK_OFFSET,
+              0,
+              width - WATERMARK_SIZE
+            ),
+            top: clamp(
+              watermarkPos.y * height + WATERMARK_OFFSET,
+              0,
+              height - WATERMARK_SIZE
+            ),
           }}
         />
       )}
