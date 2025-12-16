@@ -50,6 +50,7 @@ export default async function middleware(req) {
     "/otp",
     "/forgot-password",
   ];
+  
 
   if (
     ratelimit &&
