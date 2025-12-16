@@ -742,7 +742,33 @@ export default function ChatClient({ initialConversations, currentUser }) {
       <div className="flex-1 flex flex-col h-full bg-background relative overflow-hidden">
         {selectedConversation ? (
           <>
-            <div className="flex-shrink-0 flex items-center gap-4 px-6 py-4 border-b border-border bg-card shadow-sm z-20"><ProfileImage src={selectedConversation.expertId.profilePicture} name={selectedConversation.expertId.name} sizeClass="h-12 w-12" /><div className="flex-1"><h3 className="font-semibold text-lg text-foreground">{selectedConversation.expertId.name}</h3><p className="text-sm text-muted-foreground">{isTyping ? <span className="text-primary font-medium animate-pulse">typing...</span> : formatLastSeen(remoteStatus.lastSeen, remoteStatus.isOnline)}</p></div></div>
+            {/* Header with Profile & Book Now Button */}
+            <div className="flex-shrink-0 flex items-center gap-4 px-6 py-4 border-b border-border bg-card shadow-sm z-20">
+              <ProfileImage 
+                src={selectedConversation.expertId.profilePicture} 
+                name={selectedConversation.expertId.name} 
+                sizeClass="h-12 w-12" 
+              />
+              <div className="flex-1">
+                <h3 className="font-semibold text-lg text-foreground">
+                  {selectedConversation.expertId.name}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {isTyping ? (
+                    <span className="text-primary font-medium animate-pulse">typing...</span>
+                  ) : (
+                    formatLastSeen(remoteStatus.lastSeen, remoteStatus.isOnline)
+                  )}
+                </p>
+              </div>
+              
+              <Button 
+                onClick={() => router.push(`/experts/${selectedConversation.expertId._id}`)}
+                className="shrink-0 font-medium"
+              >
+                Book Now
+              </Button>
+            </div>
             <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-6 py-4 bg-muted/20 relative" style={{ opacity: isMessagesPending ? 1 : chatOpacity }}>
               {isMessagesPending ? (<div className="flex h-full items-center justify-center"><Loader2Icon className="h-10 w-10 animate-spin text-primary mx-auto mb-4" /><p className="text-muted-foreground">Loading messages...</p></div>) : (
                 <div className="pb-2">{Object.entries(groupedMessages).map(([date, msgs]) => (<div key={date} className="relative mb-6"><div className="sticky top-2 z-10 flex justify-center my-4 pointer-events-none"><span className="bg-background/90 backdrop-blur-sm text-foreground px-4 py-1.5 rounded-full text-xs font-medium shadow-md border border-border/50">{date}</span></div><div className="space-y-1">{msgs.map((msg) => { const prevMsg = msgs[msgs.indexOf(msg) - 1]; const nextMsg = msgs[msgs.indexOf(msg) + 1]; const isSender = msg.senderModel === "User"; const isFirstInGroup = !prevMsg || prevMsg.senderModel !== msg.senderModel; const isLastInGroup = !nextMsg || nextMsg.senderModel !== msg.senderModel; return (<MessageBubble key={msg._id} message={msg} isSender={isSender} isFirstInGroup={isFirstInGroup} isLastInGroup={isLastInGroup} onReplyClick={() => setReplyingTo(msg)} onReplyView={scrollToMessage} onDeleteClick={() => setDeleteConfirmId(msg._id)} showDeleteConfirm={deleteConfirmId === msg._id} onConfirmDelete={() => handleDeleteMessage(msg._id)} onCancelDelete={() => setDeleteConfirmId(null)} isMounted={isMounted} currentUserId={currentUser.id} onViewMedia={handleViewMedia} onImageLoad={handleImageLoad} />); })}</div></div>))}</div>
