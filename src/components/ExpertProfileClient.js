@@ -13,7 +13,7 @@ import {
   Star, MapPin, GraduationCap, Languages, CheckCircle2, 
   Video, Clock, ShieldCheck, Play, MessageSquare, CalendarCheck, 
   Share2, MoreHorizontal, AlertCircle, Loader2, Building2, HelpCircle, Flag, Users, FileBadge, Award,
-  User, Briefcase // <-- Added Briefcase
+  User, Briefcase
 } from "lucide-react";
 import { FileTextIcon } from "@/components/Icons";
 
@@ -176,7 +176,6 @@ export default function ExpertProfileClient({ expert }) {
                   <div className="flex flex-wrap gap-2 mb-6">
                      <Badge variant="outline" className="font-normal text-zinc-600 dark:text-zinc-400 gap-1.5 py-1 px-3 bg-zinc-50 dark:bg-zinc-800"><MapPin className="w-3.5 h-3.5" /> {expert.location}</Badge>
                      <Badge variant="outline" className="font-normal text-zinc-600 dark:text-zinc-400 gap-1.5 py-1 px-3 bg-zinc-50 dark:bg-zinc-800"><Languages className="w-3.5 h-3.5" /> {expert.languages?.join(", ")}</Badge>
-                     {/* FIXED: Display latestEducation string instead of object array */}
                      <Badge variant="outline" className="font-normal text-zinc-600 dark:text-zinc-400 gap-1.5 py-1 px-3 bg-zinc-50 dark:bg-zinc-800"><GraduationCap className="w-3.5 h-3.5" /> {expert.latestEducation || expert.education?.[0]?.degree || "N/A"}</Badge>
                   </div>
                   <div className="flex items-center gap-3">
@@ -220,10 +219,13 @@ export default function ExpertProfileClient({ expert }) {
                   <TabsContent value="about" className="space-y-8 animate-in fade-in duration-300">
                      {/* Bio */}
                      <SectionCard title="About Me" icon={User}>
-                        <div className="text-zinc-700 dark:text-zinc-300 leading-relaxed text-base whitespace-pre-line">{expert.bio || "No bio available."}</div>
+                        {/* FIXED: Added break-words and overflow handling for long words */}
+                        <div className="text-zinc-700 dark:text-zinc-300 leading-relaxed text-base whitespace-pre-line break-words overflow-hidden">
+                          {expert.bio || "No bio available."}
+                        </div>
                      </SectionCard>
 
-                     {/* Work Experience - NEW SECTION */}
+                     {/* Work Experience */}
                      {expert.workHistory?.length > 0 && (
                         <SectionCard title="Work Experience" icon={Briefcase}>
                            <div className="space-y-6">
@@ -246,7 +248,7 @@ export default function ExpertProfileClient({ expert }) {
                         </SectionCard>
                      )}
 
-                     {/* Education - NEW SECTION */}
+                     {/* Education */}
                      {expert.education?.length > 0 && (
                         <SectionCard title="Education" icon={GraduationCap}>
                            <div className="space-y-4">
@@ -395,11 +397,30 @@ export default function ExpertProfileClient({ expert }) {
          </div>
       </div>
 
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-lg border-t border-zinc-200 dark:border-zinc-800 z-40 flex items-center justify-between shadow-[0_-4px_20px_-5px_rgba(0,0,0,0.1)] safe-area-bottom">
-         <div><p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Starts at</p><p className="text-xl font-black text-zinc-900 dark:text-white">{displayPrice}</p></div>
+      {/* FIXED: Improved responsive mobile sticky bar with better alignment and spacing */}
+     {/* FIXED: Improved responsive mobile sticky bar with better spacing and safe area support */}
+     <div className="lg:hidden fixed bottom-0 left-0 right-0 px-5 pt-4 pb-4 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-xl border-t border-zinc-200 dark:border-zinc-800 z-50 flex items-center justify-between shadow-[0_-8px_30px_rgba(0,0,0,0.08)] safe-area-bottom">
+         <div className="flex flex-col gap-0.5">
+            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Starts at</p>
+            <p className="text-2xl font-black text-zinc-900 dark:text-white leading-tight">{displayPrice}</p>
+         </div>
          <div className="flex gap-3">
-            <Button variant="outline" size="icon" className="h-12 w-12 rounded-xl border-zinc-300" onClick={handleChatClick} disabled={isChatPending}>{isChatPending ? <Loader2 className="w-5 h-5 animate-spin text-zinc-600" /> : <MessageSquare className="w-5 h-5" />}</Button>
-            <Button size="lg" className="h-12 px-6 rounded-xl font-bold bg-zinc-900 text-white shadow-lg" onClick={() => setIsBookingModalOpen(true)}>Book Now</Button>
+            <Button 
+               variant="outline" 
+               size="icon" 
+               className="h-12 w-12 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex-shrink-0 shadow-sm" 
+               onClick={handleChatClick} 
+               disabled={isChatPending}
+            >
+               {isChatPending ? <Loader2 className="w-5 h-5 animate-spin text-zinc-600" /> : <MessageSquare className="w-5 h-5" />}
+            </Button>
+            <Button 
+               size="lg" 
+               className="h-12 px-8 rounded-xl font-bold bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 shadow-lg active:scale-95 transition-transform" 
+               onClick={() => setIsBookingModalOpen(true)}
+            >
+               Book Now
+            </Button>
          </div>
       </div>
 

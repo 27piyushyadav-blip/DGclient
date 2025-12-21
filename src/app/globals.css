@@ -126,7 +126,12 @@
 
   /* Safe Area for Mobile Bottom Nav */
   .safe-area-bottom {
-    padding-bottom: env(safe-area-inset-bottom);
+    margin-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  
+  /* Use this for extra padding that respects safe areas */
+  .pb-safe {
+    padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
   }
 }
 

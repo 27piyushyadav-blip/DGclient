@@ -80,7 +80,7 @@ export default async function RootLayout({ children }) {
           <AuthProvider session={session}>
             <Header />
             
-            <main className="flex-1 flex flex-col relative z-0">
+            <main className="flex-1 flex flex-col relative">
               {children}
             </main>
             

@@ -1,8 +1,8 @@
 /*
  * File: src/app/chat/page.js
  * SR-DEV: User Chat Page Wrapper
- * * FEATURES:
- * - Full-viewport height layout (h-[100dvh]) for app-like feel.
+ * FEATURES:
+ * - Full-viewport height layout adjusted for site header.
  * - Server-side conversation pre-fetching.
  * - Suspense boundary for loading states.
  */
@@ -33,9 +33,13 @@ export default async function ChatPage() {
   const conversations = await getConversations();
 
   return (
-    // Use h-[100dvh] to match exact visible mobile screen height
-    // overflow-hidden prevents the outer page from scrolling
-    <div className="flex h-[100dvh] flex-col bg-zinc-50 dark:bg-zinc-950 overflow-hidden">
+    /**
+     * FIXED: Adjusted height from h-[100dvh] to h-[calc(100dvh-64px)].
+     * The main site header is 64px (h-16) tall. By subtracting this height, 
+     * the chat container fits perfectly in the remaining viewport space,
+     * preventing the page body from scrolling and hiding the chat header.
+     */
+    <div className="flex h-[calc(100dvh-64px)] flex-col bg-zinc-50 dark:bg-zinc-950 overflow-hidden">
       <main className="flex-1 overflow-hidden flex flex-col">
         <Suspense fallback={<Loading />}>
           <ChatClient 
