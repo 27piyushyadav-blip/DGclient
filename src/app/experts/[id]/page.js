@@ -44,6 +44,7 @@ async function getExpertById(id) {
       profilePicture: profile.user.image,
       email: profile.user.email,
       isVerified: profile.user.isVerified,
+      videoUrl: profile.introVideo,
     };
 
     return JSON.parse(JSON.stringify(expert));

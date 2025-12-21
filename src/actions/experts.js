@@ -120,7 +120,7 @@ export async function getExpertsAction({
               tags: 1,
               languages: 1,
               services: 1,
-              videoUrl: 1,
+              videoUrl: "$introVideo",
               // User identity fields
               name: "$userData.name",
               profilePicture: "$userData.image",
