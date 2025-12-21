@@ -36,13 +36,13 @@ export default function VideoModal({ videoUrl, onClose }) {
            <X className="w-6 h-6" />
          </button>
          
-         {/* Embed Video Player */}
-         <iframe 
+         {/* FIX: Use <video> tag instead of <iframe> for direct UploadThing URLs */}
+         <video 
            src={videoUrl} 
            className="w-full h-full" 
-           allowFullScreen 
-           title="Expert Intro Video" 
-           allow="autoplay; encrypted-media" // Enable autoplay and security features
+           controls 
+           autoPlay 
+           playsInline
          />
       </div>
     </div>
