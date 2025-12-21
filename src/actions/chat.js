@@ -89,11 +89,23 @@ export async function getConversations() {
       .sort({ lastMessageAt: -1 })
       .lean();
 
+
+      // Fetch ExpertProfile IDs for all experts in the inbox
+    const expertUserIds = conversations.map(c => c.expertId?._id).filter(Boolean);
+    const profiles = await ExpertProfile.find({ user: { $in: expertUserIds } }).select("_id user").lean();
+    
+    // Create a map of User ID -> Expert Profile ID
+    const profileMap = profiles.reduce((acc, p) => {
+      acc[p.user.toString()] = p._id.toString();
+      return acc;
+    }, {});
+
     // Manual Serialization (critical for RSC safety)
     const plain = conversations.map((c) => ({
       ...c,
       _id: c._id.toString(),
       userId: c.userId.toString(),
+      expertProfileId: c.expertId ? profileMap[c.expertId._id.toString()] : null, // ✅ Added Profile ID
       expertId: c.expertId
         ? {
             ...c.expertId,
@@ -203,11 +215,15 @@ export async function getConversationById(conversationId) {
 
     if (!conversation) return null;
 
+    // Fetch the specific profile for this expert
+    const profile = await ExpertProfile.findOne({ user: conversation.expertId?._id }).select("_id").lean();
+
     return JSON.parse(
       JSON.stringify({
         ...conversation,
         _id: conversation._id.toString(),
         userId: conversation.userId.toString(),
+        expertProfileId: profile ? profile._id.toString() : null, // ✅ Added Profile ID
         expertId: conversation.expertId
           ? {
               ...conversation.expertId,

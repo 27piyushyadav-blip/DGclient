@@ -763,7 +763,11 @@ export default function ChatClient({ initialConversations, currentUser }) {
               </div>
               
               <Button 
-                onClick={() => router.push(`/experts/${selectedConversation.expertId._id}`)}
+               onClick={() => {
+                // ✅ Use expertProfileId if available, fallback to expertId for safety
+                const profileId = selectedConversation.expertProfileId || selectedConversation.expertId._id;
+                router.push(`/experts/${profileId}`);
+              }}
                 className="shrink-0 font-medium"
               >
                 Book Now
