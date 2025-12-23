@@ -49,6 +49,11 @@ const isSameDay = (d1, d2) => {
   return new Date(d1).setHours(0, 0, 0, 0) === new Date(d2).setHours(0, 0, 0, 0);
 };
 
+// Add this with other icons around line 50
+const ArrowLeftIcon = (props) => (
+  <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+);
+
 const formatDateHeader = (d) => {
   if (!d) return "";
   const date = new Date(d);
@@ -763,20 +768,36 @@ export default function ChatClient({ initialConversations, currentUser }) {
     <div className="flex h-full bg-background relative">
       <input type="file" ref={fileInputRef} className="hidden" accept="image/*,application/pdf" onChange={handleFileSelect} />
       {viewingMedia && <MediaViewerModal src={viewingMedia.src} type={viewingMedia.type} onClose={() => setViewingMedia(null)} />}
-      <div className="w-full max-w-sm flex-col border-r border-border bg-card hidden md:flex">
+      <div className={cn(
+  "w-full md:max-w-sm flex-col border-r border-border bg-card",
+  selectedConversationId ? "hidden md:flex" : "flex"
+)}>
         <div className="p-4 border-b border-border"><h2 className="text-2xl font-bold text-foreground px-2">Messages</h2><p className="text-sm text-muted-foreground mt-1 px-2">Your conversations</p></div>
         <div className="flex-1 overflow-y-auto py-2">{conversations.length > 0 ? (conversations.map((convo) => (<ConversationItem key={convo._id} convo={convo} isSelected={convo._id === selectedConversationId} onClick={() => router.push(`/chat?id=${convo._id}`, { scroll: false })} isMounted={isMounted} currentUserId={currentUser.id} isTyping={convo.isTyping} />))) : (<div className="p-8 text-center"><p className="text-muted-foreground">No conversations yet.</p></div>)}</div>
       </div>
-      <div className="flex-1 flex flex-col h-full bg-background relative overflow-hidden">
+      <div className={cn(
+  "flex-1 flex flex-col h-full bg-background relative overflow-hidden",
+  !selectedConversationId ? "hidden md:flex" : "flex"
+)}>
         {selectedConversation ? (
           <>
             {/* Header with Profile & Book Now Button */}
             <div className="flex-shrink-0 flex items-center gap-4 px-6 py-4 border-b border-border bg-card shadow-sm z-20">
-              <ProfileImage 
-                src={selectedConversation.expertId.profilePicture} 
-                name={selectedConversation.expertId.name} 
-                sizeClass="h-12 w-12" 
-              />
+              {/* NEW: Back button for mobile */}
+  <Button 
+    variant="ghost" 
+    size="icon" 
+    className="md:hidden -ml-2 h-9 w-9" 
+    onClick={() => router.push('/chat')}
+  >
+    <ArrowLeftIcon className="h-6 w-6 text-muted-foreground" />
+  </Button>
+
+  <ProfileImage 
+    src={selectedConversation.expertId.profilePicture} 
+    name={selectedConversation.expertId.name} 
+    sizeClass="h-10 w-10 md:h-12 md:w-12" 
+  />
               <div className="flex-1">
                 <h3 className="font-semibold text-lg text-foreground">
                   {selectedConversation.expertId.name}
@@ -802,7 +823,12 @@ export default function ChatClient({ initialConversations, currentUser }) {
               </Button>
             </div>
             <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-6 py-4 bg-muted/20 relative" style={{ opacity: isMessagesPending ? 1 : chatOpacity }}>
-              {isMessagesPending ? (<div className="flex h-full items-center justify-center"><Loader2Icon className="h-10 w-10 animate-spin text-primary mx-auto mb-4" /><p className="text-muted-foreground">Loading messages...</p></div>) : (
+              {isMessagesPending ? (
+                <div className="flex flex-col h-full items-center justify-center">
+                <Loader2Icon className="h-10 w-10 animate-spin text-primary mb-4" />
+                <p className="text-muted-foreground">Loading messages...</p>
+              </div>
+              ) : (
                 <div className="pb-2">{Object.entries(groupedMessages).map(([date, msgs]) => (<div key={date} className="relative mb-6"><div className="sticky top-2 z-10 flex justify-center my-4 pointer-events-none"><span className="bg-background/90 backdrop-blur-sm text-foreground px-4 py-1.5 rounded-full text-xs font-medium shadow-md border border-border/50">{date}</span></div><div className="space-y-1">{msgs.map((msg) => { const prevMsg = msgs[msgs.indexOf(msg) - 1]; const nextMsg = msgs[msgs.indexOf(msg) + 1]; const isSender = msg.senderModel === "User"; const isFirstInGroup = !prevMsg || prevMsg.senderModel !== msg.senderModel; const isLastInGroup = !nextMsg || nextMsg.senderModel !== msg.senderModel; return (<MessageBubble key={msg._id} message={msg} isSender={isSender} isFirstInGroup={isFirstInGroup} isLastInGroup={isLastInGroup} onReplyClick={() => setReplyingTo(msg)} onReplyView={scrollToMessage} onDeleteClick={() => setDeleteConfirmId(msg._id)} showDeleteConfirm={deleteConfirmId === msg._id} onConfirmDelete={() => handleDeleteMessage(msg._id)} onCancelDelete={() => setDeleteConfirmId(null)} isMounted={isMounted} currentUserId={currentUser.id} onViewMedia={handleViewMedia} onImageLoad={handleImageLoad} />); })}</div></div>))}</div>
               )}
               <div ref={messagesEndRef} />
@@ -842,7 +868,11 @@ function ConversationItem({ convo, isSelected, onClick, isMounted, currentUserId
 
   // User unread badge
   const showBadge = convo.userUnreadCount > 0;
-  const isSending = convo.lastMessageStatus === 'sending'; return (<button onClick={onClick} className={cn("flex w-full items-start gap-4 px-4 py-4 text-left hover:bg-accent/50 transition-all duration-200", isSelected && "bg-accent")}> <ProfileImage src={convo.expertId.profilePicture} name={convo.expertId.name} sizeClass="h-12 w-12 shrink-0" /> <div className="flex-1 overflow-hidden min-w-0"> <div className="flex justify-between items-start mb-1 gap-2"><h3 className="font-semibold text-base text-foreground truncate">{convo.expertId.name}</h3><span className="text-xs text-muted-foreground shrink-0 pt-1">{isMounted ? formatLastMessageTime(convo.lastMessageAt) : null}</span></div> <div className="flex justify-between items-center gap-2"><div className="flex items-center gap-1 overflow-hidden flex-1">{isTyping ? <p className="text-sm text-primary font-medium truncate animate-pulse">typing...</p> : <>{isLastMessageMine && (isSending ? <ClockIcon className="h-3 w-3 text-muted-foreground shrink-0" /> : <CheckCheckIcon className={cn("h-4 w-4 shrink-0", isReadByExpert ? "text-blue-500" : "text-muted-foreground")} />)}<p className="text-sm text-muted-foreground truncate">{convo.lastMessage || "No messages yet"}</p></>}</div>{convo.userUnreadCount > 0 && <span className="flex items-center justify-center bg-primary text-primary-foreground text-xs font-bold rounded-full h-5 min-w-[20px] px-1.5 shrink-0">{convo.userUnreadCount}</span>}</div> </div> </button>);
+  const isSending = convo.lastMessageStatus === 'sending'; return (<button onClick={onClick} className={cn("flex w-full items-start gap-4 px-4 py-4 text-left hover:bg-accent/50 transition-all duration-200", isSelected && "bg-accent")}> <ProfileImage src={convo.expertId.profilePicture} name={convo.expertId.name} sizeClass="h-12 w-12 shrink-0" /> <div className="flex-1 overflow-hidden min-w-0"> <div className="flex justify-between items-start mb-1 gap-2"><h3 className="font-semibold text-base text-foreground truncate">{convo.expertId.name}</h3><span className="text-xs text-muted-foreground shrink-0 pt-1">{isMounted ? formatLastMessageTime(convo.lastMessageAt) : null}</span></div> <div className="flex justify-between items-center gap-2"><div className="flex items-center gap-1 overflow-hidden flex-1">{isTyping ? <p className="text-sm text-primary font-medium truncate animate-pulse">typing...</p> : <>{isLastMessageMine && (isSending ? <ClockIcon className="h-3 w-3 text-muted-foreground shrink-0" /> : <CheckCheckIcon className={cn("h-4 w-4 shrink-0", isReadByExpert ? "text-blue-500" : "text-muted-foreground")} />)}<p className="text-sm text-muted-foreground truncate">{convo.lastMessage || "No messages yet"}</p></>}</div>{convo.userUnreadCount > 0 && (
+    <span className="flex items-center justify-center bg-primary text-primary-foreground text-xs font-bold rounded-full h-5 min-w-[20px] px-1.5 shrink-0">
+      {convo.userUnreadCount > 9 ? "9+" : convo.userUnreadCount}
+    </span>
+  )}</div> </div> </button>);
 }
 function VoiceMessagePlayer({ src, isSender }) { const [isPlaying, setIsPlaying] = useState(false); const [progress, setProgress] = useState(0); const [duration, setDuration] = useState(0); const audioRef = useRef(null); useEffect(() => { const audio = audioRef.current; if (!audio) return; const updateProgress = () => { const current = audio.currentTime; const total = audio.duration; if (Number.isFinite(total) && total > 0) { setProgress((current / total) * 100); setDuration(total); } else { setProgress(0); setDuration(0); } }; const setAudioData = () => { const d = audio.duration; if (Number.isFinite(d)) setDuration(d); }; const handleEnded = () => { setIsPlaying(false); setProgress(0); }; audio.addEventListener('timeupdate', updateProgress); audio.addEventListener('loadedmetadata', setAudioData); audio.addEventListener('durationchange', setAudioData); audio.addEventListener('ended', handleEnded); return () => { audio.removeEventListener('timeupdate', updateProgress); audio.removeEventListener('loadedmetadata', setAudioData); audio.removeEventListener('durationchange', setAudioData); audio.removeEventListener('ended', handleEnded); }; }, []); const togglePlay = () => { const audio = audioRef.current; if (!audio) return; if (isPlaying) audio.pause(); else audio.play(); setIsPlaying(!isPlaying); }; const handleSeek = (e) => { const audio = audioRef.current; if (!audio) return; const newTime = (e.target.value / 100) * audio.duration; audio.currentTime = newTime; setProgress(e.target.value); }; const formatTime = (time) => { if (!Number.isFinite(time) || isNaN(time)) return "0:00"; const mins = Math.floor(time / 60); const secs = Math.floor(time % 60); return `${mins}:${secs.toString().padStart(2, '0')}`; }; return (<div className="flex items-center gap-3 pr-4 min-w-[200px] py-1"> <audio ref={audioRef} src={src} className="hidden" /> <button onClick={togglePlay} className={cn("flex items-center justify-center h-10 w-10 rounded-full transition-colors shrink-0", isSender ? "bg-primary-foreground/20 hover:bg-primary-foreground/30 text-primary-foreground" : "bg-primary/10 hover:bg-primary/20 text-primary")}>{isPlaying ? <PauseIcon className="h-5 w-5" /> : <PlayIcon className="h-5 w-5 ml-0.5" />}</button> <div className="flex-1 flex flex-col gap-1"><input type="range" min="0" max="100" value={progress || 0} onChange={handleSeek} className={cn("w-full h-1 rounded-lg appearance-none cursor-pointer", isSender ? "bg-primary-foreground/30 accent-primary-foreground" : "bg-muted-foreground/20 accent-primary")} /><div className={cn("flex justify-between text-[10px] font-medium", isSender ? "text-primary-foreground/80" : "text-muted-foreground")}><span>{formatTime(audioRef.current?.currentTime || 0)}</span><span>{formatTime(duration)}</span></div></div> </div>); }
 function MessageBubble({
