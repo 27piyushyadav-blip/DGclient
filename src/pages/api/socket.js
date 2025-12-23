@@ -211,22 +211,26 @@ const ioHandler = (req, res) => {
           const isSenderUser =
             senderId.toString() === conversation.userId.toString();
 
-          await Conversation.findByIdAndUpdate(conversationId, {
-            lastMessage:
-              contentType === "text"
-                ? content
-                : contentType === "image"
-                  ? "📷 Image"
-                  : contentType === "audio"
-                    ? "🎤 Audio"
-                    : "📎 Attachment",
-            lastMessageAt: msg.createdAt,
-            lastMessageSender: senderId,
-            $inc: {
-              userUnreadCount: isSenderUser ? 0 : 1,
-              expertUnreadCount: isSenderUser ? 1 : 0,
-            },
-          });
+            const updatedConv = await Conversation.findByIdAndUpdate(
+              conversationId,
+              {
+                lastMessage:
+                  contentType === "text"
+                    ? content
+                    : contentType === "image"
+                      ? "📷 Image"
+                      : contentType === "audio"
+                        ? "🎤 Audio"
+                        : "📎 Attachment",
+                lastMessageAt: msg.createdAt,
+                lastMessageSender: senderId,
+                $inc: {
+                  userUnreadCount: isSenderUser ? 0 : 1,
+                  expertUnreadCount: isSenderUser ? 1 : 0,
+                },
+              },
+              { new: true } // 👈 THIS is the key change
+            );
 
           io.to(conversationId).emit("receive_message", msg);
           io.to(conversation.userId.toString()).emit(
@@ -237,6 +241,22 @@ const ioHandler = (req, res) => {
             "receiveDirectMessage",
             msg
           );
+          const convData = {
+            ...updatedConv.toObject(),
+            conversationId: updatedConv._id.toString(),
+          };
+          
+          // 🔁 Sidebar sync (both sides)
+          io.to(conversation.userId.toString()).emit(
+            "conversationUpdated",
+            convData
+          );
+          
+          io.to(conversation.expertId.toString()).emit(
+            "conversationUpdated",
+            convData
+          );
+          
         } catch (err) {
           console.error("[Socket] send_message error:", err);
         }

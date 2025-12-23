@@ -684,6 +684,13 @@ export default function ChatClient({ initialConversations, currentUser }) {
 
   const onConversationUpdated = useCallback((updatedConvo) => { updateChatList(updatedConvo); }, [updateChatList]);
 
+  // ✅ ADD THIS BLOCK HERE
+  useEffect(() => {
+    // Refresh the page data on mount to ensure the sidebar reflects 
+    // any messages received while the user was on other pages.
+    router.refresh();
+  }, [router]);
+
   // 1. SETUP EFFECT
   useEffect(() => {
     if (!selectedConversationId || !socket) return;
@@ -693,6 +700,12 @@ export default function ChatClient({ initialConversations, currentUser }) {
     setTimeout(() => { isInitialLoadPhase.current = false; }, 2000);
 
     socket.emit("join_room", selectedConversationId);
+
+    // ✅ ADD THIS LINE: Notify server to mark existing messages as read
+  socket.emit("markAsRead", {
+    conversationId: selectedConversationId,
+    userId: currentUser.id,
+  });
 
     setConversations(prev => prev.map(c => c._id === selectedConversationId ? { ...c, userUnreadCount: 0 } : c));
     setIsTyping(false);
@@ -719,6 +732,9 @@ export default function ChatClient({ initialConversations, currentUser }) {
     // [FIX] Listen for deleted messages
     socket.on("messageDeleted", onMessageDeleted);
 
+    // ✅ ADD THIS LINE:
+  socket.on("conversationUpdated", onConversationUpdated);
+
     // Cleanup (VERY important to avoid duplicates)
     return () => {
       socket.off("receive_message", onReceiveMessage);
@@ -726,6 +742,7 @@ export default function ChatClient({ initialConversations, currentUser }) {
       socket.off("stopTyping", onStopTyping);
       socket.off("userStatusChanged", onUserStatusChanged);
       socket.off("messagesRead", onMessagesRead);
+      socket.off("conversationUpdated", onConversationUpdated);
 
       // [FIX] Cleanup listener
       socket.off("messageDeleted", onMessageDeleted);
@@ -739,6 +756,7 @@ export default function ChatClient({ initialConversations, currentUser }) {
     onUserStatusChanged,
     onMessagesRead,
     onMessageDeleted, // Add to dependency array
+    onConversationUpdated
   ]);
 
   useEffect(() => {
