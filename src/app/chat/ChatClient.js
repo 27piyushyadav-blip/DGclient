@@ -136,6 +136,20 @@ export default function ChatClient({ initialConversations, currentUser }) {
     activeExpertIdRef.current = selectedConversation?.expertId?._id || null;
   }, [selectedConversation]);
 
+
+  const sendSoundRef = useRef(null);
+  const receiveSoundRef = useRef(null);
+
+  // Initialize sounds on mount
+  useEffect(() => {
+    sendSoundRef.current = new Audio("/sounds/send.mp3");
+    receiveSoundRef.current = new Audio("/sounds/receive.mp3");
+    
+    // Optional: Pre-set volume
+    sendSoundRef.current.volume = 0.5;
+    receiveSoundRef.current.volume = 0.5;
+  }, []);
+
   // --- REMOTE STATUS SYNC ---
   useEffect(() => {
     const expert = selectedConversation?.expertId;
@@ -412,6 +426,9 @@ export default function ChatClient({ initialConversations, currentUser }) {
   const sendMessageSocket = (content, contentType = "text") => {
     if (!selectedConversationId || !socket || !selectedConversation?.expertId?._id) return;
 
+    // Play Send Sound
+    sendSoundRef.current?.play().catch(e => console.log("Audio play blocked", e));
+
     socket.emit("send_message", {
       conversationId: selectedConversationId,
       senderId: currentUser.id,
@@ -486,6 +503,11 @@ export default function ChatClient({ initialConversations, currentUser }) {
           // ➕ Normal incoming message
           return [...prev, message];
         });
+
+        // Play Receive Sound if it's from the other person
+        if (message.sender !== currentUser.id) {
+          receiveSoundRef.current?.play().catch(e => console.log("Audio play blocked", e));
+        }
 
         // ✅ If THEY sent the message and chat is open → mark as read instantly
         if (message.sender !== currentUser.id && socket) {
@@ -608,6 +630,7 @@ export default function ChatClient({ initialConversations, currentUser }) {
   // NEW: Handle sidebar updates for incoming messages
   const onReceiveDirectMessage = useCallback(
     async (message) => {
+      
       let previewText = message.content;
       if (message.contentType === "audio") previewText = "🎤 Audio Message";
       else if (message.contentType === "image") previewText = "📷 Image";
@@ -636,6 +659,11 @@ export default function ChatClient({ initialConversations, currentUser }) {
 
         return prev;
       });
+
+      // Play sound for background messages (sidebar updates)
+      if (message.sender !== currentUser.id) {
+        receiveSoundRef.current?.play().catch(e => console.log("Audio play blocked", e));
+      }
 
       // New conversation fetch
       if (!conversations.some(c => c._id === message.conversationId)) {
