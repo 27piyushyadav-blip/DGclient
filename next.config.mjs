@@ -30,6 +30,11 @@ const nextConfig = {
         protocol: "https",
         hostname: "i.pravatar.cc",
       },
+      // ✅ Add this block to allow UI Avatars
+      {
+        protocol: "https",
+        hostname: "ui-avatars.com",
+      },
     ],
     // Aggressive caching for external images (1 year)
     minimumCacheTTL: 31536000,

@@ -1,7 +1,6 @@
 /*
  * File: src/actions/experts.js
- * FIXED: Migrated from Expert → ExpertProfile + User with Aggregation Pipeline
- * Supports: Pagination, Searching, Sorting, Filters, Dynamic Filter Extraction
+ * FIXED: Added education and latestEducation to the projection so they show up on cards.
  */
 
 "use server";
@@ -10,10 +9,6 @@ import { connectToDatabase } from "@/lib/db";
 import ExpertProfile from "@/models/ExpertProfile";
 import User from "@/models/User";
 
-/**
- * @name getExpertsAction
- * Searches & filters experts using Aggregation Pipeline
- */
 export async function getExpertsAction({
   page = 1,
   limit = 10,
@@ -29,9 +24,7 @@ export async function getExpertsAction({
 
     const pipeline = [];
 
-    // ----------------------------------------
-    // 1. Join Profile → User (Identity)
-    // ----------------------------------------
+    // 1. Join Profile → User
     pipeline.push({
       $lookup: {
         from: "users",
@@ -43,15 +36,12 @@ export async function getExpertsAction({
 
     pipeline.push({ $unwind: "$userData" });
 
-    // Ensure visible only if user exists and is verified
     const matchStage = {
       isOnboarded: true,
       "userData.isVerified": true,
     };
 
-    // ----------------------------------------
-    // 2. Search Query
-    // ----------------------------------------
+    // 2. Search Logic (Existing)
     if (filters.q) {
       const q = new RegExp(filters.q, "i");
       matchStage.$or = [
@@ -63,21 +53,11 @@ export async function getExpertsAction({
       ];
     }
 
-    // ----------------------------------------
-    // 3. Dynamic Filters
-    // ----------------------------------------
-    if (filters.roles?.length) {
-      matchStage.specialization = { $in: filters.roles };
-    }
-    if (filters.langs?.length) {
-      matchStage.languages = { $in: filters.langs };
-    }
-    if (filters.gender?.length) {
-      matchStage.gender = { $in: filters.gender };
-    }
-    if (filters.minRating) {
-      matchStage.rating = { $gte: Number(filters.minRating) };
-    }
+    // 3. Filter Logic (Existing)
+    if (filters.roles?.length) matchStage.specialization = { $in: filters.roles };
+    if (filters.langs?.length) matchStage.languages = { $in: filters.langs };
+    if (filters.gender?.length) matchStage.gender = { $in: filters.gender };
+    if (filters.minRating) matchStage.rating = { $gte: Number(filters.minRating) };
 
     if (filters.expRange) {
       const [minExp, maxExp] = filters.expRange.split("-").map(Number);
@@ -87,9 +67,7 @@ export async function getExpertsAction({
 
     pipeline.push({ $match: matchStage });
 
-    // ----------------------------------------
-    // 4. Sorting
-    // ----------------------------------------
+    // 4. Sorting Logic (Existing)
     let sortStage = {};
     if (sort === "price-low") sortStage.startingPrice = 1;
     else if (sort === "price-high") sortStage.startingPrice = -1;
@@ -99,9 +77,7 @@ export async function getExpertsAction({
 
     pipeline.push({ $sort: sortStage });
 
-    // ----------------------------------------
-    // 5. Paginate + Also get Count
-    // ----------------------------------------
+    // 5. Paginate + Project (UPDATED SECTION)
     pipeline.push({
       $facet: {
         metadata: [{ $count: "total" }],
@@ -116,12 +92,13 @@ export async function getExpertsAction({
               reviewCount: 1,
               startingPrice: 1,
               experienceYears: 1,
-              location: 1,
+              location: 1, // Ensure this is present
+              latestEducation: 1, // [!code ++] Added for ExpertCard
+              education: 1, // [!code ++] Added as fallback for ExpertCard
               tags: 1,
               languages: 1,
               services: 1,
               videoUrl: "$introVideo",
-              // User identity fields
               name: "$userData.name",
               profilePicture: "$userData.image",
               isVerified: "$userData.isVerified",
@@ -136,9 +113,7 @@ export async function getExpertsAction({
     const data = result[0].data || [];
     const total = result[0].metadata?.[0]?.total || 0;
 
-    // ----------------------------------------
-    // 6. Dynamic Filters Aggregation
-    // ----------------------------------------
+    // 6. Dynamic Filters Aggregation (Existing)
     const filtersAgg = await ExpertProfile.aggregate([
       {
         $lookup: {
@@ -169,7 +144,6 @@ export async function getExpertsAction({
       experts: JSON.parse(JSON.stringify(data)),
       total,
       hasMore: pageNum * limitNum < total,
-      currentPage: pageNum,
       dynamicFilters: {
         specializations: df.allSpecializations || [],
         languages: (df.allLanguages || []).filter(Boolean),
@@ -181,12 +155,6 @@ export async function getExpertsAction({
     };
   } catch (error) {
     console.error("[ExpertsAction] Fatal Error:", error);
-    return {
-      success: false,
-      experts: [],
-      total: 0,
-      hasMore: false,
-      message: error.message,
-    };
+    return { success: false, experts: [], total: 0, hasMore: false, message: error.message };
   }
 }
