@@ -242,8 +242,12 @@ const ioHandler = (req, res) => {
             msg
           );
           const convData = {
-            ...updatedConv.toObject(),
             conversationId: updatedConv._id.toString(),
+            lastMessage: updatedConv.lastMessage,
+            lastMessageAt: updatedConv.lastMessageAt,
+            lastMessageSender: updatedConv.lastMessageSender?.toString(),
+            userUnreadCount: updatedConv.userUnreadCount,
+            expertUnreadCount: updatedConv.expertUnreadCount,
           };
           
           // 🔁 Sidebar sync (both sides)

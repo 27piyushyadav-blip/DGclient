@@ -200,7 +200,17 @@ export default function ChatClient({ initialConversations, currentUser }) {
 
   const updateChatList = useCallback((updatedConvo) => {
     setConversations(prev => {
-      const newConversations = prev.map(c => c._id === updatedConvo.conversationId ? { ...c, ...updatedConvo } : c);
+      const newConversations = prev.map(c => {
+        if (c._id === updatedConvo.conversationId) {
+          // ✅ Prevent overwriting populated objects with ID strings
+          const expertId = (updatedConvo.expertId && typeof updatedConvo.expertId === 'object') 
+            ? updatedConvo.expertId 
+            : c.expertId;
+  
+          return { ...c, ...updatedConvo, expertId };
+        }
+        return c;
+      });
       return newConversations.sort((a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt));
     });
   }, []);
@@ -559,10 +569,10 @@ export default function ChatClient({ initialConversations, currentUser }) {
 
       // 🔵 CASE B: EXPERT sent the message
       // → Update MY unread badge
-      if (message.sender !== currentUser.id) {
-        updates.userUnreadCount =
-          selectedConversationId === message.conversationId ? 0 : 1;
-      }
+      //if (message.sender !== currentUser.id) {
+      //  updates.userUnreadCount =
+      //    selectedConversationId === message.conversationId ? 0 : 1;
+      //}
 
       // 🔁 Apply sidebar update
       updateChatList({
