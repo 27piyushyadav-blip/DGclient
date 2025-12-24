@@ -202,18 +202,37 @@ export default function ChatClient({ initialConversations, currentUser }) {
     setConversations(prev => {
       const newConversations = prev.map(c => {
         if (c._id === updatedConvo.conversationId) {
-          // ✅ Prevent overwriting populated objects with ID strings
+          // 1. Keep the populated expertId object safe
           const expertId = (updatedConvo.expertId && typeof updatedConvo.expertId === 'object') 
             ? updatedConvo.expertId 
             : c.expertId;
-  
-          return { ...c, ...updatedConvo, expertId };
+
+          // 2. Identify if this is the active chat
+          const isCurrent = updatedConvo.conversationId === selectedConversationId;
+          
+          // 3. Thread-safe unread count calculation
+          let userUnreadCount = c.userUnreadCount || 0;
+          
+          if (isCurrent) {
+            userUnreadCount = 0; // Force clear if chat is open
+          } else if (updatedConvo.shouldIncrement) {
+            userUnreadCount += 1; // Safe increment
+          } else if (updatedConvo.userUnreadCount !== undefined) {
+            userUnreadCount = updatedConvo.userUnreadCount;
+          }
+
+          return { 
+            ...c, 
+            ...updatedConvo, 
+            expertId,
+            userUnreadCount // Apply the calculated count
+          };
         }
         return c;
       });
       return newConversations.sort((a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt));
     });
-  }, []);
+  }, [selectedConversationId]); // ✅ Essential dependency
 
   useEffect(() => {
     return () => {
@@ -539,48 +558,31 @@ export default function ChatClient({ initialConversations, currentUser }) {
        * =====================================================
        */
 
-      // 🔹 Message preview text
+      // 1. Preview text
       let previewText = message.content;
       if (message.contentType === "audio") previewText = "🎤 Audio Message";
       else if (message.contentType === "image") previewText = "📷 Image";
       else if (message.contentType === "pdf") previewText = "📄 Document";
 
-      // 🔹 Base sidebar update
+      // 2. Prepare updates
       const updates = {
         conversationId: message.conversationId,
         lastMessage: previewText,
         lastMessageAt: message.createdAt,
         lastMessageSender: message.sender,
         lastMessageStatus: "sent",
+        isTyping: false,
       };
 
-      /**
-       * =====================================================
-       * 3️⃣ WHO SENT THE MESSAGE?
-       * =====================================================
-       */
-
-      // 🟢 CASE A: WE (User) sent the message
-      // → Expert hasn’t read yet
+      // 3. Logic: If I sent it, reset MY count. If they sent it, increment.
       if (message.sender === currentUser.id) {
-        updates.expertUnreadCount = 1;
-        updates.userUnreadCount = 0; // I read my own message
+        updates.userUnreadCount = 0;
+        updates.expertUnreadCount = 1; 
+      } else {
+        updates.shouldIncrement = true; 
       }
 
-      // 🔵 CASE B: EXPERT sent the message
-      // → Update MY unread badge
-      //if (message.sender !== currentUser.id) {
-      //  updates.userUnreadCount =
-      //    selectedConversationId === message.conversationId ? 0 : 1;
-      //}
-
-      // 🔁 Apply sidebar update
-      updateChatList({
-        ...updates,
-
-        // [FIX] Force-clear typing state when a real message arrives
-        isTyping: false,
-      }); 
+      updateChatList(updates);
 
       // [FIX] Also clear active chat typing indicator
       if (
