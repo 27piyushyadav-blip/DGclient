@@ -1,316 +1,427 @@
 /*
  * File: src/app/video-call/[id]/page.js
- * ROLE: Video Call Client with Whiteboard
+ * ROLE: Professional Video Call Stage (Meet/Gmail Style – Mobile Responsive)
  * FEATURES:
  * - WebRTC Video Call
- * - Socket.io Whiteboard Sync
- * - Canvas Drawing
- * - Expert Watermark (VISIBLE ONLY WHILE DRAWING)
+ * - Whiteboard Stage
+ * - Pin / Unpin
+ * - Minimize / Expand Tiles
+ * - Mobile Grid + Desktop Sidebar
  */
 
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import io from "socket.io-client";
-import { Button } from "@/components/ui/button";
-import { Loader2, Mic, MicOff, Video, VideoOff, PhoneOff } from "lucide-react";
+import {
+  Loader2,
+  Volume2,
+  VolumeX,
+  ShieldCheck,
+  Pin,
+  Maximize2,
+  Minimize2,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
-/* ----------------------------------------
- * Watermark Config
- * -------------------------------------- */
-const EXPERT_WATERMARK_URL = "https://github.com/shadcn.png";
-const WATERMARK_OFFSET = 12;
-const WATERMARK_SIZE = 32;
-const WATERMARK_HIDE_DELAY = 300; // ms
-const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
+import Whiteboard from "@/components/video/Whiteboard";
+import VideoControls from "@/components/video/VideoControls";
+import ProfileImage from "@/components/ProfileImage";
+import { getMeetingSession } from "@/actions/video";
 
 export default function VideoCallPage() {
   const { id: meetingId } = useParams();
   const router = useRouter();
 
-  // ---------------- REFS ----------------
+  /* -------------------- TIME (HYDRATION SAFE) -------------------- */
+  const [currentTime, setCurrentTime] = useState("");
+  useEffect(() => {
+    const update = () =>
+      setCurrentTime(
+        new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+      );
+    update();
+    const timer = setInterval(update, 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  /* -------------------- STATE -------------------- */
+  const [participants, setParticipants] = useState({
+    me: { name: "You", image: null },
+    other: { name: "Loading...", image: null },
+  });
+
+  const [connectionStatus, setConnectionStatus] = useState("Connecting...");
+  const [localStream, setLocalStream] = useState(null);
+  const [remoteStream, setRemoteStream] = useState(null);
+
+  const [isVideoOff, setIsVideoOff] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [remoteVideoOff, setRemoteVideoOff] = useState(false);
+  const [isRemoteMuted, setIsRemoteMuted] = useState(false);
+  const [canFlipCamera, setCanFlipCamera] = useState(false);
+
+  /* ---- Layout State ---- */
+  const [pinnedId, setPinnedId] = useState("whiteboard");
+  const [isRemoteMinimized, setIsRemoteMinimized] = useState(false);
+  const [isLocalMinimized, setIsLocalMinimized] = useState(false);
+
+  /* -------------------- REFS -------------------- */
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
-  const canvasRef = useRef(null);
-  const containerRef = useRef(null);
+  const stageLocalVideoRef = useRef(null);
+  const stageRemoteVideoRef = useRef(null);
 
-  const peerRef = useRef(null);
   const socketRef = useRef(null);
-  const iceQueueRef = useRef([]);
+  const peerRef = useRef(null);
+  const iceQueue = useRef([]);
 
-  // Watermark state (ref-based = no re-render storms)
-  const watermarkRef = useRef(null);
-  const watermarkHideTimerRef = useRef(null);
-
-  // ---------------- STATE ----------------
-  const [isMuted, setIsMuted] = useState(false);
-  const [isVideoOff, setIsVideoOff] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState("Connecting...");
-  const [, forceRender] = useState(0); // used ONLY to refresh watermark overlay
-
-  // ---------------- INIT ----------------
+  /* -------------------- STREAM SYNC -------------------- */
   useEffect(() => {
-    if (!meetingId || socketRef.current) return;
+    const ref = pinnedId === "local" ? stageLocalVideoRef : localVideoRef;
+    if (localStream && ref.current) ref.current.srcObject = localStream;
+  }, [localStream, pinnedId, isVideoOff]);
 
-    const processIceQueue = async () => {
-      while (iceQueueRef.current.length && peerRef.current) {
-        await peerRef.current.addIceCandidate(
-          new RTCIceCandidate(iceQueueRef.current.shift())
-        );
+  useEffect(() => {
+    const ref = pinnedId === "remote" ? stageRemoteVideoRef : remoteVideoRef;
+    if (remoteStream && ref.current) ref.current.srcObject = remoteStream;
+  }, [remoteStream, pinnedId, remoteVideoOff]);
+
+  /* -------------------- PARTICIPANTS -------------------- */
+  useEffect(() => {
+    (async () => {
+      const res = await getMeetingSession(meetingId);
+      if (res?.success) {
+        setParticipants({
+          me: res.data.me,
+          other: res.data.other,
+        });
       }
-    };
+    })();
+  }, [meetingId]);
 
-    const init = async () => {
-      try {
-        await fetch("/api/socket").catch(() => {});
+  /* -------------------- MEDIA CONTROLS -------------------- */
+  const toggleVideoHandler = useCallback(() => {
+    const t = localStream?.getVideoTracks()[0];
+    if (!t) return;
+    t.enabled = !t.enabled;
+    setIsVideoOff(!t.enabled);
+    socketRef.current?.emit("video-state-change", {
+      roomId: meetingId,
+      enabled: t.enabled,
+    });
+  }, [localStream, meetingId]);
 
-        const socket = io(undefined, {
-          path: "/api/socket_io",
-          transports: ["websocket", "polling"],
-        });
+  const toggleAudioHandler = useCallback(() => {
+    const t = localStream?.getAudioTracks()[0];
+    if (!t) return;
+    t.enabled = !t.enabled;
+    setIsMuted(!t.enabled);
+  }, [localStream]);
 
-        socketRef.current = socket;
-        socket.emit("join-video", meetingId);
+  /* -------------------- WEBRTC -------------------- */
+  const initializeWebRTC = useCallback(async () => {
+    try {
+      await fetch("/api/socket").catch(() => {});
+      const socket = io(undefined, {
+        path: "/api/socket_io",
+        transports: ["websocket"],
+      });
+      socketRef.current = socket;
 
-        // ---------- MEDIA ----------
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: true,
-        });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true,
+      });
+      setLocalStream(stream);
 
-        localVideoRef.current.srcObject = stream;
-        localVideoRef.current.muted = true;
+      const peer = new RTCPeerConnection({
+        iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+      });
+      peerRef.current = peer;
 
-        // ---------- PEER ----------
-        const peer = new RTCPeerConnection({
-          iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-        });
+      stream.getTracks().forEach((t) => peer.addTrack(t, stream));
 
-        peerRef.current = peer;
-        stream.getTracks().forEach((t) => peer.addTrack(t, stream));
+      peer.ontrack = (e) => {
+        setRemoteStream(e.streams[0]);
+        setConnectionStatus("Connected");
+      };
 
-        peer.ontrack = (e) => {
-          remoteVideoRef.current.srcObject = e.streams[0];
-          setConnectionStatus("Connected");
-        };
-
-        peer.onicecandidate = (e) =>
-          e.candidate &&
+      peer.onicecandidate = (e) => {
+        if (e.candidate) {
           socket.emit("ice-candidate", {
             candidate: e.candidate,
             roomId: meetingId,
           });
+        }
+      };
 
-        socket.emit("client-ready", meetingId);
+      socket.emit("join-video", meetingId);
+      socket.emit("client-ready", meetingId);
 
-        socket.on("user-connected", async () => {
-          const offer = await peer.createOffer();
-          await peer.setLocalDescription(offer);
-          socket.emit("offer", { offer, roomId: meetingId });
-        });
+      socket.on("user-connected", async () => {
+        const offer = await peer.createOffer();
+        await peer.setLocalDescription(offer);
+        socket.emit("offer", { offer, roomId: meetingId });
+      });
 
-        socket.on("offer", async ({ offer }) => {
-          await peer.setRemoteDescription(offer);
-          const answer = await peer.createAnswer();
-          await peer.setLocalDescription(answer);
-          socket.emit("answer", { answer, roomId: meetingId });
-          processIceQueue();
-        });
+      socket.on("offer", async ({ offer }) => {
+        await peer.setRemoteDescription(new RTCSessionDescription(offer));
+        const answer = await peer.createAnswer();
+        await peer.setLocalDescription(answer);
+        socket.emit("answer", { answer, roomId: meetingId });
 
-        socket.on("answer", async ({ answer }) => {
-          await peer.setRemoteDescription(answer);
-          processIceQueue();
-        });
+        while (iceQueue.current.length) {
+          peer.addIceCandidate(new RTCIceCandidate(iceQueue.current.shift()));
+        }
+      });
 
-        socket.on("ice-candidate", ({ candidate }) =>
-          peer.remoteDescription
-            ? peer.addIceCandidate(new RTCIceCandidate(candidate))
-            : iceQueueRef.current.push(candidate)
-        );
+      socket.on("answer", async ({ answer }) => {
+        await peer.setRemoteDescription(new RTCSessionDescription(answer));
+      });
 
-        /* ---------- WHITEBOARD ---------- */
-        socket.on("wb-draw", drawOnCanvas);
+      socket.on("ice-candidate", ({ candidate }) => {
+        if (peer.remoteDescription) {
+          peer.addIceCandidate(new RTCIceCandidate(candidate));
+        } else {
+          iceQueue.current.push(candidate);
+        }
+      });
 
-        socket.on("wb-clear", () => {
-          const c = canvasRef.current;
-          if (!c) return;
-
-          const ctx = c.getContext("2d");
-          ctx.fillStyle = "#ffffff";
-          ctx.fillRect(0, 0, c.width, c.height);
-
-          watermarkRef.current = null;
-          forceRender((v) => v + 1);
-        });
-      } catch {
-        setConnectionStatus("Camera/Mic blocked");
-      }
-    };
-
-    init();
-
-    return () => {
-      socketRef.current?.disconnect();
-      localVideoRef.current?.srcObject?.getTracks().forEach((t) => t.stop());
-      peerRef.current?.close();
-    };
+      socket.on("remote-video-state", ({ enabled }) => {
+        setRemoteVideoOff(!enabled);
+      });
+    } catch {
+      setConnectionStatus("Access Denied");
+    }
   }, [meetingId]);
 
-  // ---------------- DRAW ----------------
-  const drawOnCanvas = ({ x0, y0, x1, y1, color, width }) => {
-    const c = canvasRef.current;
-    if (!c) return;
-    const ctx = c.getContext("2d");
-
-    ctx.beginPath();
-    ctx.moveTo(x0 * c.width, y0 * c.height);
-    ctx.lineTo(x1 * c.width, y1 * c.height);
-    ctx.strokeStyle = color;
-    ctx.lineWidth = width;
-    ctx.lineCap = "round";
-    ctx.stroke();
-
-    // SHOW watermark while drawing
-    watermarkRef.current = { x: x1, y: y1 };
-    forceRender((v) => v + 1);
-
-    // Reset hide timer
-    if (watermarkHideTimerRef.current) {
-      clearTimeout(watermarkHideTimerRef.current);
-    }
-
-    // Hide watermark when drawing stops
-    watermarkHideTimerRef.current = setTimeout(() => {
-      watermarkRef.current = null;
-      forceRender((v) => v + 1);
-    }, WATERMARK_HIDE_DELAY);
-  };
-
-  // ---------------- RESIZE ----------------
   useEffect(() => {
-    const resize = () => {
-      if (!canvasRef.current || !containerRef.current) return;
-
-      const temp = document.createElement("canvas");
-      temp.width = canvasRef.current.width;
-      temp.height = canvasRef.current.height;
-      temp.getContext("2d").drawImage(canvasRef.current, 0, 0);
-
-      canvasRef.current.width = containerRef.current.offsetWidth;
-      canvasRef.current.height = containerRef.current.offsetHeight;
-
-      const ctx = canvasRef.current.getContext("2d");
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-      ctx.drawImage(temp, 0, 0);
+    initializeWebRTC();
+    navigator.mediaDevices.enumerateDevices().then((d) =>
+      setCanFlipCamera(d.filter((x) => x.kind === "videoinput").length > 1)
+    );
+    return () => {
+      socketRef.current?.disconnect();
+      localStream?.getTracks().forEach((t) => t.stop());
+      peerRef.current?.close();
     };
+  }, [initializeWebRTC]);
 
-    window.addEventListener("resize", resize);
-    setTimeout(resize, 100);
-    return () => window.removeEventListener("resize", resize);
-  }, []);
-
-  const wm = watermarkRef.current;
-  const c = canvasRef.current;
-
-  // ---------------- UI ----------------
+  /* -------------------- UI -------------------- */
   return (
-    <div className="flex flex-col lg:flex-row h-[100dvh] bg-zinc-950 overflow-hidden">
-      {/* WHITEBOARD */}
-      <div ref={containerRef} className="flex-1 relative bg-white">
-        <canvas ref={canvasRef} className="w-full h-full touch-none" />
+    <div className="flex flex-col lg:flex-row h-[calc(100dvh-64px)] bg-[#111] overflow-hidden text-white font-inter">
 
-        {wm && c && (
-          <img
-            src={EXPERT_WATERMARK_URL}
-            alt="Expert Watermark"
-            className="absolute pointer-events-none z-50 rounded-full border shadow-md"
-            style={{
-              width: WATERMARK_SIZE,
-              height: WATERMARK_SIZE,
-              left: clamp(
-                wm.x * c.width + WATERMARK_OFFSET,
-                0,
-                c.width - WATERMARK_SIZE
-              ),
-              top: clamp(
-                wm.y * c.height + WATERMARK_OFFSET,
-                0,
-                c.height - WATERMARK_SIZE
-              ),
-            }}
-          />
+      {/* ================= MAIN STAGE ================= */}
+      <div className="flex-1 relative flex flex-col p-2 lg:p-4 bg-black min-h-0">
+        <div className="flex-1 rounded-2xl overflow-hidden bg-black relative shadow-2xl">
+
+          {pinnedId === "whiteboard" && (
+            <div className="w-full h-full bg-white">
+              <Whiteboard
+                socket={socketRef.current}
+                roomId={meetingId}
+                expertName={participants.other.name}
+                expertImage={participants.other.image}
+              />
+            </div>
+          )}
+
+          {pinnedId === "remote" && (
+            <video
+              ref={stageRemoteVideoRef}
+              autoPlay
+              playsInline
+              muted={isRemoteMuted}
+              className={cn(
+                "w-full h-full object-cover",
+                remoteVideoOff && "hidden"
+              )}
+            />
+          )}
+
+          {pinnedId === "local" && (
+            <video
+              ref={stageLocalVideoRef}
+              autoPlay
+              playsInline
+              muted
+              className={cn(
+                "w-full h-full object-cover",
+                isVideoOff && "hidden"
+              )}
+            />
+          )}
+
+          <div className="absolute bottom-4 left-4 px-3 py-1.5 bg-black/60 rounded-lg flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-green-400" />
+            <span className="text-[10px] font-bold uppercase hidden sm:inline">
+              Secure Session
+            </span>
+          </div>
+        </div>
+
+        {connectionStatus !== "Connected" && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 rounded-2xl m-2 lg:m-4">
+            <Loader2 className="w-10 h-10 animate-spin text-indigo-500" />
+          </div>
         )}
       </div>
 
-      {/* VIDEO PANEL */}
-      <div className="w-full lg:w-96 bg-zinc-900 flex flex-col border-l border-zinc-800">
-        <div className="flex-1 relative bg-black">
-          <video
-            ref={remoteVideoRef}
-            autoPlay
-            playsInline
-            className="w-full h-full object-cover"
-          />
-          {connectionStatus !== "Connected" && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/80">
-              <Loader2 className="animate-spin text-zinc-400" />
+      {/* ================= SIDEBAR / DRAWER ================= */}
+      <div className="w-full lg:w-80 flex flex-col border-t lg:border-l border-white/5 bg-[#111] shrink-0">
+
+        <div className="p-3 lg:p-4 grid grid-cols-2 lg:grid-cols-1 gap-3 overflow-y-auto max-h-[30vh] lg:max-h-full">
+
+          {/* ================= REMOTE TILE ================= */}
+          {pinnedId !== "remote" && (
+            <div
+              className={cn(
+                "relative bg-zinc-900 rounded-xl overflow-hidden",
+                isRemoteMinimized ? "h-14" : "aspect-video"
+              )}
+            >
+              <video
+                ref={remoteVideoRef}
+                autoPlay
+                playsInline
+                muted={isRemoteMuted}
+                className={cn(
+                  "w-full h-full object-cover",
+                  (remoteVideoOff || isRemoteMinimized) && "hidden"
+                )}
+              />
+
+              {/* BIG AVATAR ONLY WHEN VIDEO OFF & NOT MINIMIZED */}
+              {remoteVideoOff && !isRemoteMinimized && (
+                <div className="absolute inset-0 flex items-center justify-center bg-zinc-800">
+                  <ProfileImage
+                    src={participants.other.image}
+                    name={participants.other.name}
+                    sizeClass="h-16 w-16 lg:h-20 lg:w-20"
+                  />
+                </div>
+              )}
+
+              {/* COMPACT ROW WHEN MINIMIZED */}
+              {isRemoteMinimized && (
+                <div className="absolute inset-0 flex items-center gap-2 px-3 bg-zinc-800">
+                  <ProfileImage
+                    src={participants.other.image}
+                    name={participants.other.name}
+                    sizeClass="h-8 w-8"
+                  />
+                  <span className="text-sm font-semibold truncate">
+                    {participants.other.name}
+                  </span>
+                </div>
+              )}
+
+              {!isRemoteMinimized && (
+                <div className="absolute bottom-2 left-2 px-2 py-0.5 bg-black/60 rounded text-[10px] font-semibold">
+                  {participants.other.name}
+                </div>
+              )}
+
+              <div className="absolute top-2 right-2 flex gap-2">
+                <button
+                  onClick={() => setPinnedId("remote")}
+                  className="h-9 w-9 rounded-full bg-black/60 flex items-center justify-center"
+                >
+                  <Pin size={16} />
+                </button>
+                <button
+                  onClick={() => setIsRemoteMinimized(!isRemoteMinimized)}
+                  className="h-9 w-9 rounded-full bg-black/60 flex items-center justify-center"
+                >
+                  {isRemoteMinimized ? (
+                    <Maximize2 size={16} />
+                  ) : (
+                    <Minimize2 size={16} />
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ================= LOCAL TILE ================= */}
+          {pinnedId !== "local" && (
+            <div
+              className={cn(
+                "relative bg-zinc-900 rounded-xl overflow-hidden",
+                isLocalMinimized ? "h-14" : "aspect-video"
+              )}
+            >
+              <video
+                ref={localVideoRef}
+                autoPlay
+                playsInline
+                muted
+                className={cn(
+                  "w-full h-full object-cover",
+                  (isVideoOff || isLocalMinimized) && "hidden"
+                )}
+              />
+
+              {isVideoOff && !isLocalMinimized && (
+                <div className="absolute inset-0 flex items-center justify-center bg-zinc-800">
+                  <ProfileImage
+                    src={participants.me.image}
+                    name={participants.me.name}
+                    sizeClass="h-16 w-16 lg:h-20 lg:w-20"
+                  />
+                </div>
+              )}
+
+              {isLocalMinimized && (
+                <div className="absolute inset-0 flex items-center gap-2 px-3 bg-zinc-800">
+                  <ProfileImage
+                    src={participants.me.image}
+                    name={participants.me.name}
+                    sizeClass="h-8 w-8"
+                  />
+                  <span className="text-sm font-semibold truncate">You</span>
+                </div>
+              )}
+
+              {!isLocalMinimized && (
+                <div className="absolute bottom-2 left-2 px-2 py-0.5 bg-black/60 rounded text-[10px] font-semibold">
+                  You
+                </div>
+              )}
+
+              <div className="absolute top-2 right-2 flex gap-2">
+                <button
+                  onClick={() => setPinnedId("local")}
+                  className="h-9 w-9 rounded-full bg-black/60 flex items-center justify-center"
+                >
+                  <Pin size={16} />
+                </button>
+                <button
+                  onClick={() => setIsLocalMinimized(!isLocalMinimized)}
+                  className="h-9 w-9 rounded-full bg-black/60 flex items-center justify-center"
+                >
+                  {isLocalMinimized ? (
+                    <Maximize2 size={16} />
+                  ) : (
+                    <Minimize2 size={16} />
+                  )}
+                </button>
+              </div>
             </div>
           )}
         </div>
 
-        <div className="flex-1 relative bg-zinc-800">
-          <video
-            ref={localVideoRef}
-            autoPlay
-            playsInline
-            muted
-            className={cn(
-              "w-full h-full object-cover",
-              isVideoOff && "opacity-0"
-            )}
+        <div className="p-4 lg:p-6 bg-zinc-950 border-t border-white/5 flex justify-center">
+          <VideoControls
+            isVideoOff={isVideoOff}
+            isMuted={isMuted}
+            showFlip={canFlipCamera}
+            onToggleVideo={toggleVideoHandler}
+            onToggleAudio={toggleAudioHandler}
+            onEndCall={() => router.back()}
           />
-          {isVideoOff && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <VideoOff className="text-zinc-400" />
-            </div>
-          )}
-        </div>
-
-        <div className="p-4 flex justify-center gap-3 border-t border-zinc-800">
-          <Button
-            size="icon"
-            variant={isMuted ? "destructive" : "secondary"}
-            onClick={() => {
-              const t =
-                localVideoRef.current?.srcObject?.getAudioTracks()[0];
-              if (!t) return;
-              t.enabled = !t.enabled;
-              setIsMuted(!t.enabled);
-            }}
-          >
-            {isMuted ? <MicOff /> : <Mic />}
-          </Button>
-
-          <Button
-            size="icon"
-            variant={isVideoOff ? "destructive" : "secondary"}
-            onClick={() => {
-              const t =
-                localVideoRef.current?.srcObject?.getVideoTracks()[0];
-              if (!t) return;
-              t.enabled = !t.enabled;
-              setIsVideoOff(!t.enabled);
-            }}
-          >
-            {isVideoOff ? <VideoOff /> : <Video />}
-          </Button>
-
-          <Button variant="destructive" onClick={() => router.back()}>
-            <PhoneOff className="mr-2" /> End
-          </Button>
         </div>
       </div>
     </div>

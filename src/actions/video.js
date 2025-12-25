@@ -59,3 +59,44 @@ export async function saveWhiteboardData(appointmentId, whiteboardUrl) {
     return { success: false, message: "Failed to save whiteboard data." };
   }
 }
+
+
+/**
+ * @name getMeetingSession
+ * @description Fetches appointment details by meetingId to display actual names/images.
+ */
+export async function getMeetingSession(meetingId) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) return { success: false, message: "Unauthorized" };
+
+  try {
+    await connectToDatabase();
+
+    // Find and populate participants
+    const appt = await Appointment.findOne({ meetingId })
+      .populate("userId", "name image")
+      .populate("expertId", "name image")
+      .lean();
+
+    if (!appt) return { success: false, message: "Meeting not found." };
+
+    const isExpert = session.user.id === appt.expertId._id.toString();
+    
+    // Prepare the response data
+    const responseData = {
+      success: true,
+      data: {
+        me: isExpert ? appt.expertId : appt.userId,
+        other: isExpert ? appt.userId : appt.expertId,
+        appointmentId: appt._id.toString(),
+      }
+    };
+
+    // CRITICAL: Convert ObjectIds and Dates to plain strings to avoid hydration/serialization errors
+    return JSON.parse(JSON.stringify(responseData));
+
+  } catch (error) {
+    console.error("Fetch Meeting Error:", error);
+    return { success: false, message: "Failed to load session data." };
+  }
+}
