@@ -28,9 +28,19 @@ import VideoControls from "@/components/video/VideoControls";
 import ProfileImage from "@/components/ProfileImage";
 import { getMeetingSession } from "@/actions/video";
 
+const StreamPlayer = ({ stream, muted, className }) => {
+  const videoRef = useRef(null);
+  useEffect(() => {
+    if (videoRef.current && stream) videoRef.current.srcObject = stream;
+  }, [stream]);
+  return <video ref={videoRef} autoPlay playsInline muted={muted} className={className} />;
+};
+
 export default function VideoCallPage() {
   const { id: meetingId } = useParams();
   const router = useRouter();
+  const makingOffer = useRef(false);
+  const ignoreOffer = useRef(false);
 
 
   /* -------------------- STATE -------------------- */
@@ -55,25 +65,10 @@ export default function VideoCallPage() {
   const [isLocalMinimized, setIsLocalMinimized] = useState(false);
 
   /* -------------------- REFS -------------------- */
-  const localVideoRef = useRef(null);
-  const remoteVideoRef = useRef(null);
-  const stageLocalVideoRef = useRef(null);
-  const stageRemoteVideoRef = useRef(null);
 
   const socketRef = useRef(null);
   const peerRef = useRef(null);
   const iceQueue = useRef([]);
-
-  /* -------------------- STREAM SYNC -------------------- */
-  useEffect(() => {
-    const ref = pinnedId === "local" ? stageLocalVideoRef : localVideoRef;
-    if (localStream && ref.current) ref.current.srcObject = localStream;
-  }, [localStream, pinnedId]);
-
-  useEffect(() => {
-    const ref = pinnedId === "remote" ? stageRemoteVideoRef : remoteVideoRef;
-    if (remoteStream && ref.current) ref.current.srcObject = remoteStream;
-  }, [remoteStream, pinnedId]);
 
   /* -------------------- PARTICIPANTS -------------------- */
   useEffect(() => {
@@ -123,14 +118,6 @@ export default function VideoCallPage() {
 
       setLocalStream(stream);
 
-      // 🚀 IMMEDIATE PREVIEW (NO WAIT)
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-      }
-      if (stageLocalVideoRef.current) {
-        stageLocalVideoRef.current.srcObject = stream;
-      }
-
       await fetch("/api/socket").catch(() => { });
       const socket = io(undefined, {
         path: "/api/socket_io",
@@ -159,7 +146,7 @@ export default function VideoCallPage() {
           peer.restartIce();
         }
       };
-      
+
 
       peer.onicecandidate = (e) => {
         if (e.candidate) {
@@ -171,44 +158,35 @@ export default function VideoCallPage() {
       };
 
       socket.emit("join-video", meetingId);
-      peer.onnegotiationneeded = () => {
-        socket.emit("client-ready", meetingId);
+      socket.emit("client-ready", meetingId);
+
+      // REPLACE: peer.onnegotiationneeded
+      peer.onnegotiationneeded = async () => {
+        try {
+          makingOffer.current = true;
+          await peer.setLocalDescription();
+          socket.emit("offer", { offer: peer.localDescription, roomId: meetingId });
+        } catch (err) {
+          console.error(err);
+        } finally {
+          makingOffer.current = false;
+        }
       };
 
 
-      socket.on("user-connected", async () => {
-        const pc = peerRef.current; // Use the ref
-        if (!pc || pc.signalingState !== "stable") return;
-      
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        socket.emit("offer", { offer, roomId: meetingId });
-      });
 
+      // REPLACE: socket.on("offer")
       socket.on("offer", async ({ offer }) => {
         try {
-          // 1. Check if we are in a state to receive an offer
-          if (peer.signalingState !== "stable") {
-            console.warn("Signaling state is not stable, ignoring offer");
-            return;
-          }
-      
-          await peer.setRemoteDescription(new RTCSessionDescription(offer));
-          
-          // 2. Double check state before creating answer
-          if (peer.signalingState === "have-remote-offer") {
-            const answer = await peer.createAnswer();
-            await peer.setLocalDescription(answer);
-            socket.emit("answer", { answer, roomId: meetingId });
-          }
-      
-          // Process ICE queue
-          while (iceQueue.current.length) {
-            const candidate = iceQueue.current.shift();
-            await peer.addIceCandidate(new RTCIceCandidate(candidate));
-          }
+          const offerCollision = makingOffer.current || peer.signalingState !== "stable";
+          ignoreOffer.current = offerCollision;
+          if (ignoreOffer.current) return; // Ignore if we are already in the middle of making an offer
+
+          await peer.setRemoteDescription(offer);
+          await peer.setLocalDescription();
+          socket.emit("answer", { answer: peer.localDescription, roomId: meetingId });
         } catch (err) {
-          console.error("Error handling offer:", err);
+          console.error("Offer error:", err);
         }
       });
 
@@ -217,15 +195,17 @@ export default function VideoCallPage() {
           console.warn("Ignoring answer in state:", peer.signalingState);
           return;
         }
-      
+
         await peer.setRemoteDescription(new RTCSessionDescription(answer));
       });
 
-      socket.on("ice-candidate", ({ candidate }) => {
-        if (peer.remoteDescription) {
-          peer.addIceCandidate(new RTCIceCandidate(candidate));
-        } else {
-          iceQueue.current.push(candidate);
+      socket.on("ice-candidate", async ({ candidate }) => {
+        try {
+          if (!ignoreOffer.current) {
+            await peer.addIceCandidate(new RTCIceCandidate(candidate));
+          }
+        } catch (err) {
+          console.error("ICE Candidate Error:", err);
         }
       });
 
@@ -247,36 +227,30 @@ export default function VideoCallPage() {
     }
   }, [meetingId]);
 
-  useEffect(() => {
-    const vids = [remoteVideoRef.current, stageRemoteVideoRef.current];
-    vids.forEach((v) => {
-      if (!v) return;
-      v.style.display = remoteVideoOff ? "none" : "block";
-    });
-  }, [remoteVideoOff]);
 
   const flipCamera = async () => {
     if (!localStream) return;
-  
     const videoTrack = localStream.getVideoTracks()[0];
-    const current = videoTrack.getSettings().facingMode;
-  
-    const newStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: current === "user" ? "environment" : "user" },
-      audio: false,
-    });
+    const currentFacing = videoTrack.getSettings().facingMode;
 
-    
-    const newVideoTrack = newStream.getVideoTracks()[0];
-    
-    const sender = peerRef.current
-    ?.getSenders()
-    .find((s) => s.track?.kind === "video");
-    
-    sender?.replaceTrack(newVideoTrack);
-    
-    localStream.getVideoTracks().forEach((t) => t.stop());
-    setLocalStream(newStream);
+    try {
+      const newStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: currentFacing === "user" ? "environment" : "user" },
+      });
+      const newVideoTrack = newStream.getVideoTracks()[0];
+
+      // Replace the track in the WebRTC connection
+      const sender = peerRef.current?.getSenders().find((s) => s.track?.kind === "video");
+      if (sender) sender.replaceTrack(newVideoTrack);
+
+      // Stop the old hardware track
+      videoTrack.stop();
+
+      // Update local state with the new stream (retaining original audio)
+      setLocalStream(new MediaStream([newVideoTrack, ...localStream.getAudioTracks()]));
+    } catch (err) {
+      console.error("Flip failed", err);
+    }
   };
 
   useEffect(() => {
@@ -286,17 +260,9 @@ export default function VideoCallPage() {
     );
     return () => {
       const socket = socketRef.current;
-      if (!socket) return;
-    
-      socket.off("user-connected");
-      socket.off("offer");
-      socket.off("answer");
-      socket.off("ice-candidate");
-      socket.off("remote-video-state");
-      socket.off("remote-audio-state");
-    
-      socket.disconnect();
+      if (socket) socket.disconnect();
       localStream?.getTracks().forEach((t) => t.stop());
+      remoteStream?.getTracks().forEach((t) => t.stop()); // Add this
       peerRef.current?.close();
     };
   }, [initializeWebRTC]);
@@ -321,43 +287,26 @@ export default function VideoCallPage() {
           )}
 
           {pinnedId === "remote" && (
-            <video
-              ref={stageRemoteVideoRef}
-              autoPlay
-              playsInline
+            <StreamPlayer
+              stream={remoteStream}
               muted={isRemoteMuted}
-              className={cn(
-                "w-full h-full object-cover",
-              )}
+              className="w-full h-full object-cover"
             />
           )}
 
           {pinnedId === "local" && (
-            <video
-              ref={stageLocalVideoRef}
-              autoPlay
-              playsInline
-              muted
+            <StreamPlayer
+              stream={localStream}
+              muted={true}
               className={cn(
-                "w-full h-full object-cover",
+                "w-full h-full object-cover scale-x-[-1]", // Mirror for natural look
                 isVideoOff && "opacity-0"
               )}
             />
           )}
 
 
-          {/* ================= STAGE MUTE INDICATOR ================= */}
-          {pinnedId === "local" && isMuted && (
-            <div className="absolute top-4 right-4 h-10 w-10 rounded-full bg-black/60 flex items-center justify-center">
-              <VolumeX className="w-5 h-5 text-red-400" />
-            </div>
-          )}
 
-          {pinnedId === "remote" && isRemoteMuted && (
-            <div className="absolute top-4 right-4 h-10 w-10 rounded-full bg-black/60 flex items-center justify-center">
-              <VolumeX className="w-5 h-5 text-red-400" />
-            </div>
-          )}
 
           {/* ================= STAGE PROFILE FALLBACK ================= */}
           {pinnedId === "remote" && remoteVideoOff && (
@@ -377,6 +326,20 @@ export default function VideoCallPage() {
                 name={participants.me.name}
                 sizeClass="h-32 w-32 lg:h-40 lg:w-40"
               />
+            </div>
+          )}
+
+
+          {/* ================= STAGE MUTE INDICATOR ================= */}
+          {pinnedId === "local" && isMuted && (
+            <div className="absolute top-4 right-4 h-10 w-10 rounded-full bg-black/60 flex items-center justify-center">
+              <VolumeX className="w-5 h-5 text-red-400" />
+            </div>
+          )}
+
+          {pinnedId === "remote" && isRemoteMuted && (
+            <div className="absolute top-4 right-4 h-10 w-10 rounded-full bg-black/60 flex items-center justify-center">
+              <VolumeX className="w-5 h-5 text-red-400" />
             </div>
           )}
 
@@ -434,16 +397,13 @@ export default function VideoCallPage() {
                 isRemoteMinimized ? "h-14" : "aspect-video"
               )}
             >
-              <video
-                ref={remoteVideoRef}
-                autoPlay
-                playsInline
-                muted={isRemoteMuted}
-                className={cn(
-                  "w-full h-full object-cover",
-                  isRemoteMinimized && "hidden"
-                )}
-              />
+              {!isRemoteMinimized && (
+                <StreamPlayer
+                  stream={remoteStream}
+                  muted={isRemoteMuted}
+                  className="w-full h-full object-cover"
+                />
+              )}
 
               {/* BIG AVATAR ONLY WHEN VIDEO OFF & NOT MINIMIZED */}
               {remoteVideoOff && !isRemoteMinimized && (
@@ -510,16 +470,10 @@ export default function VideoCallPage() {
               )}
             >
 
-              <video
-                ref={localVideoRef}
-                autoPlay
-                playsInline
-                muted
-                className={cn(
-                  "w-full h-full object-cover",
-                  isLocalMinimized && "hidden",
-                  isVideoOff && "opacity-0"
-                )}
+              <StreamPlayer
+                stream={localStream}
+                muted={true}
+                className={cn("w-full h-full object-cover scale-x-[-1]", isVideoOff && "opacity-0")}
               />
 
               {isVideoOff && !isLocalMinimized && (
