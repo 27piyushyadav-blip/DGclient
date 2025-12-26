@@ -77,9 +77,7 @@ const nextConfig = {
 
   // Preserving your specific cloud environment origin
   allowedDevOrigins: [
-    "3000-firebase-mind-namo-users-1762736047019.cluster-cd3bsnf6r5bemwki2bxljme5as.cloudworkstations.dev",
-    "3000-firebase-mind-namo-1764372366519.cluster-xpmcxs2fjnhg6xvn446ubtgpio.cloudworkstations.dev",
-    "3002-firebase-mindnamo-1764927977998.cluster-isls3qj2gbd5qs4jkjqvhahfv6.cloudworkstations.dev"
+    "3002-firebase-mindnamo-1766703496806.cluster-ys234awlzbhwoxmkkse6qo3fz6.cloudworkstations.dev"
   ],
 };
 

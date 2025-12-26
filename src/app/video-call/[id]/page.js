@@ -16,9 +16,7 @@ import { useParams, useRouter } from "next/navigation";
 import io from "socket.io-client";
 import {
   Loader2,
-  Volume2,
   VolumeX,
-  ShieldCheck,
   Pin,
   Maximize2,
   Minimize2,
@@ -34,17 +32,6 @@ export default function VideoCallPage() {
   const { id: meetingId } = useParams();
   const router = useRouter();
 
-  /* -------------------- TIME (HYDRATION SAFE) -------------------- */
-  const [currentTime, setCurrentTime] = useState("");
-  useEffect(() => {
-    const update = () =>
-      setCurrentTime(
-        new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-      );
-    update();
-    const timer = setInterval(update, 60000);
-    return () => clearInterval(timer);
-  }, []);
 
   /* -------------------- STATE -------------------- */
   const [participants, setParticipants] = useState({
@@ -81,12 +68,12 @@ export default function VideoCallPage() {
   useEffect(() => {
     const ref = pinnedId === "local" ? stageLocalVideoRef : localVideoRef;
     if (localStream && ref.current) ref.current.srcObject = localStream;
-  }, [localStream, pinnedId, isVideoOff]);
+  }, [localStream, pinnedId]);
 
   useEffect(() => {
     const ref = pinnedId === "remote" ? stageRemoteVideoRef : remoteVideoRef;
     if (remoteStream && ref.current) ref.current.srcObject = remoteStream;
-  }, [remoteStream, pinnedId, remoteVideoOff]);
+  }, [remoteStream, pinnedId]);
 
   /* -------------------- PARTICIPANTS -------------------- */
   useEffect(() => {
@@ -118,23 +105,41 @@ export default function VideoCallPage() {
     if (!t) return;
     t.enabled = !t.enabled;
     setIsMuted(!t.enabled);
-  }, [localStream]);
+
+    socketRef.current?.emit("audio-state-change", {
+      roomId: meetingId,
+      enabled: t.enabled,
+    });
+  }, [localStream, meetingId]);
+
 
   /* -------------------- WEBRTC -------------------- */
   const initializeWebRTC = useCallback(async () => {
     try {
-      await fetch("/api/socket").catch(() => {});
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true,
+      });
+
+      setLocalStream(stream);
+
+      // 🚀 IMMEDIATE PREVIEW (NO WAIT)
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+      }
+      if (stageLocalVideoRef.current) {
+        stageLocalVideoRef.current.srcObject = stream;
+      }
+
+      await fetch("/api/socket").catch(() => { });
       const socket = io(undefined, {
         path: "/api/socket_io",
         transports: ["websocket"],
       });
       socketRef.current = socket;
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true,
-      });
-      setLocalStream(stream);
+
+
 
       const peer = new RTCPeerConnection({
         iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
@@ -148,6 +153,14 @@ export default function VideoCallPage() {
         setConnectionStatus("Connected");
       };
 
+      peer.oniceconnectionstatechange = () => {
+        if (peer.iceConnectionState === "failed") {
+          setConnectionStatus("Reconnecting...");
+          peer.restartIce();
+        }
+      };
+      
+
       peer.onicecandidate = (e) => {
         if (e.candidate) {
           socket.emit("ice-candidate", {
@@ -158,26 +171,53 @@ export default function VideoCallPage() {
       };
 
       socket.emit("join-video", meetingId);
-      socket.emit("client-ready", meetingId);
+      peer.onnegotiationneeded = () => {
+        socket.emit("client-ready", meetingId);
+      };
+
 
       socket.on("user-connected", async () => {
-        const offer = await peer.createOffer();
-        await peer.setLocalDescription(offer);
+        const pc = peerRef.current; // Use the ref
+        if (!pc || pc.signalingState !== "stable") return;
+      
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
         socket.emit("offer", { offer, roomId: meetingId });
       });
 
       socket.on("offer", async ({ offer }) => {
-        await peer.setRemoteDescription(new RTCSessionDescription(offer));
-        const answer = await peer.createAnswer();
-        await peer.setLocalDescription(answer);
-        socket.emit("answer", { answer, roomId: meetingId });
-
-        while (iceQueue.current.length) {
-          peer.addIceCandidate(new RTCIceCandidate(iceQueue.current.shift()));
+        try {
+          // 1. Check if we are in a state to receive an offer
+          if (peer.signalingState !== "stable") {
+            console.warn("Signaling state is not stable, ignoring offer");
+            return;
+          }
+      
+          await peer.setRemoteDescription(new RTCSessionDescription(offer));
+          
+          // 2. Double check state before creating answer
+          if (peer.signalingState === "have-remote-offer") {
+            const answer = await peer.createAnswer();
+            await peer.setLocalDescription(answer);
+            socket.emit("answer", { answer, roomId: meetingId });
+          }
+      
+          // Process ICE queue
+          while (iceQueue.current.length) {
+            const candidate = iceQueue.current.shift();
+            await peer.addIceCandidate(new RTCIceCandidate(candidate));
+          }
+        } catch (err) {
+          console.error("Error handling offer:", err);
         }
       });
 
       socket.on("answer", async ({ answer }) => {
+        if (peer.signalingState !== "have-local-offer") {
+          console.warn("Ignoring answer in state:", peer.signalingState);
+          return;
+        }
+      
         await peer.setRemoteDescription(new RTCSessionDescription(answer));
       });
 
@@ -189,13 +229,55 @@ export default function VideoCallPage() {
         }
       });
 
+      socket.on("remote-audio-state", ({ enabled }) => {
+        setIsRemoteMuted(!enabled);
+      });
+
       socket.on("remote-video-state", ({ enabled }) => {
         setRemoteVideoOff(!enabled);
       });
+
+      peer.onconnectionstatechange = () => {
+        if (peer.connectionState === "failed" || peer.connectionState === "disconnected") {
+          setConnectionStatus("Reconnecting...");
+        }
+      };
     } catch {
       setConnectionStatus("Access Denied");
     }
   }, [meetingId]);
+
+  useEffect(() => {
+    const vids = [remoteVideoRef.current, stageRemoteVideoRef.current];
+    vids.forEach((v) => {
+      if (!v) return;
+      v.style.display = remoteVideoOff ? "none" : "block";
+    });
+  }, [remoteVideoOff]);
+
+  const flipCamera = async () => {
+    if (!localStream) return;
+  
+    const videoTrack = localStream.getVideoTracks()[0];
+    const current = videoTrack.getSettings().facingMode;
+  
+    const newStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: current === "user" ? "environment" : "user" },
+      audio: false,
+    });
+
+    
+    const newVideoTrack = newStream.getVideoTracks()[0];
+    
+    const sender = peerRef.current
+    ?.getSenders()
+    .find((s) => s.track?.kind === "video");
+    
+    sender?.replaceTrack(newVideoTrack);
+    
+    localStream.getVideoTracks().forEach((t) => t.stop());
+    setLocalStream(newStream);
+  };
 
   useEffect(() => {
     initializeWebRTC();
@@ -203,7 +285,17 @@ export default function VideoCallPage() {
       setCanFlipCamera(d.filter((x) => x.kind === "videoinput").length > 1)
     );
     return () => {
-      socketRef.current?.disconnect();
+      const socket = socketRef.current;
+      if (!socket) return;
+    
+      socket.off("user-connected");
+      socket.off("offer");
+      socket.off("answer");
+      socket.off("ice-candidate");
+      socket.off("remote-video-state");
+      socket.off("remote-audio-state");
+    
+      socket.disconnect();
       localStream?.getTracks().forEach((t) => t.stop());
       peerRef.current?.close();
     };
@@ -236,7 +328,6 @@ export default function VideoCallPage() {
               muted={isRemoteMuted}
               className={cn(
                 "w-full h-full object-cover",
-                remoteVideoOff && "hidden"
               )}
             />
           )}
@@ -249,17 +340,59 @@ export default function VideoCallPage() {
               muted
               className={cn(
                 "w-full h-full object-cover",
-                isVideoOff && "hidden"
+                isVideoOff && "opacity-0"
               )}
             />
           )}
 
-          <div className="absolute bottom-4 left-4 px-3 py-1.5 bg-black/60 rounded-lg flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-green-400" />
-            <span className="text-[10px] font-bold uppercase hidden sm:inline">
-              Secure Session
-            </span>
-          </div>
+
+          {/* ================= STAGE MUTE INDICATOR ================= */}
+          {pinnedId === "local" && isMuted && (
+            <div className="absolute top-4 right-4 h-10 w-10 rounded-full bg-black/60 flex items-center justify-center">
+              <VolumeX className="w-5 h-5 text-red-400" />
+            </div>
+          )}
+
+          {pinnedId === "remote" && isRemoteMuted && (
+            <div className="absolute top-4 right-4 h-10 w-10 rounded-full bg-black/60 flex items-center justify-center">
+              <VolumeX className="w-5 h-5 text-red-400" />
+            </div>
+          )}
+
+          {/* ================= STAGE PROFILE FALLBACK ================= */}
+          {pinnedId === "remote" && remoteVideoOff && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black">
+              <ProfileImage
+                src={participants.other.image}
+                name={participants.other.name}
+                sizeClass="h-32 w-32 lg:h-40 lg:w-40"
+              />
+            </div>
+          )}
+
+          {pinnedId === "local" && isVideoOff && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black">
+              <ProfileImage
+                src={participants.me.image}
+                name={participants.me.name}
+                sizeClass="h-32 w-32 lg:h-40 lg:w-40"
+              />
+            </div>
+          )}
+
+
+          {/* ================= PINNED PERSON NAME ================= */}
+          {pinnedId !== "whiteboard" && (
+            <div className="absolute bottom-4 left-4 px-3 py-1.5 bg-black/60 rounded-lg">
+              <span className="text-xs font-semibold tracking-wide">
+                {pinnedId === "remote"
+                  ? participants.other.name
+                  : "You"}
+              </span>
+            </div>
+          )}
+
+
         </div>
 
         {connectionStatus !== "Connected" && (
@@ -270,9 +403,28 @@ export default function VideoCallPage() {
       </div>
 
       {/* ================= SIDEBAR / DRAWER ================= */}
-      <div className="w-full lg:w-80 flex flex-col border-t lg:border-l border-white/5 bg-[#111] shrink-0">
+      <div className="w-full lg:w-80 flex flex-col justify-between border-t lg:border-l border-white/5 bg-[#111] shrink-0">
 
         <div className="p-3 lg:p-4 grid grid-cols-2 lg:grid-cols-1 gap-3 overflow-y-auto max-h-[30vh] lg:max-h-full">
+
+          {/* ================= WHITEBOARD ACCESS TILE ================= */}
+          {pinnedId !== "whiteboard" && (
+            <div
+              onClick={() => setPinnedId("whiteboard")}
+              className="relative cursor-pointer bg-zinc-900 hover:bg-zinc-800 transition rounded-xl overflow-hidden aspect-video flex items-center justify-center border border-white/10"
+            >
+              <div className="flex flex-col items-center gap-2 text-center">
+                <div className="h-12 w-12 rounded-lg bg-white/10 flex items-center justify-center">
+                  <span className="text-lg font-bold">🧾</span>
+                </div>
+                <span className="text-sm font-semibold">Whiteboard</span>
+                <span className="text-[10px] text-white/60">
+                  Click to return
+                </span>
+              </div>
+            </div>
+          )}
+
 
           {/* ================= REMOTE TILE ================= */}
           {pinnedId !== "remote" && (
@@ -289,7 +441,7 @@ export default function VideoCallPage() {
                 muted={isRemoteMuted}
                 className={cn(
                   "w-full h-full object-cover",
-                  (remoteVideoOff || isRemoteMinimized) && "hidden"
+                  isRemoteMinimized && "hidden"
                 )}
               />
 
@@ -324,24 +476,28 @@ export default function VideoCallPage() {
                 </div>
               )}
 
-              <div className="absolute top-2 right-2 flex gap-2">
+              <div className="absolute bottom-2 right-2 flex gap-2">
+                {isRemoteMuted && (
+                  <div className="h-9 w-9 rounded-full bg-black/60 flex items-center justify-center">
+                    <VolumeX className="w-4 h-4 text-red-400" />
+                  </div>
+                )}
+
                 <button
                   onClick={() => setPinnedId("remote")}
                   className="h-9 w-9 rounded-full bg-black/60 flex items-center justify-center"
                 >
                   <Pin size={16} />
                 </button>
+
                 <button
                   onClick={() => setIsRemoteMinimized(!isRemoteMinimized)}
                   className="h-9 w-9 rounded-full bg-black/60 flex items-center justify-center"
                 >
-                  {isRemoteMinimized ? (
-                    <Maximize2 size={16} />
-                  ) : (
-                    <Minimize2 size={16} />
-                  )}
+                  {isRemoteMinimized ? <Maximize2 size={16} /> : <Minimize2 size={16} />}
                 </button>
               </div>
+
             </div>
           )}
 
@@ -353,6 +509,7 @@ export default function VideoCallPage() {
                 isLocalMinimized ? "h-14" : "aspect-video"
               )}
             >
+
               <video
                 ref={localVideoRef}
                 autoPlay
@@ -360,7 +517,8 @@ export default function VideoCallPage() {
                 muted
                 className={cn(
                   "w-full h-full object-cover",
-                  (isVideoOff || isLocalMinimized) && "hidden"
+                  isLocalMinimized && "hidden",
+                  isVideoOff && "opacity-0"
                 )}
               />
 
@@ -391,24 +549,28 @@ export default function VideoCallPage() {
                 </div>
               )}
 
-              <div className="absolute top-2 right-2 flex gap-2">
+              <div className="absolute bottom-2 right-2 flex gap-2">
+                {isMuted && (
+                  <div className="h-9 w-9 rounded-full bg-black/60 flex items-center justify-center">
+                    <VolumeX className="w-4 h-4 text-red-400" />
+                  </div>
+                )}
+
                 <button
                   onClick={() => setPinnedId("local")}
                   className="h-9 w-9 rounded-full bg-black/60 flex items-center justify-center"
                 >
                   <Pin size={16} />
                 </button>
+
                 <button
                   onClick={() => setIsLocalMinimized(!isLocalMinimized)}
                   className="h-9 w-9 rounded-full bg-black/60 flex items-center justify-center"
                 >
-                  {isLocalMinimized ? (
-                    <Maximize2 size={16} />
-                  ) : (
-                    <Minimize2 size={16} />
-                  )}
+                  {isLocalMinimized ? <Maximize2 size={16} /> : <Minimize2 size={16} />}
                 </button>
               </div>
+
             </div>
           )}
         </div>
@@ -421,6 +583,7 @@ export default function VideoCallPage() {
             onToggleVideo={toggleVideoHandler}
             onToggleAudio={toggleAudioHandler}
             onEndCall={() => router.back()}
+            onFlipCamera={flipCamera}
           />
         </div>
       </div>
