@@ -14,7 +14,8 @@ export default function VideoControls({
   showFlip, 
   onToggleVideo, 
   onToggleAudio, 
-  onEndCall 
+  onEndCall,
+  onFlipCamera
 }) {
   return (
     <div className="flex items-center gap-4">
@@ -45,7 +46,7 @@ export default function VideoControls({
       {/* Flip Camera (Shown contextually) */}
       {showFlip && (
         <button
-          onClick={() => window.location.reload()}
+        onClick={onFlipCamera}
           className="h-11 w-11 rounded-full flex items-center justify-center bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border border-white/10 shadow-xl"
           title="Flip Camera"
         >
