@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import DarkModeToggle from "@/components/DarkModeToggle";
 import ProfileImage from "@/components/ProfileImage";
-import { User, LogOut, Calendar, Settings, Menu, X } from "lucide-react";
+import { User, LogOut, Calendar, Settings, Menu, X, LifeBuoy, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function Header() {
@@ -85,6 +85,15 @@ export default function Header() {
             >
               Organizations
             </Link>
+            <Link
+              href="/appointments"
+              className={cn(
+                "text-sm font-medium transition-colors hover:text-zinc-900 dark:hover:text-white",
+                isActive("/appointments") ? "text-zinc-900 dark:text-white" : "text-zinc-600 dark:text-zinc-400"
+              )}
+            >
+              My Appointments
+            </Link>
           </nav>
 
           {/* Right Side Actions */}
@@ -111,15 +120,32 @@ export default function Header() {
                   </div>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link href="/profile" className="flex items-center gap-2 cursor-pointer">
-                      <Settings className="h-4 w-4" />
-                      Settings
+                    <Link href="/profile" className="cursor-pointer w-full flex items-center py-2.5">
+                      <User className="mr-3 h-4 w-4" /> Profile
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link href="/appointments" className="flex items-center gap-2 cursor-pointer">
                       <Calendar className="h-4 w-4" />
-                      Appointments
+                      My Appointments
+                    </Link>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                      <Link href="/support" className="cursor-pointer w-full flex items-center py-2.5">
+                          <LifeBuoy className="mr-3 h-4 w-4" /> Help & Support
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/feedback" className="cursor-pointer w-full flex items-center py-2.5">
+                          <MessageCircle className="mr-3 h-4 w-4" /> Give Feedback
+                      </Link>
+                    </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/profile" className="flex items-center gap-2 cursor-pointer">
+                      <Settings className="h-4 w-4" />
+                      Settings
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
@@ -190,6 +216,18 @@ export default function Header() {
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Organizations
+            </Link>
+            <Link
+              href="/appointments"
+              className={cn(
+                "block px-3 py-2 text-sm font-medium rounded-md transition-colors",
+                isActive("/appointments")
+                  ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white"
+                  : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900"
+              )}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              My Appointments
             </Link>
             {!session?.user && (
               <>
