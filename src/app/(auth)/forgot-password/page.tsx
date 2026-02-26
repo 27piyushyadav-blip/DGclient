@@ -18,11 +18,14 @@ import { Button } from "@/components/ui/button";
 import { Loader2Icon, ArrowLeftIcon, MindNamoLogo } from "@/components/Icons";
 import { cn } from "@/lib/utils";
 import FormSkeleton from "@/components/auth/FormSkeleton";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 type Status = "idle" | "success" | "error";
 
 // --- Inner Form Component ---
 function ForgotPasswordForm() {
+  const { forgotPassword } = useAuth();
   const [email, setEmail] = useState<string>("");
   const [status, setStatus] = useState<Status>("idle");
   const [message, setMessage] = useState<string>("");
@@ -42,8 +45,16 @@ function ForgotPasswordForm() {
     setMessage("");
 
     startTransition(async () => {
-      setStatus("error");
-      setMessage("Password reset is currently unavailable.");
+      try {
+        await forgotPassword(email);
+        setStatus("success");
+        setMessage("If an account exists, a reset link has been sent to your email.");
+        toast.success("Reset link sent! Check your email.");
+      } catch (error: any) {
+        setStatus("error");
+        setMessage(error.message || "Failed to send reset link. Please try again.");
+        toast.error(error.message || "Failed to send reset link");
+      }
     });
   };
 

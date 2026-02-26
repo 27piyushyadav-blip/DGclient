@@ -10,6 +10,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { z } from "zod";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 // UI Components
 import { Label } from "@/components/ui/label";
@@ -41,17 +43,18 @@ export default function RegisterForm() {
   >({});
   const [serverError, setServerError] = useState("");
 
+  const { register } = useAuth();
   const [isPending, startTransition] = useTransition();
   const [isGooglePending, startGoogleTransition] = useTransition();
   const router = useRouter();
 
   const handleGoogleSignIn = () => {
     startGoogleTransition(() => {
-      // Backend/auth removed: intentionally no-op.
+      router.push(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/auth/expert'}/google`);
     });
   };
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setErrors({});
     setServerError("");
@@ -67,8 +70,16 @@ export default function RegisterForm() {
       return;
     }
 
-    startTransition(() => {
-      router.push(`/otp?email=${encodeURIComponent(formData.email)}`);
+    startTransition(async () => {
+      try {
+        await register(formData.fullName, formData.email, formData.password);
+        toast.success("Registration successful! Please check your email to verify your account.");
+        router.push(`/login?message=Please check your email to verify your account`);
+      } catch (error: any) {
+        const errorMessage = error.message || "Registration failed. Please try again.";
+        setServerError(errorMessage);
+        toast.error(errorMessage);
+      }
     });
   };
 

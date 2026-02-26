@@ -10,8 +10,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { z } from "zod";
 import { cn } from "@/lib/utils";
-import { DEMO_CREDENTIALS, DemoSession } from "@/lib/demoAuth";
-import { useDemoAuth } from "@/components/DemoAuthProvider";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 // UI Components
 import { Label } from "@/components/ui/label";
@@ -21,7 +21,7 @@ import { Loader2Icon, GoogleIcon, EyeIcon, EyeOffIcon } from "@/components/Icons
 
 // Validation Schema
 const loginSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
+  identifier: z.string().min(1, "Email is required"),
   password: z.string().min(1, "Password is required"),
 });
 
@@ -29,13 +29,14 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function LoginForm() {
   const [formData, setFormData] = useState<LoginFormData>({
-    email: "",
+    identifier: "",
     password: "",
   });
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<keyof LoginFormData, string>>>({});
   const [authError, setAuthError] = useState("");
 
+  const { login } = useAuth();
   const [isPending, startTransition] = useTransition();
   const [isGooglePending, startGoogleTransition] = useTransition();
 
@@ -43,27 +44,22 @@ export default function LoginForm() {
   const searchParams = useSearchParams();
   const callbackUrl =
     searchParams?.get("callbackUrl")?.toString() || "/";
-  const { setSession } = useDemoAuth();
+  const message = searchParams?.get("message");
 
-  // Preserve original URL error handling (even though NextAuth is removed)
+  // Show success message from registration
   useEffect(() => {
-    const errorType = searchParams?.get("error");
-    if (errorType === "CredentialsSignin") {
-      setAuthError("Invalid email or password.");
-    } else if (errorType === "OAuthAccountNotLinked") {
-      setAuthError("Email already in use with a different provider.");
-    } else if (errorType) {
-      setAuthError("Authentication failed. Please try again.");
+    if (message) {
+      toast.success(message);
     }
-  }, [searchParams]);
+  }, [message]);
 
   const handleGoogleSignIn = () => {
     startGoogleTransition(() => {
-      setAuthError("Authentication is currently unavailable.");
+      window.location.href = `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/auth/expert'}/google`;
     });
   };
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setErrors({});
     setAuthError("");
@@ -79,28 +75,17 @@ export default function LoginForm() {
       return;
     }
 
-    startTransition(() => {
-      const isValid =
-        formData.email === DEMO_CREDENTIALS.email &&
-        formData.password === DEMO_CREDENTIALS.password;
-
-      if (!isValid) {
-        setAuthError("Invalid email or password.");
-        return;
+    startTransition(async () => {
+      try {
+        await login(formData.identifier, formData.password);
+        toast.success("Login successful!");
+        router.push(callbackUrl);
+        router.refresh();
+      } catch (error: any) {
+        const errorMessage = error.message || "Login failed. Please try again.";
+        setAuthError(errorMessage);
+        toast.error(errorMessage);
       }
-
-      const session: DemoSession = {
-        user: {
-          id: "demo-user",
-          name: "Demo User",
-          email: DEMO_CREDENTIALS.email,
-          image: null,
-        },
-      };
-
-      setSession(session);
-      router.push(callbackUrl);
-      router.refresh();
     });
   };
 
@@ -140,28 +125,28 @@ export default function LoginForm() {
         )}
 
         <div className="grid gap-2">
-          <Label htmlFor="email" className="text-zinc-700 dark:text-zinc-300">
+          <Label htmlFor="identifier" className="text-zinc-700 dark:text-zinc-300">
             Email Address
           </Label>
           <Input
-            id="email"
+            id="identifier"
             type="email"
             placeholder="name@example.com"
-            value={formData.email}
+            value={formData.identifier}
             onChange={(e) =>
-              setFormData((prev) => ({ ...prev, email: e.target.value }))
+              setFormData((prev) => ({ ...prev, identifier: e.target.value }))
             }
             disabled={isPending}
             className={cn(
               "h-11 transition-all focus:ring-2 focus:ring-offset-1",
-              errors.email
+              errors.identifier
                 ? "border-red-500 focus-visible:ring-red-500"
                 : "focus-visible:ring-primary"
             )}
           />
-          {errors.email && (
+          {errors.identifier && (
             <p className="text-xs text-red-500 font-medium ml-1">
-              {errors.email}
+              {errors.identifier}
             </p>
           )}
         </div>
@@ -176,7 +161,7 @@ export default function LoginForm() {
             </Label>
             <Link
               href={`/forgot-password?email=${encodeURIComponent(
-                formData.email
+                formData.identifier
               )}`}
               className="text-xs font-medium text-primary hover:underline"
             >

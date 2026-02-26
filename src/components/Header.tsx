@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { useDemoAuth } from "@/components/DemoAuthProvider";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -16,9 +16,10 @@ import DarkModeToggle from "@/components/DarkModeToggle";
 import ProfileImage from "@/components/ProfileImage";
 import { User, LogOut, Calendar, Settings, Menu, X, LifeBuoy, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export default function Header() {
-  const { session, clearSession } = useDemoAuth();
+  const { user, logout, isAuthenticated } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [isScrolled, setIsScrolled] = useState(false);
@@ -32,9 +33,14 @@ export default function Header() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const handleLogout = () => {
-    clearSession();
-    router.push("/");
+  const handleLogout = async () => {
+    try {
+      await logout();
+      toast.success("Logged out successfully!");
+      router.push("/");
+    } catch (error: any) {
+      toast.error(error.message || "Logout failed");
+    }
   };
 
   const isActive = (path: string) => pathname === path;
@@ -100,13 +106,13 @@ export default function Header() {
           <div className="flex items-center gap-3">
             <DarkModeToggle className={undefined} />
 
-            {session?.user ? (
+            {isAuthenticated && user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="h-9 w-9 rounded-full p-0">
                     <ProfileImage
-                      src={session.user.image || undefined}
-                      name={session.user.name || ""}
+                      src={user.image || undefined}
+                      name={user.name || ""}
                       sizeClass="h-9 w-9"
                       textClass="text-xs"
                       className=""
@@ -115,8 +121,8 @@ export default function Header() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
                   <div className="px-2 py-1.5">
-                    <p className="text-sm font-medium">{session.user.name}</p>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{session.user.email}</p>
+                    <p className="text-sm font-medium">{user.name}</p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{user.email}</p>
                   </div>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
@@ -229,7 +235,7 @@ export default function Header() {
             >
               My Appointments
             </Link>
-            {!session?.user && (
+            {!isAuthenticated && (
               <>
                 <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800">
                   <Button variant="ghost" className="w-full justify-start" asChild>
@@ -241,7 +247,7 @@ export default function Header() {
                 </div>
               </>
             )}
-            {session?.user && (
+            {isAuthenticated && user && (
               <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800 space-y-1">
                 <Link
                   href="/profile"

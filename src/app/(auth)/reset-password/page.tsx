@@ -16,13 +16,15 @@ import Link from "next/link";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2Icon, EyeIcon, EyeOffIcon, MindNamoLogo, ArrowLeftIcon } from "@/components/Icons";
+import { Loader2Icon, EyeIcon, EyeOffIcon, MindNamoLogo, ArrowLeftIcon, CheckCircleIcon } from "@/components/Icons";
 import FormSkeleton from "@/components/auth/FormSkeleton";
-import { SVGProps } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 type Status = "" | "success" | "error";
 
 function ResetPasswordForm() {
+  const { resetPassword } = useAuth();
   const [password, setPassword] = useState<string>("");
   const [confirmPassword, setConfirmPassword] = useState<string>("");
   const [showPassword, setShowPassword] = useState<boolean>(false);
@@ -43,9 +45,28 @@ function ResetPasswordForm() {
        return;
     }
 
-    startTransition(async () => {
+    if (password.length < 8) {
        setStatus("error");
-       setMessage("Password reset is currently unavailable.");
+       setMessage("Password must be at least 8 characters long.");
+       return;
+    }
+
+    startTransition(async () => {
+       try {
+         await resetPassword(token!, password);
+         setStatus("success");
+         setMessage("Password updated successfully!");
+         toast.success("Password reset successful!");
+         
+         // Redirect to login after 2 seconds
+         setTimeout(() => {
+           router.push('/login?message=Password reset successful! Please login with your new password.');
+         }, 2000);
+       } catch (error: any) {
+         setStatus("error");
+         setMessage(error.message || "Failed to reset password. Please try again.");
+         toast.error(error.message || "Password reset failed");
+       }
     });
   };
 
@@ -68,7 +89,7 @@ function ResetPasswordForm() {
      return (
         <div className="flex flex-col items-center justify-center h-64 text-center animate-in fade-in zoom-in">
            <div className="h-16 w-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-6">
-             <CheckIcon className="h-8 w-8" />
+             <CheckCircleIcon className="h-8 w-8" />
            </div>
            <h3 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Password Reset!</h3>
            <p className="text-zinc-500 dark:text-zinc-400 mt-2 mb-8">Your password has been successfully updated.</p>
@@ -128,13 +149,6 @@ function ResetPasswordForm() {
   );
 }
 
-// Helper Icon for Success State
-const CheckIcon = (props: SVGProps<SVGSVGElement>) => (
-  <svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-    <polyline points="22 4 12 14.01 9 11.01"/>
-  </svg>
-);
 
 export default function ResetPasswordPage() {
   return (

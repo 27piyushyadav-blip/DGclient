@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { DemoAuthProvider } from "@/components/DemoAuthProvider";
+import { AuthProvider } from "@/contexts/AuthContext";
 import ThemeContextWrapper from "@/components/ThemeContextWrapper";
 import FooterWrapper from "@/components/FooterWrapper";
 import Header from "@/components/Header";
@@ -23,14 +23,14 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <ThemeContextWrapper>
-          <DemoAuthProvider>
+          <AuthProvider>
             <div className="flex min-h-screen flex-col">
               <Header />
               <main className="flex-1">{children}</main>
               <FooterWrapper />
             </div>
             <Toaster />
-          </DemoAuthProvider>
+          </AuthProvider>
         </ThemeContextWrapper>
       </body>
     </html>
