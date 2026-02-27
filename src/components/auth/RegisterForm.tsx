@@ -74,7 +74,7 @@ export default function RegisterForm() {
       try {
         await register(formData.fullName, formData.email, formData.password);
         toast.success("Registration successful! Please check your email to verify your account.");
-        router.push(`/login?message=Please check your email to verify your account`);
+        router.push(`/verification-sent?email=${encodeURIComponent(formData.email)}`);
       } catch (error: any) {
         const errorMessage = error.message || "Registration failed. Please try again.";
         setServerError(errorMessage);
