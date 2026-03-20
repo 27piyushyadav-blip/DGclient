@@ -122,6 +122,7 @@ export default function ProfileImage({
           className="object-cover z-10"
           sizes="(max-width: 768px) 96px, 128px"
           priority={priority}
+          unoptimized={visibleSrc.includes('localhost') || visibleSrc.includes('127.0.0')}
           onError={() => setImgError(true)}
           referrerPolicy="no-referrer"
         />

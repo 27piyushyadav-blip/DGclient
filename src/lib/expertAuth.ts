@@ -104,6 +104,9 @@ class ExpertAuthService {
     const data = await response.json();
 
     if (!response.ok) {
+      if (response.status === 401) {
+        return { message: 'Already logged out' };
+      }
       throw new Error(data.message || 'Logout failed');
     }
 

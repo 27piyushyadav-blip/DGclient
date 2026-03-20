@@ -2,27 +2,27 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useDemoAuth } from "@/components/DemoAuthProvider";
+import { useAuth } from "@/contexts/AuthContext";
 import FeedbackClient from "./FeedbackClient";
 
 export default function FeedbackClientGate() {
-  const { session } = useDemoAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!session?.user) {
+    if (!isLoading && !isAuthenticated) {
       router.push("/login");
     }
-  }, [session, router]);
+  }, [isAuthenticated, isLoading, router]);
 
-  if (!session?.user) {
+  if (isLoading || !isAuthenticated) {
     return null;
   }
 
   return (
     <FeedbackClient
-      userId={session.user.id || ""}
-      userName={session.user.name || ""}
+      userId={user?.id || ""}
+      userName={user?.name || ""}
     />
   );
 }

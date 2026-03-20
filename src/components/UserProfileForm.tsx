@@ -19,6 +19,8 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import ProfileImage from "@/components/ProfileImage";
 import { Loader2, Camera, Save, User, Bell, Mail, CheckCircle2 } from "lucide-react";
+import { useAuthHeader, useAuth } from "@/contexts/AuthContext";
+import { updateUserProfileApi, uploadUserProfileImageApi } from "@/lib/userApi";
 
 const profileSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(60),
@@ -50,19 +52,42 @@ export default function UserProfileForm({ user }: { user: any }) {
     },
   });
 
-  const isUploading = false;
+  const authHeaders = useAuthHeader();
+  const { login } = useAuth(); // or we can just fetch /me, but user state handles itself usually. Let's just manage state in form
+
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const isUploading = isPending;
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const objectUrl = URL.createObjectURL(file);
     setPreviewImage(objectUrl);
+    setSelectedFile(file);
     setValue("profilePicture", objectUrl, { shouldDirty: true, shouldValidate: true });
   };
 
   const onSubmit = (data: z.infer<typeof profileSchema>) => {
     startTransition(async () => {
-      toast.error("Profile updates are currently unavailable.");
+      try {
+        if (selectedFile) {
+          await uploadUserProfileImageApi(selectedFile, authHeaders);
+        }
+        
+        await updateUserProfileApi({ name: data.name }, authHeaders);
+        
+        toast.success("Profile updated successfully!");
+        
+        // Reset dirty state to prevent multiple saves
+        setValue("profilePicture", previewImage, { shouldDirty: false });
+        setValue("name", data.name, { shouldDirty: false });
+        setValue("marketing", data.marketing, { shouldDirty: false });
+        setValue("security", data.security, { shouldDirty: false });
+        setValue("transactional", data.transactional, { shouldDirty: false });
+
+      } catch (err: any) {
+        toast.error(err.message || "Failed to update profile");
+      }
     });
   };
 

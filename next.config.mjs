@@ -35,6 +35,11 @@ const nextConfig = {
         protocol: "https",
         hostname: "ui-avatars.com",
       },
+      // ✅ Allow backend local image uploads
+      {
+        protocol: "http",
+        hostname: "localhost",
+      },
     ],
     // Aggressive caching for external images (1 year)
     minimumCacheTTL: 31536000,

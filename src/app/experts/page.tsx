@@ -11,6 +11,8 @@ import { AlertTriangle } from "lucide-react";
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+import { getExpertsListApi } from "@/lib/directoryApi";
+
 // --- UPDATED METADATA ---
 export const metadata: Metadata = {
   title: "Experts | Mind Namo",
@@ -39,13 +41,28 @@ export const metadata: Metadata = {
 };
 
 export default async function ExpertsPage() {
-  const initialData = {
+  let initialData = {
     experts: [],
     total: 0,
     hasMore: false,
     dynamicFilters: {},
     error: null,
   };
+
+  try {
+    const response = await getExpertsListApi();
+    if (response?.data) {
+      initialData = {
+        ...initialData,
+        experts: response.data.experts || [],
+        total: response.data.total || 0,
+        hasMore: response.data.hasMore || false,
+      };
+    }
+  } catch (err: any) {
+    console.error("Failed to load experts:", err);
+    initialData.error = err.message || "Failed to connect to the server.";
+  }
   
   return (
     <div className="flex flex-col w-full bg-zinc-50 dark:bg-zinc-950 min-h-screen">
