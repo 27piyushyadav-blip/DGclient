@@ -88,10 +88,6 @@ const nextConfig = {
     ];
   },
 
-  // Preserving your specific cloud environment origin
-  allowedDevOrigins: [
-    "3002-firebase-mindnamo-1766703496806.cluster-ys234awlzbhwoxmkkse6qo3fz6.cloudworkstations.dev"
-  ],
 };
 
 export default nextConfig;
