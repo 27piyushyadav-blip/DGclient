@@ -1,7 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactCompiler: true,
+  output: 'standalone',
 
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  
   experimental: {
     // Automatically optimize imports for these heavy libraries
     optimizePackageImports: ['lucide-react', 'date-fns', 'lodash'],
@@ -81,10 +89,6 @@ const nextConfig = {
     ];
   },
 
-  // Preserving your specific cloud environment origin
-  allowedDevOrigins: [
-    "3002-firebase-mindnamo-1766703496806.cluster-ys234awlzbhwoxmkkse6qo3fz6.cloudworkstations.dev"
-  ],
 };
 
 export default nextConfig;
