@@ -14,12 +14,39 @@ import Loading from "./loading";
 
 export const dynamic = 'force-dynamic';
 
+async function getInitialConversations() {
+  try {
+    const token = process.env.NEXT_PUBLIC_API_TOKEN || "";
+    const baseUrl = "http://localhost:3000";
+    
+    const response = await fetch(`${baseUrl}/chat/conversations?userType=client`, {
+      headers: { 
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      cache: "no-store",
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      return data.conversations || [];
+    }
+  } catch (error) {
+    console.error("Failed to fetch conversations:", error);
+  }
+  
+  return [];
+}
+
 export const metadata: Metadata = {
   title: "Messages | Mind Namo",
   description: "Secure, private conversations with your experts.",
 };
 
-export default function ChatPage() {
+export default async function ChatPage() {
+  // Remove server-side fetch to make page load immediately
+  // Conversations will be loaded client-side in parallel with messages
+
   return (
     /**
      * FIXED: Adjusted height from h-[100dvh] to h-[calc(100dvh-64px)].
@@ -31,7 +58,7 @@ export default function ChatPage() {
       <main className="flex-1 overflow-hidden flex flex-col">
         <Suspense fallback={<Loading />}>
           <ChatClient 
-            initialConversations={[]} 
+            initialConversations={[]} // Start empty, load client-side
           />
         </Suspense>
       </main>

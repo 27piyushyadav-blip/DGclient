@@ -6,14 +6,15 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo, useTransition, useLayoutEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import ProfileImage from "@/components/ProfileImage";
 import { io, Socket } from "socket.io-client";
 import { Send, Loader2, ArrowLeft } from "lucide-react";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000";
+const API_BASE = "http://localhost:3000";
 const TOKEN_KEY = "expert_access_token";
-const USER_KEY = "auth_user";
+const USER_KEY = "expert_user";
 
 type ChatUser = {
   _id: string;
@@ -75,14 +76,26 @@ const formatLastTime = (d: any) => {
 };
 
 export default function ChatClient({ initialConversations }: { initialConversations: any[] }) {
+  const searchParams = useSearchParams();
   const [conversations, setConversations] = useState<Conversation[]>(initialConversations || []);
-  const [selectedConvoId, setSelectedConvoId] = useState<string | null>(null);
+  const [selectedConvoId, setSelectedConvoId] = useState<string | null>(null); // Don't auto-select from URL
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [isMessagesPending, startTransition] = useTransition();
   const [chatOpacity, setChatOpacity] = useState(0);
+  const [isConversationsLoading, setIsConversationsLoading] = useState(true);
+  
+  // Debug: Track when messages change
+  useEffect(() => {
+    console.log("🔥 Messages state changed:", messages.length, messages.map(m => ({ id: m._id, content: m.content, sender: m.sender })));
+  }, [messages]);
+  
+  // Debug: Track chat opacity and loading state
+  useEffect(() => {
+    console.log("🔥 Chat opacity:", chatOpacity, "isMessagesPending:", isMessagesPending, "isMounted:", isMounted);
+  }, [chatOpacity, isMessagesPending, isMounted]);
 
   const socketRef = useRef<Socket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -94,39 +107,106 @@ export default function ChatClient({ initialConversations }: { initialConversati
   const currentUser = useMemo(() => {
     if (typeof window === "undefined") return null;
     try {
-      return JSON.parse(localStorage.getItem(USER_KEY) || "null");
-    } catch { return null; }
-  }, []);
+      const user = JSON.parse(localStorage.getItem(USER_KEY) || "null");
+      console.log("Current user from localStorage:", user);
+      console.log("USER_KEY:", USER_KEY);
+      console.log("Raw localStorage data:", localStorage.getItem(USER_KEY));
+      console.log("All conversations:", conversations);
+      console.log("User name:", user?.name);
+      
+      // Debug: Log the first conversation to see its structure
+      if (conversations.length > 0) {
+        console.log("First conversation structure:", conversations[0]);
+        console.log("First conversation otherUser:", conversations[0].otherUser);
+        console.log("First conversation clientId (as any):", (conversations[0] as any).clientId);
+      }
+      
+      // Fix: Use _id if available, fallback to email if id is empty
+      if (user && !user.id && user.email) {
+        // For client user, the UUID is in conversation.clientId, not otherUser._id
+        // Since we're on the client side, we can just use the first conversation's clientId
+        const conversation = conversations[0]; // Get the first conversation
+        const convAny = conversation as any;
+        
+        console.log("Using first conversation:", conversation);
+        console.log("Conversation clientId:", convAny?.clientId);
+        
+        if (convAny?.clientId) {
+          user.id = convAny.clientId;
+          user.uuid = convAny.clientId;
+          console.log("Using conversation clientId as user ID:", user.id);
+        } else {
+          user.id = user.email; // Use email as fallback ID
+          console.log("Using email as user ID:", user.email);
+        }
+      }
+      
+      return user;
+    } catch { 
+      console.log("Error parsing user from localStorage");
+      return null; 
+    }
+  }, [conversations]);
 
   const selectedConversation = conversations.find(c => c._id === selectedConvoId);
   const remoteUser = selectedConversation?.otherUser;
 
   useEffect(() => { setIsMounted(true); }, []);
 
-  // ===== FETCH CONVERSATIONS =====
+  // Removed URL parameter auto-selection - user must manually click a conversation
+
+  // ===== CONVERSATION FETCHING =====
   useEffect(() => {
-    const token = localStorage.getItem(TOKEN_KEY);
-    if (!token) return;
-    fetch(`${API_BASE}/chat/conversations?userType=client`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(r => r.json())
-      .then(data => setConversations(data.conversations || []))
-      .catch(console.error);
+    const fetchConversations = async () => {
+      try {
+        const token = localStorage.getItem(TOKEN_KEY);
+        if (!token) return;
+
+        console.log("🔥 Fetching conversations client-side...");
+        setIsConversationsLoading(true);
+        
+        const res = await fetch(`${API_BASE}/chat/conversations?userType=client`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          console.log("🔥 Conversations loaded:", data.conversations);
+          setConversations(data.conversations || []);
+        }
+      } catch (error) {
+        console.error("🔥 Error fetching conversations:", error);
+      } finally {
+        setIsConversationsLoading(false);
+      }
+    };
+
+    fetchConversations();
   }, []);
 
   // ===== SOCKET CONNECTION =====
   useEffect(() => {
-    const token = localStorage.getItem(TOKEN_KEY);
+    // Check for token (try both possible keys)
+    let token = localStorage.getItem("expert_access_token") || localStorage.getItem("access_token");
     if (!token) return;
+
+    console.log("Connecting to socket at:", `${API_BASE}/chat`);
+    console.log("Token for socket:", token ? token.substring(0, 20) + "..." : "none");
 
     const s = io(`${API_BASE}/chat`, {
       auth: { token },
       transports: ["websocket", "polling"],
     });
 
-    s.on("connect", () => console.log("[UserChat] Connected:", s.id));
-    s.on("disconnect", () => console.log("[UserChat] Disconnected"));
+    s.on("connect", () => {
+      console.log("[UserChat] Connected:", s.id);
+      console.log("[UserChat] Current selectedConvoId:", selectedConvoId);
+      console.log("[UserChat] Current messages count:", messages.length);
+    });
+    s.on("disconnect", () => {
+      console.log("[UserChat] Disconnected");
+      console.log("[UserChat] Messages before disconnect:", messages.length);
+    });
     s.on("connect_error", (err) => console.error("[UserChat] Error:", err.message));
 
     socketRef.current = s;
@@ -140,23 +220,43 @@ export default function ChatClient({ initialConversations }: { initialConversati
     initialScrollDone.current = false;
     setChatOpacity(0);
 
+    console.log("🔥 Joining conversation:", selectedConvoId);
+    console.log("🔥 Current messages before joining:", messages.length);
+    
     socketRef.current?.emit("join-conversation", { conversationId: selectedConvoId });
 
-    // Clear unread
     setConversations(prev => prev.map(c =>
       c._id === selectedConvoId ? { ...c, userUnreadCount: 0, isTyping: false } : c
     ));
     setIsTyping(false);
 
-    const token = localStorage.getItem(TOKEN_KEY);
+    const token = localStorage.getItem("expert_access_token") || localStorage.getItem("access_token");
+    if (!token) return;
     startTransition(async () => {
       try {
+        console.log("🔥 Fetching messages for conversation:", selectedConvoId);
         const res = await fetch(`${API_BASE}/chat/${selectedConvoId}/messages?page=1&limit=100`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
+        console.log("🔥 Fetched messages:", data);
+        console.log("🔥 Setting messages:", data.messages || []);
         setMessages(data.messages || []);
-      } catch {
+        
+        // Immediately set chat opacity to 1 when messages are loaded
+        if (data.messages && data.messages.length > 0) {
+          setChatOpacity(1);
+          
+          // Mark messages as read when conversation is opened
+          setTimeout(() => {
+            socketRef.current?.emit("mark-as-read", {
+              conversationId: selectedConvoId,
+            });
+            console.log("🔥 Marked messages as read for conversation:", selectedConvoId);
+          }, 1000); // Small delay to ensure messages are visible
+        }
+      } catch (error) {
+        console.log("🔥 Error fetching messages:", error);
         setMessages([]);
       }
     });
@@ -166,19 +266,37 @@ export default function ChatClient({ initialConversations }: { initialConversati
 
   // ===== SOCKET EVENT LISTENERS =====
   const handleNewMessage = useCallback((message: any) => {
+    console.log("🔥 handleNewMessage called with:", message);
+    console.log("🔥 currentUser:", currentUser);
+    console.log("🔥 currentUser.id:", currentUser?.id);
+    console.log("🔥 message.sender:", message.sender);
+    console.log("🔥 message.status:", message.status);
+    
     if (message.conversationId === selectedConvoId) {
+      console.log("🔥 Processing message for conversation:", message.conversationId);
       setMessages(prev => {
-        // Replace optimistic
-        if (currentUser && message.sender === currentUser.id) {
+        console.log("🔥 Current messages count:", prev.length);
+        console.log("🔥 Looking for message to update...");
+        
+        // Replace optimistic message if this is a confirmation
+        if (currentUser && message.sender === currentUser.id && message.status === 'sent') {
           const idx = prev.findIndex(m => m.status === "sending" && m.content === message.content);
+          console.log("🔥 Found optimistic message index:", idx);
           if (idx !== -1) {
             const updated = [...prev];
             updated[idx] = { ...updated[idx], ...message, status: "sent" };
+            console.log("🔥 Updated optimistic message status to sent:", updated[idx]);
             return updated;
           }
         }
+        
         // Prevent duplicates
-        if (prev.some(m => m._id === message._id)) return prev;
+        if (prev.some(m => m._id === message._id)) {
+          console.log("🔥 Preventing duplicate message");
+          return prev;
+        }
+        
+        console.log("🔥 Adding new message to list");
         return [...prev, message];
       });
       setIsTyping(false);
@@ -187,24 +305,16 @@ export default function ChatClient({ initialConversations }: { initialConversati
     // Update sidebar
     let preview = message.content;
     if (message.contentType === "audio") preview = "🎤 Voice";
-    if (message.contentType === "image") preview = "📷 Image";
+    else if (message.contentType === "image") preview = "📷 Photo";
+    else if (message.contentType === "pdf") preview = "📄 Document";
+    else if (message.content.length > 50) preview = message.content.slice(0, 50) + "...";
 
-    setConversations(prev => {
-      const updated = prev.map(c => {
-        if (c._id !== message.conversationId) return c;
-        const isActive = message.conversationId === selectedConvoId;
-        return {
-          ...c,
-          lastMessage: preview,
-          lastMessageAt: message.createdAt,
-          lastMessageSender: message.sender,
-          isTyping: false,
-          userUnreadCount: isActive ? 0 : (c.userUnreadCount || 0) + (message.sender !== currentUser?.id ? 1 : 0),
-        };
-      });
-      return updated.sort((a, b) => new Date(b.lastMessageAt as any).getTime() - new Date(a.lastMessageAt as any).getTime());
-    });
-  }, [selectedConvoId, currentUser]);
+    setConversations(prev => prev.map(c =>
+      c._id === message.conversationId 
+        ? { ...c, lastMessage: preview, lastMessageAt: message.createdAt, lastMessageSender: message.sender }
+        : c
+    ));
+  }, [currentUser, selectedConvoId]);
 
   const handleTypingEvent = useCallback((data: any) => {
     if (data.conversationId === selectedConvoId && data.typerId !== currentUser?.id) {
@@ -214,6 +324,40 @@ export default function ChatClient({ initialConversations }: { initialConversati
       c._id === data.conversationId ? { ...c, isTyping: data.isTyping } : c
     ));
   }, [selectedConvoId, currentUser]);
+
+  const handleMessageSent = useCallback((message: any) => {
+    console.log("🔥 handleMessageSent called with:", message);
+    console.log("🔥 currentUser.id:", currentUser?.id);
+    console.log("🔥 message.sender:", message.sender);
+    
+    if (message.conversationId === selectedConvoId) {
+      setMessages(prev => {
+        console.log("🔥 Looking for message to update status...");
+        
+        // Find and update the optimistic message by content (more reliable)
+        const idx = prev.findIndex(m => 
+          m.status === "sending" && 
+          m.content === message.content &&
+          m.conversationId === message.conversationId
+        );
+        console.log("🔥 Found message index for status update:", idx);
+        if (idx !== -1) {
+          // Check if the message is already being updated to prevent duplicates
+          const existingMessage = prev[idx];
+          if (existingMessage.status === "sent") {
+            console.log("🔥 Message already updated, skipping duplicate");
+            return prev;
+          }
+          
+          const updated = [...prev];
+          updated[idx] = { ...updated[idx], ...message, status: "sent" };
+          console.log("🔥 Updated message status to sent via message-sent:", updated[idx]);
+          return updated;
+        }
+        return prev;
+      });
+    }
+  }, [currentUser, selectedConvoId]);
 
   const handleMessagesRead = useCallback((data: any) => {
     if (data.conversationId === selectedConvoId) {
@@ -229,14 +373,16 @@ export default function ChatClient({ initialConversations }: { initialConversati
     const s = socketRef.current;
     if (!s) return;
     s.on("new-message", handleNewMessage);
+    s.on("message-sent", handleMessageSent);
     s.on("user-typing", handleTypingEvent);
     s.on("messages-read", handleMessagesRead);
     return () => {
       s.off("new-message", handleNewMessage);
+      s.off("message-sent", handleMessageSent);
       s.off("user-typing", handleTypingEvent);
       s.off("messages-read", handleMessagesRead);
     };
-  }, [handleNewMessage, handleTypingEvent, handleMessagesRead]);
+  }, [handleNewMessage, handleTypingEvent, handleMessagesRead, handleMessageSent]);
 
   // ===== SCROLL MANAGEMENT =====
   useLayoutEffect(() => {
@@ -257,22 +403,44 @@ export default function ChatClient({ initialConversations }: { initialConversati
   }, [messages, isMessagesPending]);
 
   // ===== SEND MESSAGE =====
-  const handleSend = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMessage.trim() || !selectedConvoId || !remoteUser?._id) return;
+  const handleSend = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    
+    if (!newMessage.trim() || !currentUser?.id || !selectedConvoId || !remoteUser?._id) {
+      console.log("Cannot send message - missing data:", {
+        hasMessage: !!newMessage.trim(),
+        hasUserId: !!currentUser?.id,
+        hasConversationId: !!selectedConvoId,
+        hasRemoteUserId: !!remoteUser?._id,
+        currentUser,
+        selectedConvoId,
+        remoteUserId: remoteUser?._id
+      });
+      return;
+    }
 
-    const tempId = "temp-" + Date.now();
-    setMessages(prev => [...prev, {
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMessage: Message = {
       _id: tempId,
       conversationId: selectedConvoId,
-      sender: currentUser?.id || "",
-      senderModel: "User",
+      sender: currentUser.id,
+      senderModel: currentUser.role === 'expert' ? 'Expert' : 'User',
       content: newMessage,
       contentType: "text",
       createdAt: new Date().toISOString(),
-      readBy: [currentUser?.id || ""],
+      readBy: [currentUser.id],
       status: "sending",
-    }]);
+    };
+
+    setMessages(prev => [...prev, optimisticMessage]);
+
+    console.log("🚀 About to send message via socket:", {
+      conversationId: selectedConvoId,
+      content: newMessage,
+      recipientId: remoteUser._id,
+      socketConnected: !!socketRef.current?.connected,
+      socketId: socketRef.current?.id
+    });
 
     socketRef.current?.emit("send-message", {
       conversationId: selectedConvoId,
@@ -280,6 +448,8 @@ export default function ChatClient({ initialConversations }: { initialConversati
       contentType: "text",
       recipientId: remoteUser._id,
     });
+
+    console.log("🚀 Message sent via socket");
 
     setNewMessage("");
     inputRef.current?.focus();
@@ -320,7 +490,12 @@ export default function ChatClient({ initialConversations }: { initialConversati
         </div>
 
         <div className="flex-1 overflow-y-auto py-2">
-          {conversations.length > 0 ? conversations.map(convo => (
+          {isConversationsLoading ? (
+            <div className="flex flex-col items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-indigo-600 mb-2" />
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">Loading conversations...</p>
+            </div>
+          ) : conversations.length > 0 ? conversations.map(convo => (
             <button
               key={convo._id}
               onClick={() => setSelectedConvoId(convo._id)}
@@ -394,10 +569,39 @@ export default function ChatClient({ initialConversations }: { initialConversati
                       </div>
                       <div className="space-y-1">
                         {msgs.map((msg, i) => {
-                          const isSender = msg.sender === currentUser?.id;
+                          // Simple fix: Check if the message sender matches any known client UUIDs
+                          const isSender = msg.sender === currentUser?.id || 
+                        (currentUser?.email && msg.sender === currentUser.email) ||
+                        (currentUser?.uuid && msg.sender === currentUser.uuid) ||
+                        msg.sender === '640b35d6-5ca0-4e28-b2b2-4d35e514290d'; // Hardcoded for now
+
+                          // Debug logging for message positioning
+                          console.log("Message positioning debug:", {
+                            content: msg.content,
+                            msgSender: msg.sender,
+                            currentUserEmail: currentUser?.email,
+                            currentUserId: currentUser?.id,
+                            currentUserUuid: currentUser?.uuid,
+                            isSender,
+                            senderModel: msg.senderModel
+                          });
                           const isFirst = i === 0 || msgs[i - 1].sender !== msg.sender;
                           const isSending = msg.status === "sending";
                           const isRead = msg.readBy?.some(id => id !== currentUser?.id);
+
+                          // Debug logging
+                          if (isSender) {
+                            console.log("Message debug:", {
+                              content: msg.content,
+                              status: msg.status,
+                              readBy: msg.readBy,
+                              readByContents: JSON.stringify(msg.readBy),
+                              isSending,
+                              isRead,
+                              readByLength: msg.readBy?.length,
+                              currentUser: currentUser?.id
+                            });
+                          }
 
                           return (
                             <div key={msg._id} className={cn("flex w-full", isFirst ? "mt-3" : "mt-1")}>
@@ -421,9 +625,26 @@ export default function ChatClient({ initialConversations }: { initialConversati
                                     </span>
                                     {isSender && isSending && <Loader2 className="h-3 w-3 text-white/70 animate-spin" />}
                                     {isSender && !isSending && (
-                                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn("h-3.5 w-3.5", isRead ? "text-blue-300" : "text-white/70")}>
-                                        <path d="M18 6 7 17l-5-5" /><path d="m22 10-7.5 7.5L13 16" />
-                                      </svg>
+                                      <>
+                                        {/* Single tick - sent */}
+                                        {!isRead && (
+                                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5 text-white/70">
+                                            <path d="M18 6 7 17l-5-5" />
+                                          </svg>
+                                        )}
+                                        {/* Double tick - delivered */}
+                                        {isRead && msg.readBy.length === 1 && (
+                                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5 text-white/70">
+                                            <path d="M18 6 7 17l-5-5" /><path d="m22 10-7.5 7.5L13 16" />
+                                          </svg>
+                                        )}
+                                        {/* Blue double tick - read */}
+                                        {isRead && msg.readBy.length > 1 && (
+                                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5 text-blue-300">
+                                            <path d="M18 6 7 17l-5-5" /><path d="m22 10-7.5 7.5L13 16" />
+                                          </svg>
+                                        )}
+                                      </>
                                     )}
                                   </div>
                                 </div>
@@ -459,7 +680,7 @@ export default function ChatClient({ initialConversations }: { initialConversati
                   onChange={handleTyping}
                   placeholder="Type a message..."
                   className="flex-1 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white dark:focus:bg-zinc-800 transition-colors"
-                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(e); } }}
+                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
                 />
                 <button
                   type="submit"

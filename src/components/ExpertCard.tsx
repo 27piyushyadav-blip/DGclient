@@ -47,10 +47,63 @@ export default function ExpertCard({ expert }) {
     (expert.education?.[0] ? `${expert.education[0].degree} in ${expert.education[0].fieldOfStudy}` : "N/A");
 
   // 2. Chat Logic
-  const handleChatClick = (e) => {
+  const handleChatClick = async (e) => {
     e.preventDefault(); // Prevent navigating to profile page
     startChatTransition(async () => {
-      router.push("/chat");
+      try {
+        // Check for token (try both possible keys)
+        let token = localStorage.getItem("expert_access_token") || localStorage.getItem("access_token");
+        
+        if (!token) {
+          // Show a more user-friendly message
+          alert("Please login first to start chatting with experts.");
+          router.push("/login");
+          return;
+        }
+
+        console.log("Starting conversation with token:", token.substring(0, 20) + "...");
+
+        const API_BASE = "http://localhost:3000";
+        
+        console.log("Starting conversation with token:", token.substring(0, 20) + "...");
+        console.log("API_BASE:", API_BASE);
+        console.log("Full URL:", `${API_BASE}/chat/expert/start`);
+        console.log("typeof API_BASE:", typeof API_BASE);
+        console.log("window.location.origin:", window.location.origin);
+
+        const url = `${API_BASE}/chat/expert/start`;
+        console.log("Final URL to fetch:", url);
+
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            expertId: expert._id,
+            initialMessage: "Hi! I'd like to chat with you."
+          }),
+        });
+
+        console.log("Conversation response:", response.status);
+
+        if (response.ok) {
+          const conversation = await response.json();
+          console.log("Conversation created:", conversation);
+          // Navigate to chat with the new conversation ID
+          router.push(`/chat?id=${conversation.id || conversation._id}`);
+        } else {
+          const errorData = await response.text();
+          console.error("Failed to start conversation:", errorData);
+          // If starting conversation fails, still navigate to chat
+          router.push("/chat");
+        }
+      } catch (error) {
+        console.error("Failed to start conversation:", error);
+        // Fallback to regular chat page
+        router.push("/chat");
+      }
     });
   };
 

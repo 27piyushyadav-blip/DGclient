@@ -5,13 +5,13 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2Icon, CheckCircleIcon, AlertCircleIcon } from "@/components/Icons";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 
-export default function VerifyRedirectPage() {
+function VerifyRedirectContent() {
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [message, setMessage] = useState("");
   
@@ -117,4 +117,21 @@ export default function VerifyRedirectPage() {
   }
 
   return null;
+}
+
+export default function VerifyRedirectPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-zinc-950">
+        <div className="text-center">
+          <Loader2Icon className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-zinc-900 dark:text-white mb-2">
+            Loading...
+          </h2>
+        </div>
+      </div>
+    }>
+      <VerifyRedirectContent />
+    </Suspense>
+  );
 }
