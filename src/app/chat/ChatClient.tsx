@@ -13,8 +13,8 @@ import { io, Socket } from "socket.io-client";
 import { Send, Loader2, ArrowLeft } from "lucide-react";
 
 const API_BASE = "http://localhost:3000";
-const TOKEN_KEY = "expert_access_token";
-const USER_KEY = "expert_user";
+const TOKEN_KEY = "client_access_token";
+const USER_KEY = "client_user";
 
 type ChatUser = {
   _id: string;
@@ -187,7 +187,7 @@ export default function ChatClient({ initialConversations }: { initialConversati
   // ===== SOCKET CONNECTION =====
   useEffect(() => {
     // Check for token (try both possible keys)
-    let token = localStorage.getItem("expert_access_token") || localStorage.getItem("access_token");
+    let token = localStorage.getItem("client_access_token") || localStorage.getItem("access_token");
     if (!token) return;
 
     console.log("Connecting to socket at:", `${API_BASE}/chat`);
@@ -230,7 +230,7 @@ export default function ChatClient({ initialConversations }: { initialConversati
     ));
     setIsTyping(false);
 
-    const token = localStorage.getItem("expert_access_token") || localStorage.getItem("access_token");
+    const token = localStorage.getItem("client_access_token") || localStorage.getItem("access_token");
     if (!token) return;
     startTransition(async () => {
       try {
