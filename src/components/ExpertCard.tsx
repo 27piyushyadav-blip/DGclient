@@ -52,7 +52,7 @@ export default function ExpertCard({ expert }) {
     startChatTransition(async () => {
       try {
         // Check for token (try both possible keys)
-        let token = localStorage.getItem("expert_access_token") || localStorage.getItem("access_token");
+        let token = localStorage.getItem("client_access_token") || localStorage.getItem("access_token");
         
         if (!token) {
           // Show a more user-friendly message

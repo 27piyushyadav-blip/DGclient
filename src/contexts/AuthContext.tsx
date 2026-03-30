@@ -28,9 +28,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const ACCESS_TOKEN_KEY = 'expert_access_token';
-const REFRESH_TOKEN_KEY = 'expert_refresh_token';
-const USER_KEY = 'expert_user';
+const ACCESS_TOKEN_KEY = 'client_access_token';
+const REFRESH_TOKEN_KEY = 'client_refresh_token';
+const USER_KEY = 'client_user';
 
 interface AuthProviderProps {
   children: ReactNode;

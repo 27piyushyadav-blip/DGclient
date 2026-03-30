@@ -128,7 +128,7 @@ class ExpertAuthService {
   }
 
   async googleLogin(): Promise<void> {
-    window.location.href = `${this.baseURL}/google`;
+    window.location.href = `${this.baseURL}/google?state=client`;
   }
 }
 
