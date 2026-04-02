@@ -23,11 +23,9 @@ function AuthCallbackContent() {
           return;
         }
 
-        // Store tokens in localStorage using client-specific keys
         localStorage.setItem("client_access_token", accessToken);
         localStorage.setItem("client_refresh_token", refreshToken);
 
-        // Extract user info from JWT token and store for AuthContext
         try {
           const payload = JSON.parse(atob(accessToken.split('.')[1]));
           const userData = {
@@ -43,7 +41,6 @@ function AuthCallbackContent() {
 
         setStatus("Authentication successful! Redirecting...");
         
-        // Redirect to dashboard after successful authentication
         setTimeout(() => {
           router.push("/");
         }, 1000);
@@ -60,28 +57,29 @@ function AuthCallbackContent() {
   }, [searchParams, router]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="text-center">
-        <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
-        <h2 className="text-xl font-semibold text-gray-900 mb-2">
-          {status}
-        </h2>
-        <p className="text-gray-600">
-          Please wait while we complete your authentication...
-        </p>
-      </div>
+    <div className="text-center">
+      <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
+      <h2 className="text-xl font-semibold text-gray-900 mb-2">
+        {status}
+      </h2>
+      <p className="text-gray-600">
+        Please wait while we complete your authentication...
+      </p>
     </div>
   );
 }
 
 export default function AuthCallback() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto" />
-      </div>
-    }>
-      <AuthCallbackContent />
-    </Suspense>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <Suspense fallback={
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading authentication...</p>
+        </div>
+      }>
+        <AuthCallbackContent />
+      </Suspense>
+    </div>
   );
 }
