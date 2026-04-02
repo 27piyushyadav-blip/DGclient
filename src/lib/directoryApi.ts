@@ -35,3 +35,38 @@ export async function getExpertProfileByIdApi(id: string) {
 
   return response.json();
 }
+
+export async function getOrganizationsListApi() {
+  const url = `${BASE_URL}/directory/organizations`;
+  
+  const response = await fetch(url, {
+    method: "GET",
+    next: { revalidate: 60 }
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to fetch organizations: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+export async function getOrganizationProfileByIdApi(id: string) {
+  const url = `${BASE_URL}/directory/organizations/${id}`;
+  
+  const response = await fetch(url, {
+    method: "GET",
+    next: { revalidate: 60 }
+  });
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      return null;
+    }
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to fetch organization profile: ${response.status}`);
+  }
+
+  return response.json();
+}
