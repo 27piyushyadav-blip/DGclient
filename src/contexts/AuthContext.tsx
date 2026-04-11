@@ -74,12 +74,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     const refreshInterval = setInterval(async () => {
       try {
+        console.log('Proactively refreshing access token...');
         await refreshAccessToken();
       } catch (error) {
         console.error('Auto refresh failed:', error);
         clearAuthData();
       }
-    }, 50 * 60 * 1000); // 50 minutes
+    }, 12 * 60 * 1000); // 12 minutes
 
     return () => clearInterval(refreshInterval);
   }, [accessToken, refreshToken]);

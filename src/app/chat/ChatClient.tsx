@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import ProfileImage from "@/components/ProfileImage";
 import { io, Socket } from "socket.io-client";
 import { Send, Loader2, ArrowLeft } from "lucide-react";
+import { apiClient } from "@/lib/apiClient";
 
 const API_BASE = "http://localhost:3000";
 const TOKEN_KEY = "client_access_token";
@@ -159,21 +160,12 @@ export default function ChatClient({ initialConversations }: { initialConversati
   useEffect(() => {
     const fetchConversations = async () => {
       try {
-        const token = localStorage.getItem(TOKEN_KEY);
-        if (!token) return;
-
         console.log("🔥 Fetching conversations client-side...");
         setIsConversationsLoading(true);
         
-        const res = await fetch(`${API_BASE}/chat/conversations?userType=client`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          console.log("🔥 Conversations loaded:", data.conversations);
-          setConversations(data.conversations || []);
-        }
+        const data = await apiClient<any>(`${API_BASE}/chat/conversations?userType=client`);
+        console.log("🔥 Conversations loaded:", data.conversations);
+        setConversations(data.conversations || []);
       } catch (error) {
         console.error("🔥 Error fetching conversations:", error);
       } finally {
@@ -230,15 +222,10 @@ export default function ChatClient({ initialConversations }: { initialConversati
     ));
     setIsTyping(false);
 
-    const token = localStorage.getItem("client_access_token") || localStorage.getItem("access_token");
-    if (!token) return;
     startTransition(async () => {
       try {
         console.log("🔥 Fetching messages for conversation:", selectedConvoId);
-        const res = await fetch(`${API_BASE}/chat/${selectedConvoId}/messages?page=1&limit=100`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json();
+        const data = await apiClient<any>(`${API_BASE}/chat/${selectedConvoId}/messages?page=1&limit=100`);
         console.log("🔥 Fetched messages:", data);
         console.log("🔥 Setting messages:", data.messages || []);
         setMessages(data.messages || []);

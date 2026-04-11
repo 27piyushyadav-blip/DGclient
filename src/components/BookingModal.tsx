@@ -39,7 +39,7 @@ const generateTimeSlots = (availability: any, selectedDate: Date, duration: numb
   if (!selectedDate || !duration || !availability) return [];
 
   const dayName = format(selectedDate, 'EEEE'); // "Monday", "Tuesday"...
-  const daySlots = availability.filter(slot => slot.dayOfWeek === dayName);
+  const daySlots = (availability || []).filter((slot: any) => slot.dayOfWeek === dayName);
 
   if (daySlots.length === 0) return [];
 
@@ -74,17 +74,18 @@ const generateTimeSlots = (availability: any, selectedDate: Date, duration: numb
 };
 
 // --- INTERNAL COMPONENT: Mini Calendar ---
-const MiniCalendar = ({ selectedDate, onSelect, availability }: { 
+const MiniCalendar = ({ selectedDate, onSelect, availability, leaves }: { 
   selectedDate: Date | null; 
   onSelect: (date: Date) => void; 
   availability: any[]; 
+  leaves: any[];
 }) => {
   const [currentMonth, setCurrentMonth] = useState(startOfToday());
   const today = startOfToday();
 
   // Get all available days from the expert's schedule (e.g., ["Monday", "Wednesday"])
   const availableDaysSet = useMemo(() => 
-    new Set(availability.map(a => a.dayOfWeek)), 
+    new Set((availability || []).map(a => a.dayOfWeek)), 
   [availability]);
 
   const days = useMemo(() => {
@@ -138,7 +139,14 @@ const MiniCalendar = ({ selectedDate, onSelect, availability }: {
           const dayName = format(day, 'EEEE');
           const isAvailableDay = availableDaysSet.has(dayName);
           
-          const isUnselectable = !isCurrentMonth || isPast || !isAvailableDay;
+          // Check if the day is in the leaves/blocked dates list
+          const isOnLeave = (leaves || []).some(l => {
+            if (!l.date) return false;
+            const leaveDate = new Date(l.date);
+            return isSameDay(day, leaveDate);
+          });
+          
+          const isUnselectable = !isCurrentMonth || isPast || !isAvailableDay || isOnLeave;
           const isSelected = selectedDate && isSameDay(day, selectedDate);
 
           return (
@@ -182,7 +190,7 @@ export default function BookingModal({ expert, onClose }: { expert: any; onClose
   // Initialize default service (lowest price logic)
   useEffect(() => {
     if (expert.services?.length > 0 && !selectedService) {
-      const cheapest = expert.services.reduce((prev, curr) => {
+      const cheapest = expert.services.reduce((prev: any, curr: any) => {
         const prevMin = Math.min(prev.videoPrice ?? Infinity, prev.clinicPrice ?? Infinity);
         const currMin = Math.min(curr.videoPrice ?? Infinity, curr.clinicPrice ?? Infinity);
         return currMin < prevMin ? curr : prev;
@@ -199,7 +207,7 @@ export default function BookingModal({ expert, onClose }: { expert: any; onClose
   // Update slots when date changes
   useEffect(() => {
     if (selectedDate && selectedService) {
-      setSlots(generateTimeSlots(expert.availability, selectedDate, selectedService.duration));
+      setSlots(generateTimeSlots(expert.availability || [], selectedDate, selectedService.duration));
       setSelectedTime(null); // Reset time when date changes
     }
   }, [selectedDate, selectedService, expert.availability]);
@@ -276,7 +284,7 @@ export default function BookingModal({ expert, onClose }: { expert: any; onClose
                 <div className="space-y-3">
                   <label className="text-sm font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">1. Select Service</label>
                   <div className="grid gap-3">
-                    {expert.services.map((s) => (
+                    {(expert.services || []).map((s: any) => (
                       <div 
                         key={s.name}
                         onClick={() => {
@@ -355,11 +363,12 @@ export default function BookingModal({ expert, onClose }: { expert: any; onClose
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 h-full animate-in slide-in-from-right-4 duration-300">
                 <div className="flex flex-col h-full">
                    <label className="text-sm font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider mb-3">Select Date</label>
-                   <MiniCalendar 
-                     selectedDate={selectedDate} 
-                     onSelect={handleDateSelect} 
-                     availability={expert.availability}
-                   />
+                    <MiniCalendar 
+                      selectedDate={selectedDate} 
+                      onSelect={handleDateSelect} 
+                      availability={expert.availability || []}
+                      leaves={expert.leaves || []}
+                    />
                 </div>
 
                 <div className="flex flex-col h-full space-y-6">

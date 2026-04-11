@@ -13,7 +13,7 @@ import {
   Star, MapPin, GraduationCap, Languages, CheckCircle2, 
   Video, Clock, ShieldCheck, Play, MessageSquare, CalendarCheck, 
   Share2, MoreHorizontal, AlertCircle, Loader2, Building2, HelpCircle, Flag, Users, FileBadge, Award,
-  User, Briefcase
+  User, Briefcase, Hash
 } from "lucide-react";
 import { FileTextIcon } from "@/components/Icons";
 
@@ -219,6 +219,23 @@ export default function ExpertProfileClient({ expert }: { expert: any }) {
                         </div>
                      </SectionCard>
 
+                     {/* Skills & Expertise */}
+                     {expert.tags?.length > 0 && (
+                        <SectionCard title="Skills & Expertise" icon={Hash}>
+                           <div className="flex flex-wrap gap-2">
+                              {expert.tags.map((tag: string, i: number) => (
+                                 <Badge 
+                                    key={i} 
+                                    variant="secondary" 
+                                    className="px-3 py-1 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-none hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                                 >
+                                    {tag}
+                                 </Badge>
+                              ))}
+                           </div>
+                        </SectionCard>
+                     )}
+
                      {/* Work Experience */}
                      {expert.workHistory?.length > 0 && (
                         <SectionCard title="Work Experience" icon={Briefcase}>
@@ -233,7 +250,7 @@ export default function ExpertProfileClient({ expert }: { expert: any }) {
                                        <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{job.company}</p>
                                        <p className="text-xs text-zinc-500 mt-1 flex items-center gap-1">
                                            {job.location && <span>{job.location} • </span>}
-                                           {new Date(job.startDate).getFullYear()} - {job.current ? 'Present' : new Date(job.endDate).getFullYear()}
+                                           {job.startDate ? new Date(job.startDate).getFullYear() : "N/A"} - {job.current ? 'Present' : (job.endDate ? new Date(job.endDate).getFullYear() : "N/A")}
                                        </p>
                                     </div>
                                  </div>
@@ -253,7 +270,7 @@ export default function ExpertProfileClient({ expert }: { expert: any }) {
                                        <h4 className="font-bold text-zinc-900 dark:text-white text-sm">{edu.degree} in {edu.fieldOfStudy}</h4>
                                        <p className="text-sm text-zinc-600 dark:text-zinc-400">{edu.institution}</p>
                                        <p className="text-xs text-zinc-400 mt-0.5">
-                                         {new Date(edu.startDate).getFullYear()} - {edu.current ? 'Present' : new Date(edu.endDate).getFullYear()}
+                                          {edu.startDate ? new Date(edu.startDate).getFullYear() : "N/A"} - {edu.current ? 'Present' : (edu.endDate ? new Date(edu.endDate).getFullYear() : "N/A")}
                                        </p>
                                     </div>
                                  </div>
