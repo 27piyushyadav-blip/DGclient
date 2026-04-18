@@ -15,7 +15,9 @@ import SafeImage from "@/components/SafeImage";
 
 export const dynamic = 'force-dynamic';
 
-// Helper to fetch organization data using the new action
+import { getOrganizationProfileByIdApi } from "@/lib/directoryApi";
+
+// Helper to fetch organization data using the real API
 async function getOrganizationData(slug: string): Promise<{
   organization: {
     _id: string;
@@ -26,34 +28,36 @@ async function getOrganizationData(slug: string): Promise<{
     focusTags: string[];
     sessionPriceInfo: string;
   };
-  experts: {
-    _id: string;
-    [key: string]: any;
-  }[];
+  experts: any[];
 } | null> {
   try {
-    // In a real implementation, this would fetch from a database
-    // For now, return mock data structure to prevent TypeScript errors
+    const response: any = await getOrganizationProfileByIdApi(slug);
+    if (!response || response.status !== 'success') return null;
+    
+    const orgData = response.data;
+    
     return {
       organization: {
-        _id: "mock-org-id",
-        name: "Sample Organization",
-        mission: "Providing comprehensive mental wellness support for our community through expert-led programs and personalized care.",
-        logoUrl: "/placeholder-clinic.jpg",
-        videoUrl: null,
-        focusTags: ["Mental Health", "Wellness", "Support"],
-        sessionPriceInfo: "Free for members"
+        _id: orgData._id,
+        name: orgData.name,
+        mission: orgData.description || "No mission statement provided.",
+        logoUrl: orgData.logo,
+        videoUrl: orgData.introVideo,
+        focusTags: orgData.tags || [],
+        sessionPriceInfo: orgData.sessionPriceInfo || "Pricing available on request"
       },
-      experts: []
+      experts: orgData.experts || []
     };
   } catch (error) {
+    console.error("Error fetching organization data:", error);
     return null;
   }
 }
 
 // 1. Dynamic SEO Metadata
-export async function generateMetadata({ params }: { params: { slug: string } }) {
-  const data = await getOrganizationData(params.slug);
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const data = await getOrganizationData(slug);
 
   if (!data || !data.organization) {
     return { title: "Organization Not Found" };
@@ -73,8 +77,9 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 }
 
 // 2. Main Page Component
-export default async function OrganizationProfilePage({ params }: { params: { slug: string } }) {
-  const data = await getOrganizationData(params.slug);
+export default async function OrganizationProfilePage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const data = await getOrganizationData(slug);
 
   if (!data || !data.organization) {
     notFound();

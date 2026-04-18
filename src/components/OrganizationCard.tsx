@@ -13,7 +13,7 @@ export default function OrganizationCard({ organization }) {
   const expertCount = organization.memberCount || organization.expertCount || 0;
 
   return (
-    <Link href={`/organizations/${organization._id}`} className="block h-full">
+    <Link href={`/organizations/${organization.subdomain || organization._id}`} className="block h-full">
       <div className="group flex flex-col justify-between h-full p-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
 
         {/* --- Header: Logo & Identity --- */}

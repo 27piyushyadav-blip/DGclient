@@ -50,15 +50,15 @@ export default async function ExpertsPage() {
   };
 
   try {
-    const response = await getExpertsListApi();
-    if (response?.data) {
-      initialData = {
-        ...initialData,
-        experts: response.data.experts || [],
-        total: response.data.total || 0,
-        hasMore: response.data.hasMore || false,
-      };
-    }
+      const response: any = await getExpertsListApi();
+      if (response?.data) {
+        initialData = {
+          ...initialData,
+          experts: response.data.experts || [],
+          total: response.data.total || 0,
+          hasMore: response.data.hasMore || false,
+        };
+      }
   } catch (err: any) {
     console.error("Failed to load experts:", err);
     initialData.error = err.message || "Failed to connect to the server.";
