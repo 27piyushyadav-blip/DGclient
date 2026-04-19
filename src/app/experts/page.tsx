@@ -51,6 +51,7 @@ export default async function ExpertsPage() {
 
   try {
     const response = await getExpertsListApi();
+    console.log("Export Details:-",response);
     if (response?.data) {
       initialData = {
         ...initialData,
