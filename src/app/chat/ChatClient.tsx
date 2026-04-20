@@ -13,7 +13,7 @@ import { io, Socket } from "socket.io-client";
 import { Send, Loader2, ArrowLeft } from "lucide-react";
 import { apiClient } from "@/lib/apiClient";
 
-const API_BASE = "http://localhost:3000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 const TOKEN_KEY = "client_access_token";
 const USER_KEY = "client_user";
 

@@ -17,7 +17,7 @@ export const dynamic = 'force-dynamic';
 async function getInitialConversations() {
   try {
     const token = process.env.NEXT_PUBLIC_API_TOKEN || "";
-    const baseUrl = "http://localhost:3000";
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
     
     const response = await fetch(`${baseUrl}/chat/conversations?userType=client`, {
       headers: { 
