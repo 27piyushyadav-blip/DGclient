@@ -10,8 +10,22 @@ import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import ProfileImage from "@/components/ProfileImage";
 import { io, Socket } from "socket.io-client";
-import { Send, Loader2, ArrowLeft } from "lucide-react";
+import { 
+  Send, 
+  Loader2, 
+  ArrowLeft, 
+  Paperclip, 
+  Video, 
+  Mic, 
+  FileText, 
+  Download, 
+  Square,
+  Play,
+  Pause
+} from "lucide-react";
 import { apiClient } from "@/lib/apiClient";
+import { offersApi } from "@/lib/offersApi";
+import OfferCard from "@/components/chat/OfferCard";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 const TOKEN_KEY = "client_access_token";
@@ -40,7 +54,9 @@ type Message = {
   sender: string;
   senderModel?: string;
   content: string;
-  contentType?: "text" | "image" | "pdf" | "audio";
+  contentType?: "text" | "image" | "video" | "pdf" | "audio";
+  messageType?: "text" | "offer";
+  payload?: any; // For offer data
   createdAt: string;
   readBy: string[];
   status?: "sending" | "sent";
@@ -104,6 +120,15 @@ export default function ChatClient({ initialConversations }: { initialConversati
   const inputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialScrollDone = useRef(false);
+
+  // Media State
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<any>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
 
   const currentUser = useMemo(() => {
     if (typeof window === "undefined") return null;
@@ -236,7 +261,7 @@ export default function ChatClient({ initialConversations }: { initialConversati
           
           // Mark messages as read when conversation is opened
           setTimeout(() => {
-            socketRef.current?.emit("mark-as-read", {
+            socketRef.current?.emit("mark-read", {
               conversationId: selectedConvoId,
             });
             console.log("🔥 Marked messages as read for conversation:", selectedConvoId);
@@ -284,6 +309,15 @@ export default function ChatClient({ initialConversations }: { initialConversati
         }
         
         console.log("🔥 Adding new message to list");
+        
+        // Mark as read immediately if chat is open and message is from expert
+        if (message.sender !== currentUser?.id) {
+          socketRef.current?.emit("mark-read", {
+            conversationId: selectedConvoId,
+          });
+          console.log("🔥 Real-time mark-read emitted for incoming message");
+        }
+        
         return [...prev, message];
       });
       setIsTyping(false);
@@ -296,11 +330,19 @@ export default function ChatClient({ initialConversations }: { initialConversati
     else if (message.contentType === "pdf") preview = "📄 Document";
     else if (message.content.length > 50) preview = message.content.slice(0, 50) + "...";
 
-    setConversations(prev => prev.map(c =>
-      c._id === message.conversationId 
-        ? { ...c, lastMessage: preview, lastMessageAt: message.createdAt, lastMessageSender: message.sender }
-        : c
-    ));
+    setConversations(prev => prev.map(c => {
+      if (c._id === message.conversationId) {
+        const isNotSelected = message.conversationId !== selectedConvoId;
+        return { 
+          ...c, 
+          lastMessage: preview, 
+          lastMessageAt: message.createdAt, 
+          lastMessageSender: message.sender,
+          userUnreadCount: isNotSelected ? (c.userUnreadCount || 0) + 1 : 0
+        };
+      }
+      return c;
+    }));
   }, [currentUser, selectedConvoId]);
 
   const handleTypingEvent = useCallback((data: any) => {
@@ -346,6 +388,19 @@ export default function ChatClient({ initialConversations }: { initialConversati
     }
   }, [currentUser, selectedConvoId]);
 
+  const handleOfferUpdated = useCallback((data: any) => {
+    console.log("🔥 handleOfferUpdated called with:", data);
+    
+    if (data.conversationId === selectedConvoId) {
+      // Update the offer message with new status
+      setMessages(prev => prev.map(msg => 
+        msg.messageType === 'offer' && msg.payload?.id === data.offerId
+          ? { ...msg, payload: { ...msg.payload, status: data.status } }
+          : msg
+      ));
+    }
+  }, [selectedConvoId]);
+
   const handleMessagesRead = useCallback((data: any) => {
     if (data.conversationId === selectedConvoId) {
       setMessages(prev => prev.map(msg =>
@@ -363,13 +418,15 @@ export default function ChatClient({ initialConversations }: { initialConversati
     s.on("message-sent", handleMessageSent);
     s.on("user-typing", handleTypingEvent);
     s.on("messages-read", handleMessagesRead);
+    s.on("offer-updated", handleOfferUpdated);
     return () => {
       s.off("new-message", handleNewMessage);
       s.off("message-sent", handleMessageSent);
       s.off("user-typing", handleTypingEvent);
       s.off("messages-read", handleMessagesRead);
+      s.off("offer-updated", handleOfferUpdated);
     };
-  }, [handleNewMessage, handleTypingEvent, handleMessagesRead, handleMessageSent]);
+  }, [handleNewMessage, handleTypingEvent, handleMessagesRead, handleMessageSent, handleOfferUpdated]);
 
   // ===== SCROLL MANAGEMENT =====
   useLayoutEffect(() => {
@@ -390,19 +447,11 @@ export default function ChatClient({ initialConversations }: { initialConversati
   }, [messages, isMessagesPending]);
 
   // ===== SEND MESSAGE =====
-  const handleSend = (e?: React.FormEvent) => {
+  const handleSend = (e?: React.FormEvent, customContent?: string, customType: Message["contentType"] = "text") => {
     e?.preventDefault();
     
-    if (!newMessage.trim() || !currentUser?.id || !selectedConvoId || !remoteUser?._id) {
-      console.log("Cannot send message - missing data:", {
-        hasMessage: !!newMessage.trim(),
-        hasUserId: !!currentUser?.id,
-        hasConversationId: !!selectedConvoId,
-        hasRemoteUserId: !!remoteUser?._id,
-        currentUser,
-        selectedConvoId,
-        remoteUserId: remoteUser?._id
-      });
+    const content = customContent || newMessage;
+    if (!content.trim() || !currentUser?.id || !selectedConvoId || !remoteUser?._id) {
       return;
     }
 
@@ -412,8 +461,8 @@ export default function ChatClient({ initialConversations }: { initialConversati
       conversationId: selectedConvoId,
       sender: currentUser.id,
       senderModel: currentUser.role === 'expert' ? 'Expert' : 'User',
-      content: newMessage,
-      contentType: "text",
+      content: content,
+      contentType: customType,
       createdAt: new Date().toISOString(),
       readBy: [currentUser.id],
       status: "sending",
@@ -421,25 +470,93 @@ export default function ChatClient({ initialConversations }: { initialConversati
 
     setMessages(prev => [...prev, optimisticMessage]);
 
-    console.log("🚀 About to send message via socket:", {
-      conversationId: selectedConvoId,
-      content: newMessage,
-      recipientId: remoteUser._id,
-      socketConnected: !!socketRef.current?.connected,
-      socketId: socketRef.current?.id
-    });
-
     socketRef.current?.emit("send-message", {
       conversationId: selectedConvoId,
-      content: newMessage,
-      contentType: "text",
+      content: content,
+      contentType: customType,
       recipientId: remoteUser._id,
     });
 
-    console.log("🚀 Message sent via socket");
-
-    setNewMessage("");
+    if (!customContent) setNewMessage("");
     inputRef.current?.focus();
+  };
+
+  // ===== MEDIA HANDLERS =====
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: Message["contentType"]) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedConvoId) return;
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Need to find where apiClient is and if it supports multipart
+      // Assuming it's similar to the organization one
+      const res = await apiClient<any>(`${API_BASE}/chat/upload`, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (res.fileUrl) {
+        handleSend(undefined, res.fileUrl, type);
+      }
+    } catch (error) {
+      console.error("Failed to upload file:", error);
+    }
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) audioChunksRef.current.push(event.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const file = new File([audioBlob], 'voice-message.webm', { type: 'audio/webm' });
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+          const res = await apiClient<any>(`${API_BASE}/chat/upload`, {
+            method: 'POST',
+            body: formData
+          });
+          if (res.fileUrl) {
+            handleSend(undefined, res.fileUrl, 'audio');
+          }
+        } catch (error) {
+          console.error("Failed to upload audio:", error);
+        }
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+      timerRef.current = setInterval(() => setRecordingTime(prev => prev + 1), 1000);
+    } catch (error) {
+      console.error("Failed to start recording:", error);
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (timerRef.current) clearInterval(timerRef.current);
+    }
+  };
+
+  const formatRecordingTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -450,6 +567,67 @@ export default function ChatClient({ initialConversations }: { initialConversati
       typingTimeoutRef.current = setTimeout(() => {
         socketRef.current?.emit("typing-stop", { conversationId: selectedConvoId, recipientId: remoteUser._id });
       }, 2000);
+    }
+  };
+
+  // ===== OFFER HANDLERS =====
+  const handleAcceptOffer = async (offerId: string) => {
+    try {
+      const response = await offersApi.acceptOffer(offerId);
+      
+      if (response.success) {
+        // Update the message in local state to reflect acceptance
+        setMessages(prev => prev.map(msg => 
+          msg.messageType === 'offer' && msg.payload?.id === offerId
+            ? { ...msg, payload: response.offer }
+            : msg
+        ));
+        
+        console.log('Offer accepted successfully');
+      }
+    } catch (error) {
+      console.error('Error accepting offer:', error);
+    }
+  };
+
+  const handleDeclineOffer = async (offerId: string) => {
+    try {
+      const response = await offersApi.declineOffer(offerId);
+      
+      if (response.success) {
+        // Update the message in local state to reflect decline
+        setMessages(prev => prev.map(msg => 
+          msg.messageType === 'offer' && msg.payload?.id === offerId
+            ? { ...msg, payload: response.offer }
+            : msg
+        ));
+        
+        console.log('Offer declined successfully');
+      }
+    } catch (error) {
+      console.error('Error declining offer:', error);
+    }
+  };
+
+  const handlePayForOffer = async (offerId: string) => {
+    try {
+      const response = await offersApi.payForOffer(offerId);
+      
+      if (response.success && response.paymentUrl) {
+        // Redirect to payment gateway
+        window.open(response.paymentUrl, '_blank');
+        
+        // Update the message status to 'paid' (optimistic)
+        setMessages(prev => prev.map(msg => 
+          msg.messageType === 'offer' && msg.payload?.id === offerId
+            ? { ...msg, payload: response.offer }
+            : msg
+        ));
+        
+        console.log('Payment initiated successfully');
+      }
+    } catch (error) {
+      console.error('Error initiating payment:', error);
     }
   };
 
@@ -590,6 +768,51 @@ export default function ChatClient({ initialConversations }: { initialConversati
                             });
                           }
 
+                          // Offer messages use full width layout
+                          if (msg.messageType === 'offer') {
+                            return (
+                              <div key={msg._id} className={cn("flex gap-3 mb-4", isSender ? "flex-row-reverse" : "flex-row")}>
+                                {/* Avatar (Always shown for offer messages) */}
+                                <ProfileImage 
+                                  name={isSender ? currentUser?.name : remoteUser?.name} 
+                                  src={isSender ? currentUser?.image : remoteUser?.profilePicture} 
+                                  sizeClass="h-8 w-8" 
+                                />
+                                
+                                {/* Offer Card Container */}
+                                <div className="flex-1 max-w-full">
+                                  <OfferCard 
+                                    payload={msg.payload} 
+                                    isOwn={isSender}
+                                    onAccept={handleAcceptOffer}
+                                    onDecline={handleDeclineOffer}
+                                    onPay={handlePayForOffer}
+                                  />
+                                  {/* Meta (Time & Status) */}
+                                  <div className={cn("flex items-center gap-1 mt-2 px-2", isSender ? "justify-end" : "justify-start")}>
+                                    <span className={cn("text-[10px]", isSender ? "text-blue-600" : "text-zinc-400")}>
+                                      {isMounted ? formatTime(msg.createdAt) : null}
+                                    </span>
+                                    {isSender && isSending && <Loader2 className="h-3 w-3 text-blue-600 animate-spin" />}
+                                    {isSender && !isSending && (
+                                      <>
+                                        {isRead ? (
+                                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5 text-blue-300">
+                                            <path d="M18 6 7 17l-5-5" /><path d="m22 10-7.5 7.5L13 16" />
+                                          </svg>
+                                        ) : (
+                                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5 text-blue-600">
+                                            <path d="M18 6 7 17l-5-5" />
+                                          </svg>
+                                        )}
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          }
+
                           return (
                             <div key={msg._id} className={cn("flex w-full", isFirst ? "mt-3" : "mt-1")}>
                               <div className={cn("flex w-full", isSender ? "justify-end" : "justify-start")}>
@@ -604,7 +827,38 @@ export default function ChatClient({ initialConversations }: { initialConversati
                                   {msg.isDeleted ? (
                                     <p className="italic text-sm opacity-70">🚫 This message was deleted</p>
                                   ) : (
-                                    <p className="text-[15px] leading-relaxed break-words whitespace-pre-wrap pr-16">{msg.content}</p>
+                                    <div className="space-y-2">
+                                      {msg.contentType === 'image' ? (
+                                        <img 
+                                          src={msg.content} 
+                                          alt="Shared image" 
+                                          className="rounded-lg max-w-[280px] max-h-[350px] object-cover cursor-pointer hover:opacity-90 shadow-sm border border-black/5"
+                                          onClick={() => window.open(msg.content, '_blank')}
+                                        />
+                                      ) : msg.contentType === 'video' ? (
+                                        <video 
+                                          src={msg.content} 
+                                          controls 
+                                          className="rounded-lg max-w-[400px] h-auto shadow-sm border border-black/5"
+                                        />
+                                      ) : msg.contentType === 'audio' ? (
+                                        <div className="flex items-center space-x-2 min-w-[200px]">
+                                          <audio src={msg.content} controls className="h-8 w-full accent-white" />
+                                        </div>
+                                      ) : msg.contentType === 'pdf' ? (
+                                        <div className="flex items-center space-x-2 p-2 bg-black/5 rounded-lg">
+                                          <FileText className="h-8 w-8 text-red-500" />
+                                          <div className="flex-1 min-w-0">
+                                            <p className="text-xs font-medium truncate">Document.pdf</p>
+                                            <button className="text-[10px] text-blue-500 hover:underline" onClick={() => window.open(msg.content, '_blank')}>
+                                              Download
+                                            </button>
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <p className="text-[15px] leading-relaxed break-words whitespace-pre-wrap pr-16">{msg.content}</p>
+                                      )}
+                                    </div>
                                   )}
                                   <div className="absolute right-3 bottom-1.5 flex items-center gap-1">
                                     <span className={cn("text-[11px]", isSender ? "text-white/70" : "text-zinc-400")}>
@@ -614,23 +868,15 @@ export default function ChatClient({ initialConversations }: { initialConversati
                                     {isSender && !isSending && (
                                       <>
                                         {/* Single tick - sent */}
-                                        {!isRead && (
-                                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5 text-white/70">
-                                            <path d="M18 6 7 17l-5-5" />
-                                          </svg>
-                                        )}
-                                        {/* Double tick - delivered */}
-                                        {isRead && msg.readBy.length === 1 && (
-                                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5 text-white/70">
-                                            <path d="M18 6 7 17l-5-5" /><path d="m22 10-7.5 7.5L13 16" />
-                                          </svg>
-                                        )}
-                                        {/* Blue double tick - read */}
-                                        {isRead && msg.readBy.length > 1 && (
-                                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5 text-blue-300">
-                                            <path d="M18 6 7 17l-5-5" /><path d="m22 10-7.5 7.5L13 16" />
-                                          </svg>
-                                        )}
+                                      {isRead ? (
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5 text-blue-300">
+                                          <path d="M18 6 7 17l-5-5" /><path d="m22 10-7.5 7.5L13 16" />
+                                        </svg>
+                                      ) : (
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5 text-white/70">
+                                          <path d="M18 6 7 17l-5-5" />
+                                        </svg>
+                                      )}
                                       </>
                                     )}
                                   </div>
@@ -660,27 +906,87 @@ export default function ChatClient({ initialConversations }: { initialConversati
 
             {/* Input */}
             <div className="flex-shrink-0 p-4 border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 z-20">
-              <form onSubmit={handleSend} className="flex gap-2 items-end">
-                <input
-                  ref={inputRef}
-                  value={newMessage}
-                  onChange={handleTyping}
-                  placeholder="Type a message..."
-                  className="flex-1 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white dark:focus:bg-zinc-800 transition-colors"
-                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+              <div className="flex items-center gap-2 mb-2">
+                <input 
+                  type="file" 
+                  ref={imageInputRef} 
+                  className="hidden" 
+                  accept="image/*"
+                  onChange={(e) => handleFileUpload(e, 'image')}
                 />
-                <button
-                  type="submit"
-                  disabled={!newMessage.trim()}
-                  className={cn(
-                    "p-3 rounded-xl shrink-0 transition-all",
-                    newMessage.trim()
-                      ? "bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg"
-                      : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 cursor-not-allowed"
-                  )}
+                <button 
+                  type="button"
+                  onClick={() => imageInputRef.current?.click()}
+                  className="p-2 text-zinc-500 hover:text-indigo-600 hover:bg-zinc-100 rounded-full transition-colors"
                 >
-                  <Send className="h-5 w-5" />
+                  <Paperclip className="h-5 w-5" />
                 </button>
+
+                <input 
+                  type="file" 
+                  ref={videoInputRef} 
+                  className="hidden" 
+                  accept="video/*"
+                  onChange={(e) => handleFileUpload(e, 'video')}
+                />
+                <button 
+                  type="button"
+                  onClick={() => videoInputRef.current?.click()}
+                  className="p-2 text-zinc-500 hover:text-indigo-600 hover:bg-zinc-100 rounded-full transition-colors"
+                >
+                  <Video className="h-5 w-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSend} className="flex gap-2 items-center bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl px-2 py-1">
+                {isRecording ? (
+                  <div className="flex-1 flex items-center justify-between px-2 py-2">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+                      <span className="text-sm font-medium text-red-500">Recording... {formatRecordingTime(recordingTime)}</span>
+                    </div>
+                    <button 
+                      type="button"
+                      onClick={stopRecording}
+                      className="text-xs font-bold text-red-500 hover:underline flex items-center gap-1"
+                    >
+                      <Square className="h-3 w-3 fill-red-500" /> STOP & SEND
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <input
+                      ref={inputRef}
+                      value={newMessage}
+                      onChange={handleTyping}
+                      placeholder="Type a message..."
+                      className="flex-1 bg-transparent border-none px-2 py-2 text-sm focus:outline-none"
+                      onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                    />
+                    <button 
+                      type="button"
+                      onClick={startRecording}
+                      className="p-2 text-zinc-500 hover:text-indigo-600 transition-colors"
+                    >
+                      <Mic className="h-5 w-5" />
+                    </button>
+                  </>
+                )}
+                
+                {!isRecording && (
+                  <button
+                    type="submit"
+                    disabled={!newMessage.trim()}
+                    className={cn(
+                      "p-2 rounded-lg shrink-0 transition-all",
+                      newMessage.trim()
+                        ? "text-indigo-600 hover:bg-indigo-50"
+                        : "text-zinc-300 cursor-not-allowed"
+                    )}
+                  >
+                    <Send className="h-5 w-5" />
+                  </button>
+                )}
               </form>
             </div>
           </>

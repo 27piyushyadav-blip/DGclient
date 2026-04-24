@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import ProfileImage from '@/components/ProfileImage';
 import { format, isToday, isYesterday } from 'date-fns';
 import { Check, CheckCheck, Clock, Play, Pause, FileText, Image as ImageIcon } from 'lucide-react';
+import OfferCard from './OfferCard';
 
 // --- HELPER: Date Formatting ---
 const formatMessageTime = (dateStr: string) => {
@@ -122,7 +123,9 @@ export default function ChatMessages({ messages, activeConversation, currentUser
             
             // Determine content rendering
             let content;
-            if (msg.contentType === 'text') {
+            if (msg.messageType === 'offer') {
+                content = <OfferCard payload={msg.payload} isOwn={isOwn} />;
+            } else if (msg.contentType === 'text') {
                 content = <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>;
             } else if (msg.contentType === 'image') {
                 content = <img src={msg.content} alt="Attachment" className="rounded-lg max-w-xs max-h-64 object-cover mb-1 cursor-pointer hover:opacity-90 transition-opacity" />;
@@ -136,6 +139,30 @@ export default function ChatMessages({ messages, activeConversation, currentUser
 
             // Grouping logic: Check if the previous message was from the same sender
             const isFirstInGroup = i === 0 || msg.senderModel !== group.messages[i - 1].senderModel;
+
+            // Offer messages use full width layout
+            if (msg.messageType === 'offer') {
+              return (
+                <div key={msg._id} className={cn("flex gap-3 mb-4", isOwn ? "flex-row-reverse" : "flex-row")}>
+                  {/* Avatar (Always shown for offer messages) */}
+                  <div className="h-8 w-8 mt-auto shrink-0">
+                    <ProfileImage name={senderName} src={senderImage} sizeClass="h-8 w-8" />
+                  </div>
+                  
+                  {/* Offer Card Container */}
+                  <div className="flex-1 max-w-full">
+                    {content}
+                    {/* Meta (Time & Status) */}
+                    <div className={cn("flex items-center gap-1 mt-2 px-2", isOwn ? "justify-end" : "justify-start")}>
+                      <span className={cn("text-[10px]", isOwn ? "text-blue-600" : "text-zinc-400")}>
+                        {formatMessageTime(msg.createdAt)}
+                      </span>
+                      <MessageStatus isOwn={isOwn} status={msg.status} readByCount={msg.readBy?.length} />
+                    </div>
+                  </div>
+                </div>
+              );
+            }
 
             return (
               <div key={msg._id} className={cn("flex gap-3 max-w-[80%] mb-1", isOwn ? "ml-auto flex-row-reverse" : "mr-auto")}>
