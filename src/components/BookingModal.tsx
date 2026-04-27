@@ -27,6 +27,9 @@ import { Button } from "@/components/ui/button";
 import ProfileImage from "@/components/ProfileImage";
 import { cn } from "@/lib/utils";
 import TimezoneSelect from "@/components/TimezoneSelect";
+import { apiClient } from "@/lib/apiClient";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 // --- ICONS ---
 import { 
@@ -173,9 +176,9 @@ const MiniCalendar = ({ selectedDate, onSelect, availability, leaves }: {
 
 // --- MAIN COMPONENT ---
 
-export default function BookingModal({ expert, onClose }: { expert: any; onClose: () => void }) {
+export default function BookingModal({ expert, offer, onClose }: { expert: any; offer?: any; onClose: () => void }) {
   const router = useRouter();
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(offer ? 2 : 1);
   
   // Step 1 Data
   const [selectedService, setSelectedService] = useState<any>(null);
@@ -189,6 +192,18 @@ export default function BookingModal({ expert, onClose }: { expert: any; onClose
 
   // Initialize default service (lowest price logic)
   useEffect(() => {
+    if (offer && !selectedService) {
+        // Synthesize service from offer
+        setSelectedService({
+            name: offer.items.map((it: any) => it.nameSnapshot).join(', '),
+            duration: offer.items.reduce((sum: number, it: any) => sum + (it.durationMinutes || 0) * it.quantity, 0) || 60,
+            videoPrice: offer.total, // For UI display
+            clinicPrice: offer.total  // For UI display
+        });
+        setAppointmentType("Video Call"); // Default for offers
+        return;
+    }
+
     if (expert.services?.length > 0 && !selectedService) {
       const cheapest = expert.services.reduce((prev: any, curr: any) => {
         const prevMin = Math.min(prev.videoPrice ?? Infinity, prev.clinicPrice ?? Infinity);
@@ -202,7 +217,7 @@ export default function BookingModal({ expert, onClose }: { expert: any; onClose
       if (cheapest.videoPrice != null) setAppointmentType("Video Call");
       else if (cheapest.clinicPrice != null) setAppointmentType("Clinic Visit");
     }
-  }, [expert, selectedService]);
+  }, [offer, expert.services, selectedService]);
 
   // Update slots when date changes
   useEffect(() => {
@@ -233,7 +248,7 @@ export default function BookingModal({ expert, onClose }: { expert: any; onClose
     const dateOnlyISO = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null;
 
     const params = new URLSearchParams({
-      expertId: expert._id,
+      expertId: expert._id || expert.id,
       expertName: expert.name,
       expertImage: expert.profilePicture || "",
       serviceName: selectedService.name,
@@ -244,6 +259,26 @@ export default function BookingModal({ expert, onClose }: { expert: any; onClose
       time: selectedTime || "",
       timezone: selectedTimezone || "",
     });
+
+    if (offer) {
+        // For offers, we call the pay-offer API with booking metadata
+        apiClient<any>(`${API_BASE}/offers/${offer.id}/pay`, {
+            method: 'POST',
+            body: JSON.stringify({
+                scheduledDate: dateOnlyISO,
+                time: selectedTime,
+                timezone: selectedTimezone,
+                type: appointmentType,
+                expertId: expert._id || expert.id
+            })
+        }).then(res => {
+            alert("Payment method not available yet");
+            onClose();
+        }).catch(err => {
+            console.error("Failed to initiate offer payment:", err);
+        });
+        return;
+    }
     
     router.push(`/checkout?${params.toString()}`);
   };
@@ -265,8 +300,8 @@ export default function BookingModal({ expert, onClose }: { expert: any; onClose
         {/* Header */}
         <div className="flex items-center justify-between p-4 px-6 border-b border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-950 z-10">
           <div>
-            <h2 className="text-lg font-bold text-zinc-900 dark:text-white">Book Appointment</h2>
-            <p className="text-xs text-zinc-500">Step {step} of 3</p>
+            <h2 className="text-lg font-bold text-zinc-900 dark:text-white">{offer ? 'Schedule & Pay Offer' : 'Book Appointment'}</h2>
+            <p className="text-xs text-zinc-500">Step {offer ? step - 1 : step} of {offer ? 2 : 3}</p>
           </div>
           <Button variant="ghost" size="icon" className="rounded-full" onClick={onClose}>
             <X className="w-5 h-5" />
@@ -502,7 +537,8 @@ export default function BookingModal({ expert, onClose }: { expert: any; onClose
             onClick={handleNext} 
             disabled={
               (step === 1 && (!selectedService || !appointmentType)) ||
-              (step === 2 && (!selectedDate || !selectedTime || !selectedTimezone))
+              (step === 2 && (!selectedDate || !selectedTime || !selectedTimezone)) ||
+              (step === 3 && offer === undefined && (!selectedService || !appointmentType))
             }
             className={cn(
               "min-w-[140px] shadow-lg transition-all",

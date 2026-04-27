@@ -30,6 +30,7 @@ type OfferItem = {
   };
   finalPriceSnapshot: number;
   quantity: number;
+  durationMinutes?: number;
 };
 
 type OfferPayload = {
@@ -55,7 +56,7 @@ interface OfferCardProps {
 }
 
 export default function OfferCard({ 
-  payload, 
+  payload: rawPayload, 
   isOwn, 
   onAccept, 
   onDecline, 
@@ -63,11 +64,29 @@ export default function OfferCard({
   isLoading = false
 }: OfferCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+
+  // Normalize payload to handle old/missing data
+  const payload = {
+    ...rawPayload,
+    id: rawPayload.id || (rawPayload as any).offerId,
+    totals: rawPayload.totals || {
+        subtotal: (rawPayload as any).subtotal || 0,
+        discountAmount: (rawPayload as any).discountTotal || 0,
+        total: (rawPayload as any).total || 0
+    },
+    items: (rawPayload.items || []).map((it: any) => ({
+        ...it,
+        priceSnapshot: it.priceSnapshot || it.basePriceSnapshot || 0,
+        finalPriceSnapshot: it.finalPriceSnapshot || it.priceSnapshot || it.basePriceSnapshot || 0,
+        durationMinutes: it.durationMinutes || 0
+    }))
+  };
   
   const formatPrice = (price: number, currency: string) => {
-    return new Intl.NumberFormat('en-IN', {
+    const locale = currency === 'INR' ? 'en-IN' : 'en-US';
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
-      currency: currency || 'INR',
+      currency: currency || 'USD',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(price);
@@ -140,8 +159,12 @@ export default function OfferCard({
                 <h4 className="font-medium text-zinc-900 dark:text-white text-sm">
                   {item.nameSnapshot}
                 </h4>
-                {item.quantity > 1 && (
-                  <span className="text-xs text-zinc-500">Qty: {item.quantity}</span>
+                {(item.quantity > 1 || item.durationMinutes > 0) && (
+                  <span className="text-xs text-zinc-500">
+                    {item.quantity > 1 && `Qty: ${item.quantity}`}
+                    {item.quantity > 1 && item.durationMinutes > 0 && ` • `}
+                    {item.durationMinutes > 0 && `${item.durationMinutes}m`}
+                  </span>
                 )}
               </div>
               <div className="text-right">

@@ -26,6 +26,7 @@ import {
 import { apiClient } from "@/lib/apiClient";
 import { offersApi } from "@/lib/offersApi";
 import OfferCard from "@/components/chat/OfferCard";
+import BookingModal from "@/components/BookingModal";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 const TOKEN_KEY = "client_access_token";
@@ -54,7 +55,7 @@ type Message = {
   sender: string;
   senderModel?: string;
   content: string;
-  contentType?: "text" | "image" | "video" | "pdf" | "audio";
+  contentType?: "text" | "image" | "video" | "pdf" | "audio" | "offer";
   messageType?: "text" | "offer";
   payload?: any; // For offer data
   createdAt: string;
@@ -103,6 +104,10 @@ export default function ChatClient({ initialConversations }: { initialConversati
   const [isMessagesPending, startTransition] = useTransition();
   const [chatOpacity, setChatOpacity] = useState(0);
   const [isConversationsLoading, setIsConversationsLoading] = useState(true);
+  
+  // Booking Modal State for Offers
+  const [isBookingOpen, setIsBookingOpen] = useState(false);
+  const [bookingOffer, setBookingOffer] = useState<any>(null);
   
   // Debug: Track when messages change
   useEffect(() => {
@@ -394,7 +399,7 @@ export default function ChatClient({ initialConversations }: { initialConversati
     if (data.conversationId === selectedConvoId) {
       // Update the offer message with new status
       setMessages(prev => prev.map(msg => 
-        msg.messageType === 'offer' && msg.payload?.id === data.offerId
+        msg.contentType === 'offer' && msg.payload?.id === data.offerId
           ? { ...msg, payload: { ...msg.payload, status: data.status } }
           : msg
       ));
@@ -572,21 +577,11 @@ export default function ChatClient({ initialConversations }: { initialConversati
 
   // ===== OFFER HANDLERS =====
   const handleAcceptOffer = async (offerId: string) => {
-    try {
-      const response = await offersApi.acceptOffer(offerId);
-      
-      if (response.success) {
-        // Update the message in local state to reflect acceptance
-        setMessages(prev => prev.map(msg => 
-          msg.messageType === 'offer' && msg.payload?.id === offerId
-            ? { ...msg, payload: response.offer }
-            : msg
-        ));
-        
-        console.log('Offer accepted successfully');
-      }
-    } catch (error) {
-      console.error('Error accepting offer:', error);
+    // Instead of accepting immediately, we open the booking modal
+    const message = messages.find(m => m.contentType === 'offer' && m.payload?.id === offerId);
+    if (message && message.payload) {
+        setBookingOffer(message.payload);
+        setIsBookingOpen(true);
     }
   };
 
@@ -597,7 +592,7 @@ export default function ChatClient({ initialConversations }: { initialConversati
       if (response.success) {
         // Update the message in local state to reflect decline
         setMessages(prev => prev.map(msg => 
-          msg.messageType === 'offer' && msg.payload?.id === offerId
+          msg.contentType === 'offer' && msg.payload?.id === offerId
             ? { ...msg, payload: response.offer }
             : msg
         ));
@@ -619,7 +614,7 @@ export default function ChatClient({ initialConversations }: { initialConversati
         
         // Update the message status to 'paid' (optimistic)
         setMessages(prev => prev.map(msg => 
-          msg.messageType === 'offer' && msg.payload?.id === offerId
+          msg.contentType === 'offer' && msg.payload?.id === offerId
             ? { ...msg, payload: response.offer }
             : msg
         ));
@@ -769,7 +764,7 @@ export default function ChatClient({ initialConversations }: { initialConversati
                           }
 
                           // Offer messages use full width layout
-                          if (msg.messageType === 'offer') {
+                          if (msg.contentType === 'offer') {
                             return (
                               <div key={msg._id} className={cn("flex gap-3 mb-4", isSender ? "flex-row-reverse" : "flex-row")}>
                                 {/* Avatar (Always shown for offer messages) */}
@@ -999,6 +994,17 @@ export default function ChatClient({ initialConversations }: { initialConversati
           </div>
         )}
       </div>
+
+      {isBookingOpen && remoteUser && (
+        <BookingModal 
+          expert={remoteUser} 
+          offer={bookingOffer} 
+          onClose={() => {
+              setIsBookingOpen(false);
+              setBookingOffer(null);
+          }} 
+        />
+      )}
     </div>
   );
 }

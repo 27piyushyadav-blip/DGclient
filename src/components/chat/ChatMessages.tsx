@@ -123,7 +123,7 @@ export default function ChatMessages({ messages, activeConversation, currentUser
             
             // Determine content rendering
             let content;
-            if (msg.messageType === 'offer') {
+            if (msg.contentType === 'offer') {
                 content = <OfferCard payload={msg.payload} isOwn={isOwn} />;
             } else if (msg.contentType === 'text') {
                 content = <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>;
@@ -141,7 +141,7 @@ export default function ChatMessages({ messages, activeConversation, currentUser
             const isFirstInGroup = i === 0 || msg.senderModel !== group.messages[i - 1].senderModel;
 
             // Offer messages use full width layout
-            if (msg.messageType === 'offer') {
+            if (msg.contentType === 'offer') {
               return (
                 <div key={msg._id} className={cn("flex gap-3 mb-4", isOwn ? "flex-row-reverse" : "flex-row")}>
                   {/* Avatar (Always shown for offer messages) */}
