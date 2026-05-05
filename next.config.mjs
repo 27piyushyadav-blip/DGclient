@@ -48,6 +48,15 @@ const nextConfig = {
         protocol: "https",
         hostname: "api.dicebear.com", // Added for dicebear avatars
       },
+      // ✅ Allow YouTube video thumbnails
+      {
+        protocol: "https",
+        hostname: "img.youtube.com",
+      },
+      {
+        protocol: "https",
+        hostname: "i.ytimg.com",
+      },
       // ✅ Allow backend local image uploads
       {
         protocol: "http",

@@ -5,10 +5,10 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import ExpertSearchClient from "@/components/ExpertSearchClient";
-import ExpertsLoading from "./loading"; 
+import ExpertsLoading from "./loading";
 import { AlertTriangle } from "lucide-react";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 import { getExpertsListApi } from "@/lib/directoryApi";
@@ -16,10 +16,12 @@ import { getExpertsListApi } from "@/lib/directoryApi";
 // --- UPDATED METADATA ---
 export const metadata: Metadata = {
   title: "Experts | Mind Namo",
-  description: "Browse certified psychologists, therapists, and life coaches. Filter by specialization, price, and language.",
+  description:
+    "Browse certified psychologists, therapists, and life coaches. Filter by specialization, price, and language.",
   openGraph: {
     title: "Find Your Perfect Mental Health Expert | Mind Namo",
-    description: "Connect with verified psychologists and coaches. Filter by specialization, language, and price.",
+    description:
+      "Connect with verified psychologists and coaches. Filter by specialization, language, and price.",
     url: "/experts",
     siteName: "Mind Namo",
     images: [
@@ -50,24 +52,23 @@ export default async function ExpertsPage() {
   };
 
   try {
-      const response: any = await getExpertsListApi();
-      if (response?.data) {
-        initialData = {
-          ...initialData,
-          experts: response.data.experts || [],
-          total: response.data.total || 0,
-          hasMore: response.data.hasMore || false,
-        };
-      }
+    const response: any = await getExpertsListApi();
+    if (response?.data) {
+      initialData = {
+        ...initialData,
+        experts: response.data.experts || [],
+        total: response.data.total || 0,
+        hasMore: response.data.hasMore || false,
+      };
+    }
   } catch (err: any) {
     console.error("Failed to load experts:", err);
     initialData.error = err.message || "Failed to connect to the server.";
   }
-  
+
   return (
     <div className="flex flex-col w-full bg-zinc-50 dark:bg-zinc-950 min-h-screen">
       <main className="container mx-auto max-w-7xl px-4 py-8 md:py-12 flex-1">
-        
         <div className="mb-8 space-y-2">
           <h1 className="text-3xl md:text-4xl font-bold text-zinc-900 dark:text-white tracking-tight">
             Find your perfect match
@@ -79,13 +80,15 @@ export default async function ExpertsPage() {
 
         {initialData.error ? (
           <div className="flex flex-col items-center justify-center py-16 text-center bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800 rounded-xl">
-             <AlertTriangle className="w-8 h-8 text-red-600 mb-3" />
-             <p className="text-red-700 dark:text-red-300 font-medium">Error: {initialData.error}</p>
+            <AlertTriangle className="w-8 h-8 text-red-600 mb-3" />
+            <p className="text-red-700 dark:text-red-300 font-medium">
+              Error: {initialData.error}
+            </p>
           </div>
         ) : (
           <Suspense fallback={<ExpertsLoading />}>
-            <ExpertSearchClient 
-              initialExperts={initialData.experts} 
+            <ExpertSearchClient
+              initialExperts={initialData.experts}
               initialTotal={initialData.total}
               initialHasMore={initialData.hasMore}
             />
