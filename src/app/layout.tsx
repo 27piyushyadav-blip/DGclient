@@ -11,7 +11,8 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Mind Namo - Your Safe Space for Mental Wellness",
-  description: "Connecting you with certified experts for secure, private, and personalized therapy sessions.",
+  description:
+    "Connecting you with certified experts for secure, private, and personalized therapy sessions.",
 };
 
 export default function RootLayout({
@@ -21,7 +22,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className} suppressHydrationWarning> 
+      <body className={inter.className} suppressHydrationWarning>
         <ThemeContextWrapper>
           <AuthProvider>
             <div className="flex min-h-screen flex-col">
