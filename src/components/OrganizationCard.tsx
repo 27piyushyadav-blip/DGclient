@@ -454,28 +454,28 @@ export default function OrganizationCard({ organization }: OrganizationCardProps
         {/* Stats Row - Buttons Section */}
         <div className="p-5 pt-3">
           <div className="flex items-center justify-between gap-2 pt-3 border-t border-zinc-100 dark:border-zinc-800">
-            <div className="bg-white p-[2px] rounded max-w-[8rem]">
+            <div className="bg-gradient-to-r from-[var(--primary-start)] to-[var(--primary-end)] p-[2px] rounded max-w-[8rem]">
               <Link
                 href={`/organizations/booking`}
-                className="group inline-flex items-center justify-center gap-1 text-sm font-medium text-indigo-600 dark:text-black px-2 rounded transition-all duration-300 hover:shadow-md hover:scale-105"
+                className="group inline-flex items-center justify-center gap-1 text-sm font-medium text-white dark:text-white px-2 rounded transition-all duration-300 hover:shadow-md hover:scale-105"
               >
                 Book
               </Link>
             </div>
             
-            <div className="bg-white p-0.5 rounded max-w-[10rem]">
+            <div className="bg-gradient-to-r from-[var(--primary-start)] to-[var(--primary-end)] p-0.5 rounded max-w-[10rem]">
               <Link
                 href={`/organizations/staff/message`}
-                className="group inline-flex items-center justify-center gap-1 text-sm font-medium text-indigo-600 dark:text-black px-2 rounded transition-all duration-300 hover:shadow-md hover:scale-105"
+                className="group inline-flex items-center justify-center gap-1 text-sm font-medium text-white dark:text-white px-2 rounded transition-all duration-300 hover:shadow-md hover:scale-105"
               >
                 Message
               </Link>
             </div>
 
-            <div className="bg-white p-0.5 rounded max-w-[10rem]">
+            <div className="bg-gradient-to-r from-[var(--primary-start)] to-[var(--primary-end)] p-0.5 rounded max-w-[10rem]">
               <button
                 onClick={handleStaffClick}
-                className="group inline-flex items-center justify-center gap-1 text-sm font-medium text-indigo-600 dark:text-black px-2 rounded transition-all duration-300 hover:shadow-md hover:scale-105 hover:cursor-pointer"
+                className="group inline-flex items-center justify-center gap-1 text-sm font-medium text-white dark:text-white px-2 rounded transition-all duration-300 hover:shadow-md hover:scale-105 hover:cursor-pointer"
               >
                 Staff
               </button>

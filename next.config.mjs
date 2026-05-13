@@ -3,9 +3,6 @@ const nextConfig = {
   reactCompiler: true,
   output: 'standalone',
 
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -26,6 +23,10 @@ const nextConfig = {
       {
         protocol: "https",
         hostname: "placehold.co",
+      },
+      {
+        protocol: "https",
+        hostname: "example.com",
       },
       {
         protocol: "https",

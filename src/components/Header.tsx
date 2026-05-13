@@ -100,6 +100,15 @@ export default function Header() {
             >
               My Appointments
             </Link>
+            <Link
+              href="/main"
+              className={cn(
+                "text-sm font-medium transition-colors hover:text-zinc-900 dark:hover:text-white",
+                isActive("/main") ? "text-zinc-900 dark:text-white" : "text-zinc-600 dark:text-zinc-400"
+              )}
+            >
+              Main
+            </Link>
           </nav>
 
           {/* Right Side Actions */}

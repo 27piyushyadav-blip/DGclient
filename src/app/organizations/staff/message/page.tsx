@@ -44,6 +44,7 @@ interface Service {
   id: string;
   name: string;
   price: number;
+  imageUrl?: string;
 }
 
 interface MenuItem {
@@ -51,6 +52,7 @@ interface MenuItem {
   name: string;
   price: number;
   description?: string;
+  imageUrl?:string;
 }
 
 // Sample Data
@@ -68,12 +70,12 @@ const expertData = {
 };
 
 const menuItems: MenuItem[] = [
-  { id: "1", name: "Hair Cut", price: 80, description: "Professional haircut and styling" },
-  { id: "2", name: "Beard Styling", price: 45, description: "Beard trim and shape" },
-  { id: "3", name: "Manicure", price: 45, description: "Complete nail care" },
-  { id: "4", name: "Shaving", price: 22, description: "Traditional hot towel shave" },
-  { id: "5", name: "Hair Coloring", price: 120, description: "Full hair color service" },
-  { id: "6", name: "Head Massage", price: 35, description: "Relaxing head and scalp massage" },
+  { id: "1", name: "Hair Cut", price: 80, description: "Professional haircut and styling", imageUrl: "https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&q=80&w=100&h=100" },
+  { id: "2", name: "Beard Styling", price: 45, description: "Beard trim and shape",imageUrl: "https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&q=80&w=100&h=100" },
+  { id: "3", name: "Manicure", price: 45, description: "Complete nail care",imageUrl: "https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&q=80&w=100&h=100" },
+  { id: "4", name: "Shaving", price: 22, description: "Traditional hot towel shave",imageUrl: "https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&q=80&w=100&h=100" },
+  { id: "5", name: "Hair Coloring", price: 120, description: "Full hair color service",imageUrl: "https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&q=80&w=100&h=100" },
+  { id: "6", name: "Head Massage", price: 35, description: "Relaxing head and scalp massage",imageUrl: "https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&q=80&w=100&h=100" },
 ];
 
 const initialMessages: Message[] = [
@@ -314,11 +316,11 @@ export default function MessagePage() {
                   )}
                 </div>
                 
-                <p className="text-md text-indigo-600 dark:text-indigo-400 mb-3">{expertData.role}</p>
+                <p className="text-md text-[var(--primary-color)] dark:text-[var(--primary-color)] mb-3">{expertData.role}</p>
                 
                 <div className="flex items-center gap-4 mb-3">
                   <div className="flex items-center gap-1">
-                    <Award className="w-4 h-4 text-indigo-600" />
+                    <Award className="w-4 h-4 text-[var(--primary-color)]" />
                     <span className="text-sm text-zinc-700 dark:text-zinc-300">{expertData.experience} Experience</span>
                   </div>
                 </div>
@@ -331,11 +333,11 @@ export default function MessagePage() {
 
                 {/* Action Buttons */}
                 <div className="flex gap-3 mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-800">
-                  <button className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-all duration-300 cursor-pointer">
+                  <button className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-[var(--primary-start)] to-[var(--primary-end)] hover:bg-[var(--hover-primary-color)] text-white rounded-lg transition-all duration-300 cursor-pointer">
                     <Phone className="w-4 h-4" />
                     Call
                   </button>
-                  <button className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-lg hover:bg-zinc-200 transition-all duration-300 cursor-pointer">
+                  <button className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-white rounded-lg bg-gradient-to-r from-[var(--primary-start)] to-[var(--primary-end)] hover:bg-[var(--hover-primary-color)] transition-all duration-300 cursor-pointer">
                     <Video className="w-4 h-4" />
                     Video
                   </button>
@@ -397,7 +399,7 @@ export default function MessagePage() {
                     <div
                       className={`max-w-[80%] rounded-2xl px-4 py-2 ${
                         message.sender === "user"
-                          ? "bg-indigo-600 text-white rounded-br-sm"
+                          ? "bg-[var(--primary-color)] text-white rounded-br-sm"
                           : "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white border border-zinc-200 dark:border-zinc-700 rounded-bl-sm"
                       }`}
                     >
@@ -436,7 +438,7 @@ export default function MessagePage() {
                   <button
                     onClick={handleSendMessage}
                     disabled={!inputMessage.trim()}
-                    className="p-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-zinc-300 dark:disabled:bg-zinc-700 text-white rounded-xl transition-all duration-300 cursor-pointer"
+                    className="p-2.5 bg-gradient-to-r from-[var(--primary-start)] to-[var(--primary-end)] hover:bg-[var(--primary-color)] disabled:bg-[var(--primary-color)] dark:disabled:bg-[var(--primary-color)] text-white rounded-xl transition-all duration-300 cursor-pointer"
                   >
                     <Send className="w-5 h-5" />
                   </button>
@@ -448,46 +450,67 @@ export default function MessagePage() {
           {/* RIGHT COLUMN - Menu & Total */}
           <div className="lg:col-span-3 space-y-4">
             
-            {/* Menu Section */}
             <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-              <div className="p-5 border-b border-zinc-200 dark:border-zinc-800">
-                <h3 className="text-xl font-bold text-zinc-900 dark:text-white">Services Menu</h3>
-                <p className="text-sm text-zinc-500 mt-1">Select services you want to book</p>
+  <div className="p-5 border-b border-zinc-200 dark:border-zinc-800">
+    <h3 className="text-xl font-bold text-zinc-900 dark:text-white">Services Menu</h3>
+    <p className="text-sm text-zinc-500 mt-1">Select services you want to book</p>
+  </div>
+  
+  <div className="divide-y divide-zinc-200 dark:divide-zinc-800 max-h-[10rem] overflow-y-scroll scrollbar-hide">
+    {menuItems.map((item) => (
+      <div
+        key={item.id}
+        onClick={() => {
+          if (selectedServices.includes(item.id)) {
+            setSelectedServices(selectedServices.filter(id => id !== item.id));
+          } else {
+            setSelectedServices([...selectedServices, item.id]);
+          }
+        }}
+        className={`p-4 cursor-pointer transition-all duration-200 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 ${
+          selectedServices.includes(item.id) ? "bg-indigo-50 dark:bg-indigo-950/30" : ""
+        }`}
+      >
+        <div className="flex items-center gap-3">
+          {/* Service Image */}
+          <div className="w-12 h-12 rounded-xl overflow-hidden bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-950/50 dark:to-purple-950/50 flex-shrink-0">
+            {item.imageUrl ? (
+              <Image
+                src={item.imageUrl}
+                alt={item.name}
+                width={48}
+                height={48}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <svg className="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
               </div>
-              
-              <div className="divide-y divide-zinc-200 dark:divide-zinc-800 max-h-[10rem] overflow-y-scroll scrollbar-hide">
-                {menuItems.map((item) => (
-                  <div
-                    key={item.id}
-                    onClick={() => {
-                      if (selectedServices.includes(item.id)) {
-                        setSelectedServices(selectedServices.filter(id => id !== item.id));
-                      } else {
-                        setSelectedServices([...selectedServices, item.id]);
-                      }
-                    }}
-                    className={`p-4 cursor-pointer transition-all duration-200 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 ${
-                      selectedServices.includes(item.id) ? "bg-indigo-50 dark:bg-indigo-950/30" : ""
-                    }`}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-zinc-900 dark:text-white">{item.name}</h4>
-                        {item.description && (
-                          <p className="text-xs text-zinc-500 mt-0.5">{item.description}</p>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        <p className="text-lg font-bold text-indigo-600 dark:text-indigo-400">${item.price}</p>
-                        {selectedServices.includes(item.id) && (
-                          <Check className="w-5 h-5 text-indigo-600 mt-1" />
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            )}
+          </div>
+          
+          {/* Service Info */}
+          <div className="flex-1">
+            <h4 className="font-semibold text-zinc-900 dark:text-white">{item.name}</h4>
+            {item.description && (
+              <p className="text-xs text-zinc-500 mt-0.5">{item.description}</p>
+            )}
+          </div>
+          
+          {/* Price & Selection */}
+          <div className="text-right">
+            <p className="text-lg font-bold text-[var(--primary-color)] dark:text-[var(--primary-color)]">${item.price}</p>
+            {selectedServices.includes(item.id) && (
+              <Check className="w-5 h-5 text-[var(--hover-primary-color)] mt-1 ml-auto" />
+            )}
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
 
             {/* Total Section */}
             <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-5 shadow-sm sticky top-6">
@@ -500,13 +523,14 @@ export default function MessagePage() {
                 {selectedServicesList.map((service) => (
                   <div key={service.id} className="flex justify-between items-center text-sm">
                     <span className="text-zinc-700 dark:text-zinc-300">{service.name}</span>
-                    <span className="font-semibold text-indigo-600">${service.price}</span>
+                    <span className="font-semibold text-[var(--primary-color)]">${service.price}</span>
                   </div>
                 ))}
                 {selectedServicesList.length === 0 && (
                   <p className="text-center text-zinc-500 py-4 text-sm">No services selected</p>
                 )}
               </div>
+
 
               {selectedServicesList.length > 0 && (
                 <>
@@ -525,7 +549,7 @@ export default function MessagePage() {
                   {/* Total */}
                   <div className="flex justify-between items-center mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-800">
                     <span className="text-lg font-bold text-zinc-900 dark:text-white">Total</span>
-                    <span className="text-2xl font-bold text-indigo-600">${totalWithGst}</span>
+                    <span className="text-2xl font-bold text-[var(--primary-color)]">${totalWithGst}</span>
                   </div>
 
                   {/* Date & Time Placeholder */}
@@ -548,7 +572,7 @@ export default function MessagePage() {
               {/* Book Button */}
               <button 
                 onClick={handleBookNow}
-                className="w-full mt-6 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg cursor-pointer"
+                className="w-full mt-6 px-6 py-3 bg-gradient-to-r from-[var(--primary-start)] to-[var(--primary-end)] hover:bg-[var(--hover-primary-color)] text-white font-semibold rounded-xl transition-all duration-300 shadow-lg cursor-pointer"
               >
                 Book & Pay {totalWithGst > 0 && `$${totalWithGst} USD`}
               </button>
