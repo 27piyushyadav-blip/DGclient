@@ -199,7 +199,7 @@ const handleImageError = (expertId: string) => {
         {/* Progress Steps */}
         <div className="flex items-center justify-center max-w-2xl mx-auto mb-4 gap-5">
 
-             <button className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all">
+             <button className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-[var(--primary-start)] to-[var(--primary-end)] text-white rounded-lg hover:bg-[var(--hover-primary-color)] transition-all cursor-pointer">
                 <ChevronLeft className="w-4 h-4" />
             Back
           </button>
@@ -209,7 +209,7 @@ const handleImageError = (expertId: string) => {
             <div key={idx} className="flex items-center">
               <div className="flex flex-col items-center">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
-                  idx < 2 ? "bg-indigo-600 text-white" : "bg-zinc-200 dark:bg-zinc-800 text-zinc-500"
+                  idx < 2 ? "bg-[var(--primary-color)] text-white" : "bg-zinc-200 dark:bg-zinc-800 text-zinc-500"
                 }`}>
                   {idx + 1}
                 </div>
@@ -222,7 +222,7 @@ const handleImageError = (expertId: string) => {
           ))}
           </div>
 
-          <button className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all">
+          <button className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-[var(--primary-start)] to-[var(--primary-end)] text-white rounded-lg hover:[var(--hover-primary-color)] transition-all cursor-pointer">
             Next
             <ChevronRight className="w-4 h-4" />
           </button>
@@ -268,13 +268,13 @@ const handleImageError = (expertId: string) => {
                     <div className="flex items-center justify-between mb-1">
                     <h3 className="text-xl font-bold text-zinc-900 dark:text-white">{selectedExpertData.name}</h3>
                     </div>
-                    <p className="text-sm text-indigo-600 dark:text-indigo-400 mb-2">{selectedExpertData.role}</p>
+                    <p className="text-sm text-[var(--primary-color)] dark:text-[var(--primary-color)] mb-2">{selectedExpertData.role}</p>
                     <div className="flex items-center gap-4 text-xs text-zinc-600">
                     <span className="flex items-center gap-1">
                         <Award className="w-3 h-3" />
                         {selectedExpertData.experience} Experience
                     </span>
-                    <span className="font-semibold text-indigo-600">${selectedExpertData.price}</span>
+                    <span className="font-semibold text-[var(--primary-color)]">${selectedExpertData.price}</span>
                     </div>
                     <div className="mt-2 flex items-center gap-2">
                     <StarRating rating={selectedExpertData.rating} reviews={selectedExpertData.reviews} />
@@ -358,9 +358,9 @@ const handleImageError = (expertId: string) => {
           
           {/* Price & Selection */}
           <div className="text-right">
-            <p className="text-lg font-bold text-indigo-600 dark:text-indigo-400">${service.price}</p>
+            <p className="text-lg font-bold text-[var(--primary-color)] dark:text-[var(--primary-color)]">${service.price}</p>
             {selectedServices.includes(service.id) && (
-              <Check className="w-5 h-5 text-indigo-600 mt-1 ml-auto" />
+              <Check className="w-5 h-5 text-[var(--hover-primary-color)] mt-1 ml-auto" />
             )}
           </div>
         </div>
@@ -415,7 +415,7 @@ const handleImageError = (expertId: string) => {
                         {expert.videoUrl && (
                         <button
                             onClick={(e) => handlePlayVideo(e, expert)}
-                            className="absolute -bottom-[-3px] -right-1 w-6 h-6 bg-indigo-600 rounded-full flex items-center justify-center shadow-lg hover:bg-indigo-700 transition-all hover:scale-110"
+                            className="absolute -bottom-[-3px] -right-1 w-6 h-6 bg-[var(--primary-color)] rounded-full flex items-center justify-center shadow-lg hover:bg-[var(--hover-primary-color)] transition-all hover:scale-110 cursor-pointer"
                         >
                             <Play className="w-3 h-3 fill-white text-white" />
                         </button>
@@ -433,7 +433,7 @@ const handleImageError = (expertId: string) => {
                         <h4 className="font-semibold text-zinc-900 dark:text-white">{expert.name}</h4>
                         <StarRating rating={expert.rating} reviews={expert.reviews} />
                         </div>
-                        <p className="text-sm text-indigo-600 dark:text-indigo-400 mb-1">{expert.role}</p>
+                        <p className="text-sm text-[var(--primary-color)] dark:text-[var(--primary-color)] mb-1">{expert.role}</p>
                         <div className="flex items-center gap-3 text-xs text-zinc-500">
                         <span>⭐ {expert.experience}</span>
                         <span>💰 ${expert.price}/hr</span>
@@ -460,7 +460,7 @@ const handleImageError = (expertId: string) => {
                 {selectedServicesList.map((service) => (
                   <div key={service.id} className="flex justify-between items-center">
                     <span className="text-zinc-700 dark:text-zinc-300">{service.name}</span>
-                    <span className="font-semibold text-indigo-600">${service.price}</span>
+                    <span className="font-semibold text-[var(--primary-color)]">${service.price}</span>
                   </div>
                 ))}
                 {selectedServicesList.length === 0 && (
@@ -472,7 +472,7 @@ const handleImageError = (expertId: string) => {
               <div className="mb-4 p-3 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-zinc-600">Total:</span>
-                  <span className="font-bold text-indigo-600">{selectedDate}</span>
+                  <span className="font-bold text-[var(--primary-color)]">{selectedDate}</span>
                   <span className="text-zinc-600">{selectedTime}</span>
                 </div>
                 <div className="flex items-center justify-between mt-2 text-xs text-zinc-500">
@@ -486,7 +486,7 @@ const handleImageError = (expertId: string) => {
               <div className="pt-3 border-t border-zinc-200 dark:border-zinc-800">
                 <div className="flex justify-between items-center">
                   <span className="text-lg font-bold text-zinc-900 dark:text-white">Total:</span>
-                  <span className="text-2xl font-bold text-indigo-600">${totalAmount}</span>
+                  <span className="text-2xl font-bold text-[var(--primary-color)]">${totalAmount}</span>
                 </div>
               </div>
             </div>
@@ -507,7 +507,7 @@ const handleImageError = (expertId: string) => {
                     key={method.id}
                     className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
                       paymentMethod === method.id
-                        ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30"
+                        ? "border-[var(--hover-primary-color)] bg-indigo-50 dark:bg-indigo-950/30"
                         : "border-zinc-200 dark:border-zinc-700"
                     }`}
                   >
@@ -517,7 +517,7 @@ const handleImageError = (expertId: string) => {
                       value={method.id}
                       checked={paymentMethod === method.id}
                       onChange={(e) => setPaymentMethod(e.target.value)}
-                      className="w-4 h-4 text-indigo-600"
+                      className="w-4 h-4 text-[var(--primary-color)]"
                     />
                     <method.icon className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
                     <div className="flex-1">
@@ -556,7 +556,7 @@ const handleImageError = (expertId: string) => {
                   }
                   alert("Booking confirmed successfully!");
                 }}
-                className="w-full mt-6 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg"
+                className="w-full mt-6 px-6 py-3 bg-gradient-to-r from-[var(--primary-start)] to-[var(--primary-end)] text-white font-semibold rounded-xl transition-all duration-300 shadow-lg cursor-pointer"
               >
                 Confirm & Pay
               </button>

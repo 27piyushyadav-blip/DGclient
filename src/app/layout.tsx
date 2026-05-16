@@ -1,19 +1,20 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ThemeContextWrapper from "@/components/ThemeContextWrapper";
 import FooterWrapper from "@/components/FooterWrapper";
 import Header from "@/components/Header";
 import { Toaster } from "@/components/ui/sonner";
-
-const inter = Inter({ subsets: ["latin"] });
+import { Inter } from "next/font/google";
 
 export const metadata: Metadata = {
   title: "Mind Namo - Your Safe Space for Mental Wellness",
   description:
     "Connecting you with certified experts for secure, private, and personalized therapy sessions.",
 };
+
+const inter = Inter({ subsets: ["latin"] });
+
 
 export default function RootLayout({
   children,

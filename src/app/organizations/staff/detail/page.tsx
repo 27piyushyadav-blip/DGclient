@@ -212,11 +212,11 @@ export default function StaffDetailPage() {
               {/* Staff Info */}
               <div className="p-5 text-center">
                 <h2 className="text-2xl font-bold text-zinc-900 dark:text-white">{staffData.name}</h2>
-                <p className="text-indigo-600 dark:text-indigo-400 mt-1">{staffData.role}</p>
+                <p className="text-[var(--primary-color)] dark:text-[var(--primary-color)] mt-1">{staffData.role}</p>
                 
                 <div className="flex items-center justify-center gap-2 mt-2">
                   <div className="flex items-center gap-1">
-                    <Award className="w-4 h-4 text-indigo-600" />
+                    <Award className="w-4 h-4 text-[var(--primary-color)]" />
                     <span className="text-sm text-zinc-600 dark:text-zinc-400">{staffData.experience} Experience</span>
                   </div>
                 </div>
@@ -229,12 +229,12 @@ export default function StaffDetailPage() {
                 {/* Book & Message Buttons */}
                 <div className="flex gap-3 mt-5">
                   <Link href="/organizations/staff/booking" className="flex-1">
-                    <button className="w-full px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-all duration-300 cursor-pointer">
+                    <button className="w-full px-4 py-2.5 bg-gradient-to-r from-[var(--primary-start)] to-[var(--primary-end)] hover:bg-[var(--hover-primary-color)] text-white font-semibold rounded-xl transition-all duration-300 cursor-pointer">
                       Book
                     </button>
                   </Link>
                   <Link href="/organizations/staff/message" className="flex-1">
-                    <button className="w-full px-4 py-2.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-semibold rounded-xl hover:bg-zinc-200 transition-all duration-300 cursor-pointer">
+                    <button className="w-full px-4 py-2.5 bg-gradient-to-r from-[var(--primary-start)] to-[var(--primary-end)] dark:[var(--primary-color)] text-white dark:text-white font-semibold rounded-xl hover:bg-[var(--hover-primary-color)] transition-all duration-300 cursor-pointer">
                       Message
                     </button>
                   </Link>
@@ -298,7 +298,7 @@ export default function StaffDetailPage() {
                 {staffData.hobbies.map((hobby) => (
                   <span
                     key={hobby.id}
-                    className="px-3 py-1.5 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 rounded-full text-sm"
+                    className="px-3 py-1.5 bg-indigo-50 dark:bg-indigo-950/30 text-[var(--hover-primary-color)] dark:text-[var(--hover-primary-color)] rounded-full text-sm"
                   >
                     {hobby.name}
                   </span>
@@ -312,7 +312,7 @@ export default function StaffDetailPage() {
                 <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Public Reviews</h3>
                 <button 
                   onClick={() => setShowAllReviews(!showAllReviews)}
-                  className="text-sm text-indigo-600 hover:text-indigo-700 flex items-center gap-1 cursor-pointer"
+                  className="text-sm text-[var(--primary-color)] hover:text-[var(--hover-primary-color)] flex items-center gap-1 cursor-pointer"
                 >
                   {showAllReviews ? "Show Less" : "View All Reviews"}
                   <ChevronRight className="w-4 h-4" />
