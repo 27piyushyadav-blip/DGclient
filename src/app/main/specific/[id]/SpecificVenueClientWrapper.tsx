@@ -116,7 +116,7 @@ const [selectedStaffForBooking, setSelectedStaffForBooking] = useState<any>(null
                 </Link>
               ))}
 
-              <Button variant="outline" className="w-full rounded-2xl border-slate-200 text-blue-600">
+              <Button variant="outline" className="w-full rounded-2xl border-slate-200 text-blue-600 bg-white text-black">
                 View More
               </Button>
             </aside>
@@ -128,7 +128,8 @@ const [selectedStaffForBooking, setSelectedStaffForBooking] = useState<any>(null
                 <div className="flex items-center justify-between">
                   <h2 className="text-3xl font-bold text-slate-900">Our Services</h2>
                   <Button variant="link" asChild className="px-0 text-blue-600">
-                    <span onClick={()=>{setBookingModalOpen(true); setSelectedServiceForBooking(null);}} className="cursor-pointer">View All</span>
+                    <span onClick={()=>{setBookingModalOpen(true); setSelectedServiceForBooking(null);
+    setSelectedStaffForBooking(null);}} className="cursor-pointer">View All</span>
                   </Button>
                 </div>
 
@@ -136,14 +137,14 @@ const [selectedStaffForBooking, setSelectedStaffForBooking] = useState<any>(null
                   {venue.services.map((service) => (
                     <Card 
                       key={service.name} 
-                      className="overflow-hidden rounded-[22px] border-slate-200 shadow-sm cursor-pointer transition hover:shadow-lg"
+                      className="overflow-hidden rounded-[22px] border-slate-200 shadow-sm cursor-pointer transition hover:shadow-lg bg-white"
                       onClick={() => handleServiceBooking(service)}
                     >
                       <div
                         className="h-32 bg-cover bg-center"
                         style={{ backgroundImage: `url('${service.image}')` }}
                       />
-                      <CardContent className="space-y-1 p-4 text-center">
+                      <CardContent className="space-y-1 p-4 text-center ">
                         <h3 className="text-sm font-semibold text-slate-800">{service.name}</h3>
                         <p className="text-xl font-bold text-blue-600">{service.price}</p>
                       </CardContent>
@@ -162,20 +163,20 @@ const [selectedStaffForBooking, setSelectedStaffForBooking] = useState<any>(null
                   </Button>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 ">
                   {venue.staff.map((member) => (
                     <Card key={member.name} className="overflow-hidden rounded-[24px] border-slate-200 shadow-sm">
                       <div
-                        className="h-40 bg-cover bg-center"
+                        className="h-40 bg-cover bg-center "
                         style={{ backgroundImage: `url('${member.image}')` }}
                       />
-                      <CardContent className="space-y-4 p-4 text-center">
+                      <CardContent className="space-y-4 p-4 text-center bg-white">
                         <div>
                           <h3 className="text-lg font-semibold text-slate-900">{member.name}</h3>
                           <p className="text-sm text-slate-500">{member.role}</p>
                         </div>
                         <div className="flex gap-3">
-                          <Button variant="outline" className="flex-1 rounded-xl border-slate-200 text-blue-600"
+                          <Button variant="outline" className="flex-1 rounded-xl border-slate-200 text-blue-600 bg-white text-black"
                           onClick={() => handleBookingWithStaff(member)}>
                             Book Service
                           </Button>
@@ -194,14 +195,14 @@ const [selectedStaffForBooking, setSelectedStaffForBooking] = useState<any>(null
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h2 className="text-3xl font-bold text-slate-900">What Our Clients Say</h2>
-                  <Button variant="link" asChild className="px-0 text-blue-600">
+                  {/* <Button variant="link" asChild className="px-0 text-blue-600">
                     <Link href="/main">View All</Link>
-                  </Button>
+                  </Button> */}
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   {venue.reviews.map((review) => (
-                    <Card key={review.name} className="rounded-[24px] border-slate-200 shadow-sm">
+                    <Card key={review.name} className="rounded-[24px] border-slate-200 shadow-sm bg-white">
                       <CardContent className="space-y-4 p-5">
                         <div className="flex items-center justify-between">
                           <div>
@@ -223,13 +224,13 @@ const [selectedStaffForBooking, setSelectedStaffForBooking] = useState<any>(null
             </section>
 
             <aside className="space-y-4">
-              <Card className="rounded-[28px] border-slate-200 shadow-sm">
+              <Card className="rounded-[28px] border-slate-200 shadow-sm bg-white">
                 <CardContent className="space-y-5 p-5">
                   <h2 className="text-3xl font-bold text-slate-900">Menu</h2>
                   <div className="space-y-4">
                     {venue.services.slice(0, 5).map((service) => (
-                      <div key={service.name} className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3">
+                      <div key={service.name} className="flex items-center justify-between gap-3 cursor-pointer" onClick={() => handleServiceBooking(service)}>
+                        <div className="flex items-center gap-3" >
                           <div
                             className="h-12 w-12 rounded-xl bg-cover bg-center"
                             style={{ backgroundImage: `url('${service.image}')` }}
@@ -250,7 +251,7 @@ const [selectedStaffForBooking, setSelectedStaffForBooking] = useState<any>(null
                 </CardContent>
               </Card>
 
-              <Card className="rounded-[28px] border-slate-200 shadow-sm">
+              <Card className="rounded-[28px] border-slate-200 shadow-sm bg-white">
                 <CardContent className="space-y-5 p-5">
                   {venue.features.map((feature, index) => {
                     const Icon = infoIcons[index % infoIcons.length];
@@ -270,7 +271,7 @@ const [selectedStaffForBooking, setSelectedStaffForBooking] = useState<any>(null
                 </CardContent>
               </Card>
 
-              <Button variant="outline" asChild className="w-full rounded-2xl border-slate-200">
+              <Button variant="outline" asChild className="w-full rounded-2xl border-slate-200 bg-white text-black">
                 <Link href="/main">
                   <Clock3 className="h-4 w-4 text-blue-600" />
                   Back to Listings

@@ -53,11 +53,15 @@ interface ApiResponse {
 
 async function getAllOrganizations(): Promise<ApiResponse> {
   try {
-    const response = await getOrganizationsListApi();
+    const response = await getOrganizationsListApi() as {
+      data?: {
+        organizations?: Organization[];
+      };
+    };
     console.log("Response Organization:-", response);
-    return { 
-      success: true, 
-      organizations: response.data.organizations || [] 
+    return {
+      success: true,
+      organizations: response.data?.organizations || []
     };
   } catch (error) {
     return {

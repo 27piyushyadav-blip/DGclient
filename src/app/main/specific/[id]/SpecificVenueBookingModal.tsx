@@ -281,7 +281,7 @@ const handleDateTimeConfirm = () => {
 
   <div className={cn(
     "flex-1 px-6 py-6",
-    step === paymentStep ? "overflow-visible" : "overflow-y-auto",
+    step === paymentStep ? "overflow-visible" : "overflow-y-scroll scrollbar-thin",
     step !== paymentStep && "min-h-0"
   )}>
     <div className={cn(
@@ -712,7 +712,7 @@ const handleDateTimeConfirm = () => {
           type="button"
           variant="outline"
           onClick={() => setStep(step - 1)}
-          className="flex-1 rounded-xl bg-white py-2 text-sm font-semibold text-blue-600 shadow-sm"
+          className="flex-1 rounded-xl bg-white py-2 text-sm font-semibold text-blue-600 shadow-sm hover:bg-slate-100 hover:text-blue-600"
         >
           <ChevronLeft className="h-3.5 w-3.5" />
           Back
@@ -798,7 +798,7 @@ const handleDateTimeConfirm = () => {
           type="button"
           variant="outline"
           onClick={() => setStep(step - 1)}
-          className="flex-1 rounded-xl bg-white py-2 text-sm font-semibold text-blue-600 shadow-sm"
+          className="flex-1 rounded-xl bg-white py-2 text-sm font-semibold text-blue-600 shadow-sm hover:bg-slate-100 hover:text-blue-600"
         >
           <ChevronLeft className="h-3.5 w-3.5" />
           Back
@@ -837,20 +837,20 @@ const handleDateTimeConfirm = () => {
 
       {/* DateTime Modal - Add this after the closing </div> of the main content, before the sidebar */}
 <Dialog open={isDateTimeModalOpen} onOpenChange={setIsDateTimeModalOpen}>
-  <DialogContent className="max-h-[90vh] max-w-lg overflow-hidden rounded-3xl p-0">
+  <DialogContent className="max-h-[90vh] max-w-lg overflow-hidden rounded-3xl p-0 bg-white">
     <DialogHeader className="border-b border-slate-100 px-6 pb-4 pt-6">
       <DialogTitle className="text-2xl font-bold text-slate-900">Select Date & Time</DialogTitle>
       <p className="text-sm text-slate-500">Choose your preferred appointment slot</p>
     </DialogHeader>
     
-    <div className="max-h-[calc(90vh-120px)] overflow-y-auto px-6 pb-8">
+    <div className="max-h-[calc(90vh-120px)] overflow-y-scroll scrollbar-thin px-6 pb-8">
       {/* Calendar */}
       <div className="mt-4">
         <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
           <CalendarIcon className="h-4 w-4 text-blue-600" />
           <span>Select Date</span>
         </div>
-        <div className="mt-3 flex justify-center rounded-2xl border border-slate-200 p-4">
+        <div className="mt-3 flex justify-center rounded-2xl border border-slate-200 p-4 ">
           <Calendar
             mode="single"
             selected={tempSelectedDate || undefined}
@@ -860,7 +860,7 @@ const handleDateTimeConfirm = () => {
               today.setHours(0, 0, 0, 0);
               return date < today;
             }}
-            className="rounded-md"
+            className="rounded-md bg-white  hover:text-black text-black"
             classNames={{
               months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
               month: "space-y-4",
@@ -951,8 +951,8 @@ const handleDateTimeConfirm = () => {
             setTempSelectedTime(selectedTime);
             setIsDateTimeModalOpen(false);
           }}
-          className="flex-1 rounded-2xl border-slate-200 py-6 text-base font-semibold"
-        >
+          className="flex-1 rounded-2xl border-slate-200 py-6 text-base font-semibold bg-white hover:bg-slate-100 hover:text-black text-black"   
+          >
           Cancel
         </Button>
         <Button
