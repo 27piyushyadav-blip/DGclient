@@ -63,6 +63,11 @@ const nextConfig = {
         hostname: "localhost",
         port: "3000",
       },
+      // ✅ Allow example.com for development/testing images
+      {
+        protocol: "https",
+        hostname: "example.com",
+      },
     ],
     // Aggressive caching for external images (1 year)
     minimumCacheTTL: 31536000,

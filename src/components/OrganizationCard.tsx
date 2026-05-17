@@ -9,6 +9,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { Play, Users, ChevronRight, Building2, MapPin } from "lucide-react";
 import StaffCarousel, {
   StaffCarouselExample1,
@@ -111,6 +112,7 @@ export const sampleStaffData1 = [
 export default function OrganizationCard({
   organization,
 }: OrganizationCardProps) {
+  const router = useRouter();
   const [isVideoOpen, setIsVideoOpen] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
@@ -196,21 +198,29 @@ export default function OrganizationCard({
         <div className="p-5 pt-3">
           <div className="flex items-center justify-between gap-2 pt-3 border-t border-zinc-100 dark:border-zinc-800">
             <div className="bg-white p-[2px] rounded max-w-[8rem]">
-              <Link
-                href={`/organizations/booking`}
-                className="group inline-flex items-center justify-center gap-1 text-sm font-medium text-indigo-600 dark:text-black px-2 rounded transition-all duration-300 hover:shadow-md hover:scale-105"
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  router.push('/organizations/booking');
+                }}
+                className="group inline-flex items-center justify-center gap-1 text-sm font-medium text-indigo-600 dark:text-black px-2 rounded transition-all duration-300 hover:shadow-md hover:scale-105 hover:cursor-pointer"
               >
                 Book
-              </Link>
+              </button>
             </div>
 
             <div className="bg-white p-0.5 rounded max-w-[10rem]">
-              <Link
-                href={`/organizations/staff/message`}
-                className="group inline-flex items-center justify-center gap-1 text-sm font-medium text-indigo-600 dark:text-black px-2 rounded transition-all duration-300 hover:shadow-md hover:scale-105"
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  router.push('/organizations/staff/message');
+                }}
+                className="group inline-flex items-center justify-center gap-1 text-sm font-medium text-indigo-600 dark:text-black px-2 rounded transition-all duration-300 hover:shadow-md hover:scale-105 hover:cursor-pointer"
               >
                 Message
-              </Link>
+              </button>
             </div>
 
             <div className="bg-white p-0.5 rounded max-w-[10rem]">
