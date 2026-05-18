@@ -8,6 +8,7 @@ import OrganizationCard from "@/components/OrganizationCard";
 
 interface Organization {
   _id: string;
+  slug: string;
   name: string;
   mission?: string;
   country?: string;
