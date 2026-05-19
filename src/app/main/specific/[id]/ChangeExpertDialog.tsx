@@ -44,18 +44,18 @@
 
 //   return (
 //     <Dialog open={open} onOpenChange={onOpenChange}>
-//       <DialogContent className="max-w-md w-[90vw] rounded-2xl p-0 overflow-hidden bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800">
+//       <DialogContent className="max-w-md w-[90vw] rounded-2xl p-0 overflow-hidden bg-white border-zinc-200">
 //         <DialogTitle className="sr-only">Change Expert</DialogTitle>
-        
+
 //         <div className="p-6">
 //           <div className="flex items-center justify-between mb-4">
-//             <h3 className="text-xl font-bold text-zinc-900 dark:text-white">Change Expert</h3>
+//             <h3 className="text-xl font-bold text-zinc-900">Change Expert</h3>
 //           </div>
-          
-//           <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
+
+//           <p className="text-sm text-zinc-500 mb-4">
 //             Select an expert to continue your conversation
 //           </p>
-          
+
 //           {filteredExperts.length === 0 ? (
 //             <div className="text-center py-8 text-zinc-500">
 //               <p>No other experts available</p>
@@ -68,8 +68,8 @@
 //                   onClick={() => setSelectedExpert(expert)}
 //                   className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer ${
 //                     selectedExpert?.name === expert.name
-//                       ? "bg-indigo-50 dark:bg-indigo-950/30 border-2 border-indigo-500"
-//                       : "hover:bg-zinc-50 dark:hover:bg-zinc-800 border-2 border-transparent"
+//                       ? "bg-indigo-50 border-2 border-indigo-500"
+//                       : "hover:bg-zinc-50 border-2 border-transparent"
 //                   }`}
 //                 >
 //                   <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-indigo-500 to-purple-600 flex-shrink-0">
@@ -87,12 +87,12 @@
 //                       </div>
 //                     )}
 //                   </div>
-                  
+
 //                   <div className="flex-1 text-left">
-//                     <h4 className="font-semibold text-zinc-900 dark:text-white">{expert.name}</h4>
+//                     <h4 className="font-semibold text-zinc-900">{expert.name}</h4>
 //                     <p className="text-xs text-zinc-500">{expert.role}</p>
 //                   </div>
-                  
+
 //                   {selectedExpert?.name === expert.name && (
 //                     <Check className="w-5 h-5 text-indigo-600" />
 //                   )}
@@ -100,7 +100,7 @@
 //               ))}
 //             </div>
 //           )}
-          
+
 //           <div className="flex gap-3 mt-6">
 //             <Button
 //               variant="outline"
@@ -152,11 +152,13 @@ export default function ChangeExpertDialog({
   allExperts,
   onSelectExpert,
 }: ChangeExpertDialogProps) {
-  const [selectedExpert, setSelectedExpert] = useState<StaffMember | null>(null);
+  const [selectedExpert, setSelectedExpert] = useState<StaffMember | null>(
+    null,
+  );
   const [currentSlide, setCurrentSlide] = useState(0);
 
   const filteredExperts = allExperts.filter(
-    (expert) => expert.name !== currentExpert.name
+    (expert) => expert.name !== currentExpert.name,
   );
 
   const itemsPerPage = 2;
@@ -182,18 +184,16 @@ export default function ChangeExpertDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md w-[95vw] rounded-3xl p-0 overflow-hidden bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800">
+      <DialogContent className="max-w-md w-[95vw] rounded-3xl p-0 overflow-hidden bg-white border-zinc-200">
         <DialogTitle className="sr-only">Change Expert</DialogTitle>
 
         <div className="p-1">
           {/* Header */}
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-xl font-bold text-zinc-900 dark:text-white">
-              Change Expert
-            </h3>
+            <h3 className="text-xl font-bold text-zinc-900">Change Expert</h3>
           </div>
 
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6">
+          <p className="text-sm text-zinc-500 mb-6">
             Select an expert to continue
           </p>
 
@@ -212,20 +212,17 @@ export default function ChangeExpertDialog({
                   }}
                 >
                   {filteredExperts.map((expert) => (
-                    <div 
-                      key={expert.name} 
-                      className="min-w-[50%] p-1.5"
-                    >
+                    <div key={expert.name} className="min-w-[50%] p-1.5">
                       <button
                         onClick={() => setSelectedExpert(expert)}
                         className={`w-full flex flex-col items-center gap-3 p-4 rounded-2xl transition-all border-2 text-center h-full ${
                           selectedExpert?.name === expert.name
-                            ? "bg-indigo-50 dark:bg-indigo-950/30 border-indigo-500 shadow-md shadow-indigo-100/50"
-                            : "bg-white dark:bg-zinc-900 border-zinc-100 dark:border-zinc-800 hover:border-zinc-300"
+                            ? "bg-indigo-50 border-indigo-500 shadow-md shadow-indigo-100/50"
+                            : "bg-white border-zinc-100 hover:border-zinc-300"
                         }`}
                       >
                         <div className="relative">
-                          <div className="w-16 h-16 rounded-full overflow-hidden ring-2 ring-white dark:ring-zinc-900 shadow-sm flex-shrink-0">
+                          <div className="w-16 h-16 rounded-full overflow-hidden ring-2 ring-white shadow-sm flex-shrink-0">
                             {expert.imageUrl ? (
                               <Image
                                 src={expert.imageUrl}
@@ -235,23 +232,23 @@ export default function ChangeExpertDialog({
                                 className="w-full h-full object-cover"
                               />
                             ) : (
-                              <div className="w-full h-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+                              <div className="w-full h-full bg-zinc-100 flex items-center justify-center">
                                 <User className="w-8 h-8 text-zinc-400" />
                               </div>
                             )}
                           </div>
                           {selectedExpert?.name === expert.name && (
-                            <div className="absolute -right-1 -bottom-1 bg-indigo-600 rounded-full p-1 border-2 border-white dark:border-zinc-900 z-10">
+                            <div className="absolute -right-1 -bottom-1 bg-indigo-600 rounded-full p-1 border-2 border-white z-10">
                               <Check className="w-3 h-3 text-white" />
                             </div>
                           )}
                         </div>
 
                         <div className="w-full">
-                          <h4 className="font-bold text-sm text-zinc-900 dark:text-white leading-tight mb-1">
+                          <h4 className="font-bold text-sm text-zinc-900 leading-tight mb-1">
                             {expert.name}
                           </h4>
-                          <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium uppercase tracking-tighter truncate">
+                          <p className="text-[10px] text-zinc-500 font-medium uppercase tracking-tighter truncate">
                             {expert.role}
                           </p>
                         </div>
@@ -265,21 +262,22 @@ export default function ChangeExpertDialog({
               {filteredExperts.length > itemsPerPage && currentSlide > 0 && (
                 <button
                   onClick={prevSlide}
-                  className="absolute left-2 top-1/2 -translate-y-1/2 -translate-x-3 flex h-8 w-8 items-center justify-center rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 shadow-lg hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-all z-10"
+                  className="absolute left-2 top-1/2 -translate-y-1/2 -translate-x-3 flex h-8 w-8 items-center justify-center rounded-full bg-white border border-zinc-200 shadow-lg hover:bg-zinc-50 transition-all z-10"
                 >
-                  <ChevronLeft className="h-4 w-4 text-zinc-600 dark:text-zinc-300" />
+                  <ChevronLeft className="h-4 w-4 text-zinc-600" />
                 </button>
               )}
 
               {/* Right Navigation Button - centered vertically */}
-              {filteredExperts.length > itemsPerPage && currentSlide < maxSlides && (
-                <button
-                  onClick={nextSlide}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 translate-x-3 flex h-8 w-8 items-center justify-center rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 shadow-lg hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-all z-10"
-                >
-                  <ChevronRight className="h-4 w-4 text-zinc-600 dark:text-zinc-300" />
-                </button>
-              )}
+              {filteredExperts.length > itemsPerPage &&
+                currentSlide < maxSlides && (
+                  <button
+                    onClick={nextSlide}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 translate-x-3 flex h-8 w-8 items-center justify-center rounded-full bg-white border border-zinc-200 shadow-lg hover:bg-zinc-50 transition-all z-10"
+                  >
+                    <ChevronRight className="h-4 w-4 text-zinc-600" />
+                  </button>
+                )}
             </div>
           )}
 
@@ -293,7 +291,7 @@ export default function ChangeExpertDialog({
                   className={`h-1.5 rounded-full transition-all ${
                     currentSlide === idx
                       ? "w-4 bg-indigo-600"
-                      : "w-1.5 bg-zinc-300 dark:bg-zinc-600 hover:bg-zinc-400"
+                      : "w-1.5 bg-zinc-300 hover:bg-zinc-400"
                   }`}
                 />
               ))}

@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import { useState, type ReactNode } from "react";
 import {
@@ -10,6 +10,8 @@ import {
   MapPin,
   Menu,
   Play,
+  Plus,
+  SearchIcon,
   Star,
   Users,
 } from "lucide-react";
@@ -73,9 +75,10 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer";
 import Link from "next/link";
-import { venues } from "./data";
+import { venues, type Venue } from "./data";
 import SpecificVenueBookingModal from "./specific/[id]/SpecificVenueBookingModal";
 import MessageDialog from "./specific/[id]/MessageDialog";
+import VideoModal from "@/components/modals/VideoModal";
 
 const filters = {
   suburbs: ["Ascotvale", "Brunswick", "Docklands"],
@@ -83,92 +86,18 @@ const filters = {
   staff: ["Male Therapist", "Female Therapist"],
 };
 
-// const venues = [
-//   {
-//     name: "Lomi Massage",
-//     hours: "12AM - 7PM",
-//     address: "318 Ascotvale Rd, Ascotvale",
-//     accent: "from-amber-950 via-amber-800 to-stone-900",
-//     glow: "from-amber-300/80 via-orange-200/30 to-transparent",
-//     bgImage: "url('/images/massage-1.jpg')",
-//     services: [
-//       { name: "Hair Cutting", price: "$10" },
-//       { name: "Shaving", price: "$20" },
-//       { name: "Timing", price: "$30" },
-//       { name: "Cleansing", price: "$40" },
-//     ],
-//   },
-//   {
-//     name: "Tranquil Touch",
-//     hours: "9AM - 5PM",
-//     address: "215 Brunswick Road, Ascotvale 3032",
-//     accent: "from-stone-950 via-amber-900 to-orange-950",
-//     glow: "from-orange-300/70 via-yellow-200/20 to-transparent",
-//     bgImage: "url('/images/massage-1.jpg')",
-//     services: [
-//       { name: "Hair Cutting", price: "$10" },
-//       { name: "Shaving", price: "$20" },
-//       { name: "Timing", price: "$30" },
-//       { name: "Cleansing", price: "$40" },
-//     ],
-//   },
-//   {
-//     name: "Blissful Escape",
-//     hours: "10AM - 11PM",
-//     address: "109 Melrose Drive, Ascotvale 3032",
-//     accent: "from-zinc-950 via-amber-900 to-stone-900",
-//     glow: "from-orange-200/70 via-amber-100/30 to-transparent",
-//     bgImage: "url('/images/massage-1.jpg')",
-//     services: [
-//       { name: "Hair Cutting", price: "$10" },
-//       { name: "Shaving", price: "$20" },
-//       { name: "Timing", price: "$30" },
-//       { name: "Cleansing", price: "$40" },
-//     ],
-//   },
-//   {
-//     name: "Pure Relaxation",
-//     hours: "12AM - 7PM",
-//     address: "88 Baker Street, Ascotvale 3032",
-//     accent: "from-neutral-950 via-amber-900 to-black",
-//     glow: "from-orange-300/70 via-amber-100/30 to-transparent",
-//     bgImage: "url('/images/massage-1.jpg')",
-//     services: [
-//       { name: "Hair Cutting", price: "$10" },
-//       { name: "Shaving", price: "$20" },
-//       { name: "Timing", price: "$30" },
-//       { name: "Cleansing", price: "$40" },
-//     ],
-//   },
-//   {
-//     name: "Serenity Spa",
-//     hours: "9AM - 5PM",
-//     address: "420 High Street, Ascotvale 3032",
-//     accent: "from-zinc-950 via-amber-800 to-stone-900",
-//     glow: "from-amber-300/70 via-orange-200/30 to-transparent",
-//     bgImage: "url('/images/massage-1.jpg')",
-//     services: [
-//       { name: "Hair Cutting", price: "$10" },
-//       { name: "Shaving", price: "$20" },
-//       { name: "Timing", price: "$30" },
-//       { name: "Cleansing", price: "$40" },
-//     ],
-//   },
-//   {
-//     name: "Ocean Breeze",
-//     hours: "10AM - 1PM",
-//     address: "12 Ocean View Parade, Ascotvale 3032",
-//     accent: "from-slate-900 via-cyan-900 to-blue-950",
-//     glow: "from-cyan-200/70 via-slate-100/30 to-transparent",
-//     bgImage: "url('/images/massage-1.jpg')",
-//     services: [
-//       { name: "Hair Cutting", price: "$10" },
-//       { name: "Shaving", price: "$20" },
-//       { name: "Timing", price: "$30" },
-//       { name: "Cleansing", price: "$40" },
-//     ],
-//   },
-// ];
+type MainVenue = Venue & {
+  detailHref: string;
+  videoUrl?: string;
+};
+
+const fallbackVideoUrl = "https://youtu.be/sRWcJrMTtMI?si=hbh0v0HYOocQsXrE";
+
+const defaultVenueCards: MainVenue[] = venues.map((venue) => ({
+  ...venue,
+  detailHref: `/main/specific/${venue.id}`,
+  videoUrl: fallbackVideoUrl,
+}));
 
 function FilterBlock({
   title,
@@ -193,75 +122,29 @@ function FilterBlock({
 }
 
 // Add this component before the VenueCard component
-function ServiceDrawer({ 
-  services, 
+function ServiceDrawer({
+  services,
   venueName,
   onBookNow,
-}: { 
-  services: { name: string; price: string }[]; 
+}: {
+  services: { name: string; price: string }[];
   venueName: string;
   onBookNow: () => void;
 }) {
   const [open, setOpen] = useState(false);
 
   return (
-    // <Drawer open={open} onOpenChange={setOpen}>
-    //   <DrawerTrigger asChild>
-        <div className="rounded-2xl border border-slate-100 bg-slate-50/60 px-3 py-2 hover:bg-slate-100 cursor-pointer transition hover:text-blue-700"
-        onClick={onBookNow}
-        >
-          <div className="flex items-center gap-2">
-            <div className="min-w-full justify-center align-middle items-center h-full">
-              <p className="truncate text-sm font-bold text-blue-600 hover:text-blue-700 text-center mt-2">
-                More
-              </p>
-            </div>
-          </div>
-        </div>
-    //   {/* </DrawerTrigger>
-    //   <DrawerContent>
-    //     <div className="mx-auto w-full max-w-3xl">
-    //       <DrawerHeader>
-    //         <DrawerTitle className="text-2xl font-bold text-slate-900">
-    //           All Services - {venueName}
-    //         </DrawerTitle>
-    //         <DrawerDescription>
-    //           Browse through all available services and prices
-    //         </DrawerDescription>
-    //       </DrawerHeader>
-    //       <div className="p-6">
-    //         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-    //           {services.map((service) => (
-    //             <div
-    //               key={service.name}
-    //               className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm hover:shadow-md transition-shadow"
-    //             >
-    //               <div className="flex items-center justify-between">
-    //                 <div className="flex items-center gap-3">
-    //                   <div className="h-10 w-10 rounded-full bg-gradient-to-br from-amber-200 via-orange-100 to-rose-100" />
-    //                   <div>
-    //                     <p className="font-semibold text-slate-800">
-    //                       {service.name}
-    //                     </p>
-    //                     <p className="text-sm text-slate-500">Service</p>
-    //                   </div>
-    //                 </div>
-    //                 <p className="text-xl font-bold text-blue-600">{service.price}</p>
-    //               </div>
-    //             </div>
-    //           ))}
-    //         </div>
-    //       </div>
-    //       <DrawerFooter>
-    //         <DrawerClose asChild>
-    //           <Button variant="outline" className="rounded-xl">
-    //             Close
-    //           </Button>
-    //         </DrawerClose>
-    //       </DrawerFooter>
-    //     </div>
-    //   </DrawerContent>
-    // </Drawer> */}
+    <div
+      className="  cursor-pointer transition-all duration-200  active:scale-90"
+      onClick={onBookNow}
+    >
+      <div className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 min-w-[6rem] mt-[-0.4rem]">
+        <Plus className="h-5 w-5 text-blue-600 transition-colors group-hover:text-blue-700" />
+        <p className="text-sm font-semibold text-blue-600 transition-colors">
+          More
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -273,45 +156,60 @@ function VenueCard({
   accent,
   glow,
   services,
+  detailHref,
   onBookNow,
   onStaffSelect,
-}: (typeof venues)[number] & {
+  onPlayVideo,
+  onMessageNow,
+}: MainVenue & {
   onBookNow: () => void;
   onStaffSelect: () => void;
+  onPlayVideo: () => void;
+  onMessageNow: () => void;
 }) {
   return (
-    <Card className="overflow-hidden rounded-[28px] border-slate-200 shadow-[0_22px_60px_-36px_rgba(15,23,42,0.35)] lg:max-h-[23.5rem]">
+    <Card className="overflow-hidden rounded-[28px] border-slate-200 shadow-[0_22px_60px_-36px_rgba(15,23,42,0.35)] lg:max-h-[25.5rem]">
       <div className="grid lg:grid-cols-[minmax(0,1fr)_96px]">
         <div
           className={`relative min-h-[250px] overflow-hidden bg-gradient-to-br ${accent} p-6 text-white`}
         >
-            {/* Background Image with Light Overlay */}
-  <div 
-    className="absolute inset-0 bg-cover bg-center opacity-30 mix-blend-overlay"
-    style={{
-      backgroundImage: "url('https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=2070&auto=format&fit=crop')",
-    }}
-  />
-  
-  {/* Dark Gradient Overlay */}
-  <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/40 to-transparent" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.22),transparent_32%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.18),transparent_24%)]" />
+          {/* Background Image with Light Overlay */}
+          <div
+            className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-30 mix-blend-overlay"
+            style={{
+              backgroundImage:
+                "url('https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=2070&auto=format&fit=crop')",
+            }}
+          />
+
+          {/* Dark Gradient Overlay */}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-black/60 via-black/40 to-transparent" />
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.22),transparent_32%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.18),transparent_24%)]" />
           <div
             className={`absolute bottom-0 right-0 h-40 w-40 rounded-full bg-gradient-to-br ${glow} blur-2xl`}
           />
-          <div className="absolute bottom-6 right-6 flex h-28 w-28 items-center justify-center rounded-full border border-white/35 bg-white/10 shadow-lg backdrop-blur-sm">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-white bg-black/30">
+          <div className="absolute bottom-6 right-6 z-10 flex h-28 w-28 items-center justify-center rounded-full border border-white/35 bg-white/10 shadow-lg backdrop-blur-sm">
+            <button
+              type="button"
+              className="flex h-14 w-14 cursor-pointer items-center justify-center rounded-full border-2 border-white bg-black/30"
+              onClick={onPlayVideo}
+            >
               <Play className="ml-1 h-6 w-6 fill-white text-white" />
-            </div>
+            </button>
           </div>
-          <div className="absolute bottom-5 right-3 h-14 w-14 rounded-full bg-white/90 blur-[2px]" />
+          {/* <div className="absolute bottom-5 right-3 h-14 w-14 rounded-full bg-white/90 blur-[2px]" /> */}
           <div className="relative flex h-full flex-col">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-[1.8rem] font-bold leading-none">{name}</h2>
-                <p className="mt-2 text-lg italic text-white/90">Relax & Rejuvenate</p>
+                <p className="mt-2 text-lg italic text-white/90">
+                  Relax & Rejuvenate
+                </p>
               </div>
-              <Badge variant="default" className="bg-blue-600 text-white shadow-lg">
+              <Badge
+                variant="default"
+                className="bg-blue-600 text-white shadow-lg"
+              >
                 <Clock3 className="mr-1.5 h-3.5 w-3.5" />
                 {hours}
               </Badge>
@@ -326,7 +224,10 @@ function VenueCard({
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
                 <span>{address}</span>
               </div>
-              <Button variant="secondary" className="w-fit rounded-full bg-white px-4 py-2 text-sm font-semibold text-blue-600 shadow-md hover:bg-blue-50">
+              <Button
+                variant="secondary"
+                className="w-fit rounded-full bg-white px-4 py-2 text-sm font-semibold text-blue-600 shadow-md hover:bg-blue-50"
+              >
                 <MapPin className="mr-1.5 h-4 w-4" />
                 Direction
               </Button>
@@ -336,108 +237,122 @@ function VenueCard({
 
         <div className="flex items-stretch border-t border-slate-200 bg-white lg:flex-col lg:border-l lg:border-t-0 p-[0.5rem]">
           {[
-  { icon: Star, label: "View", action: "view" },
-  { icon: Users, label: "Staff Select", action: "staff" },
-  { icon: Mail, label: "Message Now", action: "message" },
-].map(({ icon: Icon, label, action }) => {
-  // if (action === "view") {
-  //   return (
-  //     <Link key={label} href={`/main/specific/${id}`} className="flex-1">
-  //       <Button
-  //         variant="ghost"
-  //         className="flex w-full flex-col items-center justify-center gap-2 rounded-none border-r border-slate-200 px-3 py-4 text-center text-xs font-semibold text-slate-700 hover:bg-slate-50 last:border-r-0 lg:border-b lg:border-r-0 last:lg:border-b-0"
-  //       >
-  //         <Icon className="h-4 w-4 text-blue-600" />
-  //         <span>{label}</span>
-  //       </Button>
-  //     </Link>
-  //   );
-  // }
-  
-  return (
-    <Button
-      key={label}
-      variant="ghost"
-      type="button"
-      onClick={action === "staff" ? onStaffSelect : undefined}
-      className="flex flex-1 flex-col items-center justify-center gap-2 rounded-none border-r border-slate-200 px-3 py-4 text-center text-xs font-semibold text-slate-700 hover:bg-slate-50 last:border-r-0 lg:border-b lg:border-r-0 last:lg:border-b-0"
-    >
-      {/* <Icon className="h-4 w-4 text-blue-600" />
+            { icon: Star, label: "View", action: "view" },
+            { icon: Users, label: "Staff Select", action: "staff" },
+            { icon: Mail, label: "Message Now", action: "message" },
+          ].map(({ icon: Icon, label, action }) => {
+            return (
+              <button
+                key={label}
+                // variant="ghost"
+                type="button"
+                onClick={
+                  action === "staff"
+                    ? onStaffSelect
+                    : action === "message"
+                      ? onMessageNow
+                      : undefined
+                }
+                className="flex flex-1 flex-col items-center justify-center gap-2 rounded-none border-r border-slate-200 px-3 py-4 text-center text-xs font-semibold text-slate-700 hover:bg-slate-50 last:border-r-0 lg:border-b lg:border-r-0 last:lg:border-b-0 hover:bg-accent hover:text-accent-foreground bg-white"
+              >
+                {/* <Icon className="h-4 w-4 text-blue-600" />
       <span>{label}</span> */}
-      {label === "View" ? (
-                <Link href={`/main/specific/${id}`} className="flex flex-col items-center justify-center gap-2 text-center text-xs font-semibold text-slate-700 hover:text-blue-600">
-                  <Icon className="h-4 w-4 text-blue-600" />
-                  <span>{label}</span>
-                </Link>
-              ) : (
-                <>
-                  <Icon className="h-4 w-4 text-blue-600" />
-                  <span>{label}</span>
-                </>
-              )}
-      
-    </Button>
-  );
-})}
+                {label === "View" ? (
+                  <Link
+                    href={detailHref}
+                    className="flex flex-col items-center justify-center gap-2 text-center text-xs font-semibold text-slate-700 hover:text-blue-600"
+                  >
+                    <Icon className="h-4 w-4 text-blue-600" />
+                    <span>{label}</span>
+                  </Link>
+                ) : (
+                  <>
+                    <Icon className="h-4 w-4 text-blue-600" />
+                    <span className="text-slate-700">{label}</span>
+                  </>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-<div className="flex justify-between items-center">
-      <CardContent className="grid gap-2 border-t border-slate-200 p-4 md:grid-cols-[minmax(0,1fr)_1px]">
-  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-    {services.slice(0, 3).map((service) => (
-      <div
-  key={service.name}
-  className="rounded-2xl border border-slate-100 bg-slate-50/60 px-1 py-2"
->
-  <div className="flex items-center gap-2">
-    <img
-      src={service.image} // or service.avatar, service.icon, etc.
-      alt={service.name}
-      className="h-8 w-8 rounded-full object-cover" // object-cover prevents squeezing
-    />
-    <div className="min-w-0">
-      <p className="truncate text-[11px] font-semibold text-slate-700">
-        {service.name.length > 5 ? service.name.slice(0, 5) + "..." : service.name}
-      </p>
-      <p className="text-xs font-bold text-blue-600">{service.price}</p>
-    </div>
-  </div>
-</div>
-    ))}
-    
-    <ServiceDrawer services={services} venueName={name} onBookNow={onBookNow} />
-  </div>
-  
-</CardContent>
-<Button
-    type="button"
-    onClick={onBookNow}
-    className="h-full rounded-xl bg-blue-600  text-sm font-semibold text-white shadow-lg shadow-blue-600/25 hover:bg-blue-700 mr-1 text-[12px] py-3"
-  >
-    {/* <CalendarDays className="mr-2 h-4 w-4" /> */}
-    Book Now
-  </Button>
-  </div>
+      <div className="flex justify-between items-center bg-white">
+        <CardContent className="grid gap-2 border-t border-slate-200 p-4 md:grid-cols-[minmax(0,1fr)_1px]">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {services.slice(0, 3).map((service) => (
+              <div
+                key={service.name}
+                className="border-r border-slate-100   w-[6rem] flex flex-col items-center justify-center gap-2 h-[6rem] mt-[-0.5rem]"
+              >
+                <img
+                  src={service.image}
+                  alt={service.name}
+                  className="h-8 w-8 rounded-lg object-cover"
+                />
+                <div className="flex flex-col items-center text-center w-full">
+                  <p className="text-[11px] font-semibold text-slate-700 text-center line-clamp-2">
+                    {service.name}
+                  </p>
+                  <p className="text-xs font-bold text-blue-600">
+                    {service.price}
+                  </p>
+                </div>
+              </div>
+            ))}
+
+            <ServiceDrawer
+              services={services}
+              venueName={name}
+              onBookNow={onBookNow}
+            />
+          </div>
+        </CardContent>
+        <Button
+          type="button"
+          onClick={onBookNow}
+          className="h-full rounded-xl bg-blue-600  text-sm font-semibold text-white shadow-lg shadow-blue-600/25 hover:bg-blue-700 mr-1 text-[12px] py-3"
+        >
+          {/* <CalendarDays className="mr-2 h-4 w-4" /> */}
+          Book Now
+        </Button>
+      </div>
     </Card>
   );
 }
 
 export default function MainPage() {
-  const [selectedVenue, setSelectedVenue] = useState<(typeof venues)[number] | null>(null);
+  const [venueList] = useState<MainVenue[]>(defaultVenueCards);
+  const [selectedVenue, setSelectedVenue] = useState<MainVenue | null>(null);
+  const [messageVenue, setMessageVenue] = useState<MainVenue | null>(null);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
-  const [bookingFlow, setBookingFlow] = useState<"service-first" | "staff-first">("service-first");
+  const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false);
+  const [bookingFlow, setBookingFlow] = useState<
+    "service-first" | "staff-first"
+  >("service-first");
+  const [activeVideoUrl, setActiveVideoUrl] = useState<string | null>(null);
 
-  const handleBookNow = (venue: (typeof venues)[number]) => {
+  const handleBookNow = (venue: MainVenue) => {
     setSelectedVenue(venue);
     setBookingFlow("service-first");
     setIsBookingModalOpen(true);
   };
 
-  const handleStaffSelect = (venue: (typeof venues)[number]) => {
+  const handleStaffSelect = (venue: MainVenue) => {
     setSelectedVenue(venue);
     setBookingFlow("staff-first");
     setIsBookingModalOpen(true);
+  };
+
+  const handlePlayVideo = (venue: MainVenue) => {
+    setActiveVideoUrl(venue.videoUrl || fallbackVideoUrl);
+  };
+
+  const handleMessageNow = (venue: MainVenue) => {
+    if (!venue.staff.length) return;
+
+    setMessageVenue(venue);
+    setIsMessageDialogOpen(true);
   };
 
   return (
@@ -446,12 +361,15 @@ export default function MainPage() {
         <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4 xl:hidden mb-5">
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="outline" className="border-slate-200 bg-white shadow-sm">
-                <Menu className="m-1 h-4 w-4" />
+              <Button
+                variant="outline"
+                className="border-slate-200 bg-white shadow-sm"
+              >
+                <Menu className="m-1 h-4 w-4 text-black" />
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-[320px] p-0 sm:w-[380px]">
-              <div className="h-full overflow-y-auto p-6">
+              <div className="h-full overflow-y-auto p-6 bg-white">
                 <FilterSidebarContent />
               </div>
             </SheetContent>
@@ -465,16 +383,29 @@ export default function MainPage() {
             <FilterSidebarContent />
           </aside>
 
-          <section className="grid gap-6 2xl:grid-cols-2">
-            {venues.map((venue) => (
-              <VenueCard
-                key={venue.name}
-                {...venue}
-                onBookNow={() => handleBookNow(venue)}
-                onStaffSelect={() => handleStaffSelect(venue)}
+          <div>
+            <div className="relative mb-5 mt-2 ">
+              <input
+                type="text"
+                name="search"
+                placeholder="Search..."
+                className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 pl-10 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
-            ))}
-          </section>
+              <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            </div>
+            <section className="grid gap-6 lg:grid-cols-2">
+              {venueList.map((venue) => (
+                <VenueCard
+                  key={`${venue.id}-${venue.name}`}
+                  {...venue}
+                  onBookNow={() => handleBookNow(venue)}
+                  onStaffSelect={() => handleStaffSelect(venue)}
+                  onPlayVideo={() => handlePlayVideo(venue)}
+                  onMessageNow={() => handleMessageNow(venue)}
+                />
+              ))}
+            </section>
+          </div>
         </div>
       </main>
 
@@ -486,6 +417,23 @@ export default function MainPage() {
           bookingFlow={bookingFlow}
         />
       ) : null}
+
+      {activeVideoUrl ? (
+        <VideoModal
+          videoUrl={activeVideoUrl}
+          onClose={() => setActiveVideoUrl(null)}
+        />
+      ) : null}
+
+      {messageVenue?.staff[0] ? (
+        <MessageDialog
+          open={isMessageDialogOpen}
+          onOpenChange={setIsMessageDialogOpen}
+          staff={messageVenue.staff[0]}
+          venueName={messageVenue.name}
+          allStaff={messageVenue.staff}
+        />
+      ) : null}
     </>
   );
 }
@@ -493,9 +441,12 @@ export default function MainPage() {
 function FilterSidebarContent() {
   return (
     <>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between ">
         <h1 className="text-2xl font-bold text-slate-900">Filter</h1>
-        <Button variant="link" className="text-sm font-semibold text-blue-600 transition hover:text-blue-700">
+        <Button
+          variant="link"
+          className="text-sm font-semibold text-blue-600 transition hover:text-blue-700"
+        >
           Reset
         </Button>
       </div>
@@ -516,14 +467,17 @@ function FilterSidebarContent() {
         <FilterBlock title="Price">
           <div className="space-y-3">
             {["High to Low", "Low to High"].map((option, index) => (
-              <label key={option} className="flex items-center gap-3 text-sm text-slate-700">
-                <span
-                  className={`flex h-4 w-4 items-center justify-center rounded-full border ${
-                    index === 0 ? "border-blue-600" : "border-slate-300"
-                  }`}
-                >
-                  {index === 0 ? <Circle className="h-2.5 w-2.5 fill-blue-600 text-blue-600" /> : null}
-                </span>
+              <label
+                key={option}
+                className="flex items-center gap-3 text-sm text-slate-700"
+              >
+                <input
+                  type="radio"
+                  name="price"
+                  value={option}
+                  className="h-4 w-4 border-slate-300 bg-white text-blue-600 focus:ring-blue-600 [color-scheme:light]"
+                  defaultChecked={index === 0} // Makes "Open Now" selected by default
+                />
                 {option}
               </label>
             ))}
@@ -533,8 +487,14 @@ function FilterSidebarContent() {
         <FilterBlock title="Country" collapsible>
           <div className="space-y-3">
             {filters.countries.map((option) => (
-              <label key={option} className="flex items-center gap-3 text-sm text-slate-700">
-                <Checkbox id={`country-${option}`} className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+              <label
+                key={option}
+                className="flex items-center gap-3 text-sm text-slate-700"
+              >
+                <Checkbox
+                  id={`country-${option}`}
+                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                />
                 {option}
               </label>
             ))}
@@ -544,8 +504,14 @@ function FilterSidebarContent() {
         <FilterBlock title="Staff" collapsible>
           <div className="space-y-3">
             {filters.staff.map((option) => (
-              <label key={option} className="flex items-center gap-3 text-sm text-slate-700">
-                <Checkbox id={`staff-${option}`} className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+              <label
+                key={option}
+                className="flex items-center gap-3 text-sm text-slate-700"
+              >
+                <Checkbox
+                  id={`staff-${option}`}
+                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                />
                 {option}
               </label>
             ))}
@@ -571,14 +537,17 @@ function FilterSidebarContent() {
         <FilterBlock title="Availability" collapsible>
           <div className="space-y-3">
             {["Open Now", "All"].map((option, index) => (
-              <label key={option} className="flex items-center gap-3 text-sm text-slate-700">
-                <span
-                  className={`flex h-4 w-4 items-center justify-center rounded-full border ${
-                    index === 0 ? "border-blue-600" : "border-slate-300"
-                  }`}
-                >
-                  {index === 0 ? <Circle className="h-2.5 w-2.5 fill-blue-600 text-blue-600" /> : null}
-                </span>
+              <label
+                key={option}
+                className="flex items-center gap-3 text-sm text-slate-700"
+              >
+                <input
+                  type="radio"
+                  name="availability"
+                  value={option}
+                  className="h-4 w-4 border-slate-300 bg-white text-blue-600 focus:ring-blue-600 [color-scheme:light]"
+                  defaultChecked={index === 0} // Makes "Open Now" selected by default
+                />
                 {option}
               </label>
             ))}

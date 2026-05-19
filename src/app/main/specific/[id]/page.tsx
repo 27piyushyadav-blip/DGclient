@@ -38,9 +38,9 @@ export default async function SpecificVenuePage({ params }: SpecificPageProps) {
   const sliderVenues = [venue, ...suggestions];
 
   return (
-    <SpecificVenueClientWrapper 
-      venue={venue} 
-      suggestions={suggestions} 
+    <SpecificVenueClientWrapper
+      venue={venue}
+      suggestions={suggestions}
       sliderVenues={sliderVenues}
     />
   );
