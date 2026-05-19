@@ -301,6 +301,18 @@ export default function Header() {
             >
               My Appointments
             </Link>
+            <Link
+              href="/main"
+              className={cn(
+                "block px-3 py-2 text-sm font-medium rounded-md transition-colors",
+                isActive("/main")
+                  ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white"
+                  : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900",
+              )}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Main
+            </Link>
             {!isAuthenticated && (
               <>
                 <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800">
