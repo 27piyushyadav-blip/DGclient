@@ -14,7 +14,16 @@ import {
 } from "@/components/ui/dropdown-menu";
 import DarkModeToggle from "@/components/DarkModeToggle";
 import ProfileImage from "@/components/ProfileImage";
-import { User, LogOut, Calendar, Settings, Menu, X, LifeBuoy, MessageCircle } from "lucide-react";
+import {
+  User,
+  LogOut,
+  Calendar,
+  Settings,
+  Menu,
+  X,
+  LifeBuoy,
+  MessageCircle,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -49,15 +58,20 @@ export default function Header() {
     <header
       className={cn(
         "sticky top-0 z-50 w-full border-b bg-white/80 dark:bg-zinc-950/80 backdrop-blur-sm transition-all",
-        isScrolled && "shadow-sm"
+        isScrolled && "shadow-sm",
       )}
     >
       <div className="container mx-auto px-4 md:px-6">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 text-xl font-bold text-zinc-900 dark:text-white">
+          <Link
+            href="/"
+            className="flex items-center gap-2 text-xl font-bold text-zinc-900 dark:text-white"
+          >
             <div className="p-1.5 bg-zinc-900 dark:bg-white rounded-lg">
-              <span className="text-white dark:text-zinc-900 text-sm font-extrabold">MN</span>
+              <span className="text-white dark:text-zinc-900 text-sm font-extrabold">
+                MN
+              </span>
             </div>
             <span className="hidden sm:inline">Mind Namo</span>
           </Link>
@@ -68,7 +82,9 @@ export default function Header() {
               href="/"
               className={cn(
                 "text-sm font-medium transition-colors hover:text-zinc-900 dark:hover:text-white",
-                isActive("/") ? "text-zinc-900 dark:text-white" : "text-zinc-600 dark:text-zinc-400"
+                isActive("/")
+                  ? "text-zinc-900 dark:text-white"
+                  : "text-zinc-600 dark:text-zinc-400",
               )}
             >
               Home
@@ -77,7 +93,9 @@ export default function Header() {
               href="/experts"
               className={cn(
                 "text-sm font-medium transition-colors hover:text-zinc-900 dark:hover:text-white",
-                isActive("/experts") ? "text-zinc-900 dark:text-white" : "text-zinc-600 dark:text-zinc-400"
+                isActive("/experts")
+                  ? "text-zinc-900 dark:text-white"
+                  : "text-zinc-600 dark:text-zinc-400",
               )}
             >
               Experts
@@ -86,7 +104,9 @@ export default function Header() {
               href="/organizations"
               className={cn(
                 "text-sm font-medium transition-colors hover:text-zinc-900 dark:hover:text-white",
-                isActive("/organizations") ? "text-zinc-900 dark:text-white" : "text-zinc-600 dark:text-zinc-400"
+                isActive("/organizations")
+                  ? "text-zinc-900 dark:text-white"
+                  : "text-zinc-600 dark:text-zinc-400",
               )}
             >
               Organizations
@@ -95,7 +115,9 @@ export default function Header() {
               href="/appointments"
               className={cn(
                 "text-sm font-medium transition-colors hover:text-zinc-900 dark:hover:text-white",
-                isActive("/appointments") ? "text-zinc-900 dark:text-white" : "text-zinc-600 dark:text-zinc-400"
+                isActive("/appointments")
+                  ? "text-zinc-900 dark:text-white"
+                  : "text-zinc-600 dark:text-zinc-400",
               )}
             >
               My Appointments
@@ -104,7 +126,9 @@ export default function Header() {
               href="/main"
               className={cn(
                 "text-sm font-medium transition-colors hover:text-zinc-900 dark:hover:text-white",
-                isActive("/main") ? "text-zinc-900 dark:text-white" : "text-zinc-600 dark:text-zinc-400"
+                isActive("/main")
+                  ? "text-zinc-900 dark:text-white"
+                  : "text-zinc-600 dark:text-zinc-400",
               )}
             >
               Main
@@ -131,40 +155,69 @@ export default function Header() {
                 <DropdownMenuContent align="end" className="w-56">
                   <div className="px-2 py-1.5">
                     <p className="text-sm font-medium">{user.name}</p>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{user.email}</p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
+                      {user.email}
+                    </p>
                   </div>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link href="/profile" className="cursor-pointer w-full flex items-center py-2.5">
+                    <Link
+                      href="/profile"
+                      className="cursor-pointer w-full flex items-center py-2.5"
+                    >
                       <User className="mr-3 h-4 w-4" /> Profile
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href="/appointments" className="flex items-center gap-2 cursor-pointer">
+                    <Link
+                      href="/appointments"
+                      className="flex items-center gap-2 cursor-pointer"
+                    >
                       <Calendar className="h-4 w-4" />
                       My Appointments
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link
+                      href="/main"
+                      className="flex items-center gap-2 cursor-pointer"
+                    >
+                      <Calendar className="h-4 w-4" />
+                      Main
                     </Link>
                   </DropdownMenuItem>
 
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                      <Link href="/support" className="cursor-pointer w-full flex items-center py-2.5">
-                          <LifeBuoy className="mr-3 h-4 w-4" /> Help & Support
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link href="/feedback" className="cursor-pointer w-full flex items-center py-2.5">
-                          <MessageCircle className="mr-3 h-4 w-4" /> Give Feedback
-                      </Link>
-                    </DropdownMenuItem>
+                    <Link
+                      href="/support"
+                      className="cursor-pointer w-full flex items-center py-2.5"
+                    >
+                      <LifeBuoy className="mr-3 h-4 w-4" /> Help & Support
+                    </Link>
+                  </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href="/profile" className="flex items-center gap-2 cursor-pointer">
+                    <Link
+                      href="/feedback"
+                      className="cursor-pointer w-full flex items-center py-2.5"
+                    >
+                      <MessageCircle className="mr-3 h-4 w-4" /> Give Feedback
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link
+                      href="/profile"
+                      className="flex items-center gap-2 cursor-pointer"
+                    >
                       <Settings className="h-4 w-4" />
                       Settings
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout} className="text-red-600 dark:text-red-400">
+                  <DropdownMenuItem
+                    onClick={handleLogout}
+                    className="text-red-600 dark:text-red-400"
+                  >
                     <LogOut className="h-4 w-4 mr-2" />
                     Logout
                   </DropdownMenuItem>
@@ -188,7 +241,11 @@ export default function Header() {
               className="md:hidden"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             >
-              {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              {isMobileMenuOpen ? (
+                <X className="h-5 w-5" />
+              ) : (
+                <Menu className="h-5 w-5" />
+              )}
             </Button>
           </div>
         </div>
@@ -202,7 +259,7 @@ export default function Header() {
                 "block px-3 py-2 text-sm font-medium rounded-md transition-colors",
                 isActive("/")
                   ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white"
-                  : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900"
+                  : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900",
               )}
               onClick={() => setIsMobileMenuOpen(false)}
             >
@@ -214,7 +271,7 @@ export default function Header() {
                 "block px-3 py-2 text-sm font-medium rounded-md transition-colors",
                 isActive("/experts")
                   ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white"
-                  : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900"
+                  : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900",
               )}
               onClick={() => setIsMobileMenuOpen(false)}
             >
@@ -226,7 +283,7 @@ export default function Header() {
                 "block px-3 py-2 text-sm font-medium rounded-md transition-colors",
                 isActive("/organizations")
                   ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white"
-                  : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900"
+                  : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900",
               )}
               onClick={() => setIsMobileMenuOpen(false)}
             >
@@ -238,7 +295,7 @@ export default function Header() {
                 "block px-3 py-2 text-sm font-medium rounded-md transition-colors",
                 isActive("/appointments")
                   ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white"
-                  : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900"
+                  : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900",
               )}
               onClick={() => setIsMobileMenuOpen(false)}
             >
@@ -247,11 +304,25 @@ export default function Header() {
             {!isAuthenticated && (
               <>
                 <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800">
-                  <Button variant="ghost" className="w-full justify-start" asChild>
-                    <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>Login</Link>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start"
+                    asChild
+                  >
+                    <Link
+                      href="/login"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      Login
+                    </Link>
                   </Button>
                   <Button className="w-full mt-2" asChild>
-                    <Link href="/register" onClick={() => setIsMobileMenuOpen(false)}>Sign Up</Link>
+                    <Link
+                      href="/register"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      Sign Up
+                    </Link>
                   </Button>
                 </div>
               </>
