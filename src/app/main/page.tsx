@@ -12,6 +12,7 @@ import {
   Play,
   Plus,
   SearchIcon,
+  Share2,
   Star,
   Users,
 } from "lucide-react";
@@ -203,6 +204,9 @@ function VenueCard({
                 <h2 className="text-[1.8rem] font-bold leading-none">{name}</h2>
                 <p className="mt-2 text-lg italic text-white/90">Relax & Rejuvenate</p>
               </div>
+              
+                <Share2 className="mr-1.5 h-5 w-5 cursor-pointer" />
+             
               <Badge variant="default" className="bg-blue-600 text-white shadow-lg">
                 <Clock3 className="mr-1.5 h-3.5 w-3.5" />
                 {hours}

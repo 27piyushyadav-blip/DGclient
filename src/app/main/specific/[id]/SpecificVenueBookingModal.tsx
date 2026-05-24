@@ -82,8 +82,8 @@ export default function SpecificVenueBookingModal({
   const [step, setStep] = useState(initialStep);
   const [selectedService, setSelectedService] = useState(services[0] ?? null);
   const [selectedStaff, setSelectedStaff] = useState(staff[0] ?? null);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(availableDates[2] ?? availableDates[0] ?? null);
-  const [selectedTime, setSelectedTime] = useState<string | null>(availableTimes[2] ?? availableTimes[0] ?? null);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(paymentMethods[0].id);
   const [isDateTimeModalOpen, setIsDateTimeModalOpen] = useState(false);
 const [tempSelectedDate, setTempSelectedDate] = useState<Date | null>(selectedDate);
@@ -153,10 +153,20 @@ useEffect(() => {
     setSelectedStaff(staff[0] ?? null);
   }
   
-  setSelectedDate(availableDates[2] ?? availableDates[0] ?? null);
-  setSelectedTime(availableTimes[2] ?? availableTimes[0] ?? null);
+  setSelectedDate(null);
+  setSelectedTime(null);
   setSelectedPaymentMethod(paymentMethods[0].id);
 }, [open, services, staff, availableDates, availableTimes, initialStep, preselectedService, preselectedStaff]);
+
+// Add this useEffect after the existing useEffect
+useEffect(() => {
+  // When entering step 3 (payment step) and date/time is not selected, auto-open the modal
+  if (step === paymentStep && (!selectedDate || !selectedTime)) {
+    setTempSelectedDate(selectedDate);
+    setTempSelectedTime(selectedTime);
+    setIsDateTimeModalOpen(true);
+  }
+}, [step, selectedDate, selectedTime, paymentStep]);
 
 
   const bookingPrice = selectedService ? parsePrice(selectedService.price) : 0;

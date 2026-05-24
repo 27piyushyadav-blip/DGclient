@@ -102,7 +102,7 @@
 // }
 
 "use client";
-import { ChevronLeft, ChevronRight, CalendarDays, MapPin } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarDays, MapPin, Share2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -157,7 +157,9 @@ export default function SpecificVenueCarousel({ sliderVenues }: SpecificVenueCar
         {/* Overlays for readability */}
         <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent" />
         <div className="absolute inset-0 bg-black/20" />
-        
+        <div className="absolute right-30 top-6 cursor-pointer">
+        <Share2 className="mr-1.5 h-5 w-5 " />
+        </div>
         <Badge className="absolute right-6 top-6 bg-blue-600 text-white hover:bg-blue-600 z-20">
           {staticVenue.hours}
         </Badge>
