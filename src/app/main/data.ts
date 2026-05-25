@@ -32,6 +32,7 @@ export type Venue = {
   tagline: string;
   description: string;
   services: VenueService[];
+  products: VenueService[];
   staff: VenueStaff[];
   reviews: VenueReview[];
   features: VenueFeature[];
@@ -60,6 +61,13 @@ export const venues: Venue[] = [
       { name: "Aromatherapy Massage", price: "$100", image: "https://images.unsplash.com/photo-1507652313519-d4e9174996dd?q=80&w=900&auto=format&fit=crop" },
       { name: "Hot Stone Massage", price: "$130", image: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=80&w=900&auto=format&fit=crop" },
       { name: "Thai Massage", price: "$110", image: "https://images.unsplash.com/photo-1515377905703-c4788e51af15?q=80&w=900&auto=format&fit=crop" },
+    ],
+    products: [
+      { name: "Lavender Massage Oil", price: "$25", image: "https://images.unsplash.com/photo-1507652313519-d4e9174996dd?q=80&w=900&auto=format&fit=crop" },
+      { name: "Herbal Body Balm", price: "$32", image: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=80&w=900&auto=format&fit=crop" },
+      { name: "Aroma Candle Set", price: "$18", image: "https://images.unsplash.com/photo-1515377905703-c4788e51af15?q=80&w=900&auto=format&fit=crop" },
+      { name: "Relax Bath Salt", price: "$22", image: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=900&auto=format&fit=crop" },
+      { name: "Neck Heat Wrap", price: "$28", image: "https://images.unsplash.com/photo-1519823551278-64ac92734fb1?q=80&w=900&auto=format&fit=crop" },
     ],
     staff: [
       { name: "Sony", role: "Massage Therapist", image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=600&auto=format&fit=crop" },
@@ -95,6 +103,13 @@ export const venues: Venue[] = [
       { name: "Thai Massage", price: "$110", image: "https://images.unsplash.com/photo-1519823551278-64ac92734fb1?q=80&w=900&auto=format&fit=crop" },
       { name: "Back Relief", price: "$95", image: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=80&w=900&auto=format&fit=crop" },
     ],
+    products: [
+      { name: "Warm Herbal Oil", price: "$24", image: "https://images.unsplash.com/photo-1507652313519-d4e9174996dd?q=80&w=900&auto=format&fit=crop" },
+      { name: "Foot Care Cream", price: "$19", image: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=900&auto=format&fit=crop" },
+      { name: "Muscle Relief Gel", price: "$27", image: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=80&w=900&auto=format&fit=crop" },
+      { name: "Spa Towel Pack", price: "$16", image: "https://images.unsplash.com/photo-1515377905703-c4788e51af15?q=80&w=900&auto=format&fit=crop" },
+      { name: "Essential Oil Blend", price: "$30", image: "https://images.unsplash.com/photo-1519823551278-64ac92734fb1?q=80&w=900&auto=format&fit=crop" },
+    ],
     staff: [
       { name: "Mila", role: "Senior Therapist", image: "https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?q=80&w=600&auto=format&fit=crop" },
       { name: "Chris", role: "Wellness Specialist", image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=600&auto=format&fit=crop" },
@@ -129,6 +144,13 @@ export const venues: Venue[] = [
       { name: "Hot Stone", price: "$135", image: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=80&w=900&auto=format&fit=crop" },
       { name: "Head Massage", price: "$55", image: "https://images.unsplash.com/photo-1515377905703-c4788e51af15?q=80&w=900&auto=format&fit=crop" },
     ],
+    products: [
+      { name: "Luxury Face Serum", price: "$38", image: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=80&w=900&auto=format&fit=crop" },
+      { name: "Rose Aroma Mist", price: "$21", image: "https://images.unsplash.com/photo-1507652313519-d4e9174996dd?q=80&w=900&auto=format&fit=crop" },
+      { name: "Spa Robe", price: "$45", image: "https://images.unsplash.com/photo-1515377905703-c4788e51af15?q=80&w=900&auto=format&fit=crop" },
+      { name: "Hot Stone Kit", price: "$34", image: "https://images.unsplash.com/photo-1519823551278-64ac92734fb1?q=80&w=900&auto=format&fit=crop" },
+      { name: "Scalp Care Oil", price: "$26", image: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=900&auto=format&fit=crop" },
+    ],
     staff: [
       { name: "Zara", role: "Spa Therapist", image: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=600&auto=format&fit=crop" },
       { name: "Luca", role: "Bodywork Therapist", image: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=600&auto=format&fit=crop" },
@@ -162,6 +184,13 @@ export const venues: Venue[] = [
       { name: "Body Scrub", price: "$90", image: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=900&auto=format&fit=crop" },
       { name: "Thai Massage", price: "$105", image: "https://images.unsplash.com/photo-1519823551278-64ac92734fb1?q=80&w=900&auto=format&fit=crop" },
       { name: "Hot Stone", price: "$130", image: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=80&w=900&auto=format&fit=crop" },
+    ],
+    products: [
+      { name: "Body Scrub Jar", price: "$23", image: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=900&auto=format&fit=crop" },
+      { name: "Cooling Eye Mask", price: "$14", image: "https://images.unsplash.com/photo-1515377905703-c4788e51af15?q=80&w=900&auto=format&fit=crop" },
+      { name: "Thai Balm", price: "$20", image: "https://images.unsplash.com/photo-1519823551278-64ac92734fb1?q=80&w=900&auto=format&fit=crop" },
+      { name: "Coconut Body Oil", price: "$29", image: "https://images.unsplash.com/photo-1507652313519-d4e9174996dd?q=80&w=900&auto=format&fit=crop" },
+      { name: "Stone Therapy Set", price: "$36", image: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=80&w=900&auto=format&fit=crop" },
     ],
     staff: [
       { name: "Anya", role: "Massage Therapist", image: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?q=80&w=600&auto=format&fit=crop" },
