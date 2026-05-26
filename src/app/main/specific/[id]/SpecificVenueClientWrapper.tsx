@@ -128,10 +128,7 @@ export default function SpecificVenueClientWrapper({
                 </Link>
               ))}
 
-              <Button
-                variant="outline"
-                className="w-full rounded-2xl border-slate-200 text-blue-600 bg-white text-black"
-              >
+              <Button variant="outline" className="w-full rounded-2xl border-slate-200 text-blue-600 bg-white text-black">
                 View More
               </Button>
             </aside>
@@ -145,16 +142,10 @@ export default function SpecificVenueClientWrapper({
                     Our Services
                   </h2>
                   <Button variant="link" asChild className="px-0 text-blue-600">
-                    <span
-                      onClick={() => {
-                        setBookingModalOpen(true);
-                        setSelectedServiceForBooking(null);
-                        setSelectedStaffForBooking(null);
-                      }}
-                      className="cursor-pointer"
-                    >
-                      View All
-                    </span>
+                    <span onClick={() => {
+                      setBookingModalOpen(true); setSelectedServiceForBooking(null);
+                      setSelectedStaffForBooking(null);
+                    }} className="cursor-pointer">View All</span>
                   </Button>
                 </div>
 
@@ -170,12 +161,8 @@ export default function SpecificVenueClientWrapper({
                         style={{ backgroundImage: `url('${service.image}')` }}
                       />
                       <CardContent className="space-y-1 p-4 text-center ">
-                        <h3 className="text-sm font-semibold text-slate-800">
-                          {service.name}
-                        </h3>
-                        <p className="text-xl font-bold text-blue-600">
-                          {service.price}
-                        </p>
+                        <h3 className="text-sm font-semibold text-slate-800">{service.name}</h3>
+                        <p className="text-xl font-bold text-blue-600">{service.price}</p>
                       </CardContent>
                     </Card>
                   ))}
@@ -217,11 +204,8 @@ export default function SpecificVenueClientWrapper({
                           </p>
                         </div>
                         <div className="flex gap-3">
-                          <Button
-                            variant="outline"
-                            className="flex-1 rounded-xl border-slate-200 text-blue-600 bg-white text-black"
-                            onClick={() => handleBookingWithStaff(member)}
-                          >
+                          <Button variant="outline" className="flex-1 rounded-xl border-slate-200 text-blue-600 bg-white text-black"
+                            onClick={() => handleBookingWithStaff(member)}>
                             Book Service
                           </Button>
                           <Button
@@ -239,9 +223,7 @@ export default function SpecificVenueClientWrapper({
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-3xl font-bold text-slate-900">
-                    What Our Clients Say
-                  </h2>
+                  <h2 className="text-3xl font-bold text-slate-900">What Our Clients Say</h2>
                   {/* <Button variant="link" asChild className="px-0 text-blue-600">
                     <Link href="/main">View All</Link>
                   </Button> */}
@@ -249,10 +231,7 @@ export default function SpecificVenueClientWrapper({
 
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   {venue.reviews.map((review) => (
-                    <Card
-                      key={review.name}
-                      className="rounded-[24px] border-slate-200 shadow-sm bg-white"
-                    >
+                    <Card key={review.name} className="rounded-[24px] border-slate-200 shadow-sm bg-white">
                       <CardContent className="space-y-4 p-5">
                         <div className="flex items-center justify-between">
                           <div>
@@ -288,12 +267,8 @@ export default function SpecificVenueClientWrapper({
                   <h2 className="text-3xl font-bold text-slate-900">Menu</h2>
                   <div className="space-y-4">
                     {venue.services.slice(0, 5).map((service) => (
-                      <div
-                        key={service.name}
-                        className="flex items-center justify-between gap-3 cursor-pointer"
-                        onClick={() => handleServiceBooking(service)}
-                      >
-                        <div className="flex items-center gap-3">
+                      <div key={service.name} className="flex items-center justify-between gap-3 cursor-pointer" onClick={() => handleServiceBooking(service)}>
+                        <div className="flex items-center gap-3" >
                           <div
                             className="h-12 w-12 rounded-xl bg-cover bg-center"
                             style={{
@@ -351,16 +326,38 @@ export default function SpecificVenueClientWrapper({
                 </CardContent>
               </Card>
 
-              <Button
-                variant="outline"
-                asChild
-                className="w-full rounded-2xl border-slate-200 bg-white text-black"
-              >
+              {/* <Button variant="outline" asChild className="w-full rounded-2xl border-slate-200 bg-white text-black">
                 <Link href="/main">
                   <Clock3 className="h-4 w-4 text-blue-600" />
                   Back to Listings
                 </Link>
-              </Button>
+              </Button> */}
+
+              <Card className="rounded-[28px] border-slate-200 shadow-sm bg-white">
+                <CardContent className="space-y-5 p-5">
+                  <h2 className="text-3xl font-bold text-slate-900">Product</h2>
+                  <div className="space-y-4">
+                    {venue.products.slice(0, 5).map((product) => (
+                      <div key={product.name} className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3" >
+                          <div
+                            className="h-12 w-12 rounded-xl bg-cover bg-center"
+                            style={{ backgroundImage: `url('${product.image}')` }}
+                          />
+
+                        </div>
+                        <span className="text-sm font-medium text-slate-700">{product.name}</span>
+                        <span className="text-2xl font-bold text-blue-600">{product.price}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <Button className="w-full rounded-2xl bg-blue-600 py-6 text-base font-semibold text-white hover:bg-blue-700"
+                  >
+                    Contact To Buy
+                  </Button>
+                </CardContent>
+              </Card>
             </aside>
           </div>
         </div>

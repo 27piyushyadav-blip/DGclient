@@ -133,6 +133,15 @@ export default function Header() {
             >
               Main
             </Link>
+            <Link
+              href="/order"
+              className={cn(
+                "text-sm font-medium transition-colors hover:text-zinc-900 dark:hover:text-white",
+                isActive("/order") ? "text-zinc-900 dark:text-white" : "text-zinc-600 dark:text-zinc-400"
+              )}
+            >
+              Help
+            </Link>
           </nav>
 
           {/* Right Side Actions */}

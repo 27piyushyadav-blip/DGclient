@@ -15,7 +15,7 @@ import {
   Clock,
   Calendar,
   Play,
-  Paperclip,
+  Paperclip
 } from "lucide-react";
 import Image from "next/image";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -167,9 +167,7 @@ const StarRating = ({
   <div className="flex items-center gap-1">
     <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
     <span className="text-sm font-semibold text-zinc-700">{rating}</span>
-    <span className="text-xs text-zinc-500">
-      ★★★★★({reviews} Public Reviews)
-    </span>
+    <span className="text-xs text-zinc-500">★★★★★({reviews} Public Reviews)</span>
   </div>
 );
 
@@ -182,13 +180,7 @@ const MessageStatus = ({ status }: { status: string }) => {
   return null;
 };
 
-export default function MessageDialog({
-  open,
-  onOpenChange,
-  staff,
-  venueName,
-  allStaff = [],
-}: MessageDialogProps) {
+export default function MessageDialog({ open, onOpenChange, staff, venueName, allStaff = [] }: MessageDialogProps) {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [inputMessage, setInputMessage] = useState("");
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
@@ -307,10 +299,7 @@ export default function MessageDialog({
             <div className="container mx-auto max-w-7xl px-4 py-6 h-full flex flex-col">
               {/* Header with Back Button */}
               <div className="flex items-center gap-4 mb-6">
-                <button
-                  onClick={() => onOpenChange(false)}
-                  className="p-2 hover:bg-zinc-200 rounded-lg transition-colors cursor-pointer"
-                >
+                <button onClick={() => onOpenChange(false)} className="p-2 hover:bg-zinc-200 rounded-lg transition-colors cursor-pointer">
                   <ArrowLeft className="w-5 h-5 text-zinc-600" />
                 </button>
                 <h1 className="text-2xl font-bold text-zinc-900">Messages</h1>
@@ -351,9 +340,7 @@ export default function MessageDialog({
                     {/* Staff Info */}
                     <div className="p-5">
                       <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-2xl font-bold text-zinc-900">
-                          {expertData.name}
-                        </h3>
+                        <h3 className="text-2xl font-bold text-zinc-900">{expertData.name}</h3>
                         {expertData.isOnline && (
                           <div className="flex items-center gap-1">
                             <div className="w-2 h-2 bg-green-500 rounded-full"></div>
@@ -364,23 +351,16 @@ export default function MessageDialog({
                         )}
                       </div>
 
-                      <p className="text-md text-indigo-600 mb-3">
-                        {expertData.role}
-                      </p>
+                      <p className="text-md text-indigo-600 mb-3">{expertData.role}</p>
 
                       <div className="flex items-center gap-4 mb-3">
                         <div className="flex items-center gap-1">
                           <Award className="w-4 h-4 text-indigo-600" />
-                          <span className="text-sm text-zinc-700">
-                            {expertData.experience} Experience
-                          </span>
+                          <span className="text-sm text-zinc-700">{expertData.experience} Experience</span>
                         </div>
                       </div>
 
-                      <StarRating
-                        rating={expertData.rating}
-                        reviews={expertData.reviews}
-                      />
+                      <StarRating rating={expertData.rating} reviews={expertData.reviews} />
 
                       <p className="text-sm text-zinc-600 mt-4 pt-4 border-t border-zinc-200">
                         {expertData.bio}
@@ -388,13 +368,9 @@ export default function MessageDialog({
 
                       {/* Action Buttons */}
                       <div className="flex gap-3 mt-4 pt-4 border-t border-zinc-200">
-                        <Button
-                          variant="outline"
-                          className="flex-1 rounded-xl border-slate-200 text-blue-600 bg-white text-black hover:bg-white hover:text-black"
+                        <Button variant="outline" className="flex-1 rounded-xl border-slate-200 text-blue-600 bg-white text-black hover:bg-white hover:text-black"
                           onClick={() => setIsProfileModalOpen(true)}
-                        >
-                          View Profile
-                        </Button>
+                        >View Profile</Button>
                       </div>
                     </div>
                   </div>
@@ -403,6 +379,7 @@ export default function MessageDialog({
                 {/* MIDDLE COLUMN - Chat UI */}
                 <div className="lg:col-span-5 flex flex-col min-h-0">
                   <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden flex flex-col  h-[33rem]">
+
                     {/* Chat Header */}
                     <div className="flex items-center justify-between p-4 border-b border-zinc-200 bg-white">
                       <div className="flex items-center gap-3">
@@ -427,24 +404,15 @@ export default function MessageDialog({
                           )}
                         </div>
                         <div>
-                          <h3 className="font-semibold text-zinc-900">
-                            Chat with {expertData.name}
-                          </h3>
-                          <p className="text-xs text-green-600">
-                            Usually responds in a few minutes
-                          </p>
+                          <h3 className="font-semibold text-zinc-900">Chat with {expertData.name}</h3>
+                          <p className="text-xs text-green-600">Usually responds in a few minutes</p>
                         </div>
                       </div>
 
                       <div className="flex items-center gap-1">
-                        <Button
-                          variant="outline"
-                          className="rounded-xl border-slate-200 text-blue-600 bg-white text-black hover:bg-white hover:text-black"
+                        <Button variant="outline" className="rounded-xl border-slate-200 text-blue-600 bg-white text-black hover:bg-white hover:text-black"
                           onClick={() => setIsChangeExpertOpen(true)}
-                        >
-                          {" "}
-                          Change Expert
-                        </Button>
+                        > Change Expert</Button>
                       </div>
                     </div>
 
@@ -456,21 +424,19 @@ export default function MessageDialog({
                           className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}
                         >
                           <div
-                            className={`max-w-[80%] rounded-2xl px-4 py-2 ${
-                              message.sender === "user"
+                            className={`max-w-[80%] rounded-2xl px-4 py-2 ${message.sender === "user"
                                 ? "bg-indigo-600 text-white rounded-br-sm"
                                 : "bg-white text-zinc-900 border border-zinc-200 rounded-bl-sm"
-                            }`}
+                              }`}
                           >
                             <p className="text-sm whitespace-pre-line">
                               {message.text}
                             </p>
                             <div
-                              className={`flex items-center gap-1 mt-1 text-xs ${
-                                message.sender === "user"
+                              className={`flex items-center gap-1 mt-1 text-xs ${message.sender === "user"
                                   ? "text-indigo-200"
                                   : "text-zinc-400"
-                              }`}
+                                }`}
                             >
                               <span>{message.timestamp}</span>
                               {message.sender === "user" && message.status && (
@@ -517,17 +483,11 @@ export default function MessageDialog({
                   {/* Menu Section */}
                   <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm">
                     <div className="p-5 border-b border-zinc-200">
-                      <h3 className="text-xl font-bold text-zinc-900">
-                        Services Menu
-                      </h3>
-                      <p className="text-sm text-zinc-500 mt-1">
-                        Select services you want to book
-                      </p>
+                      <h3 className="text-xl font-bold text-zinc-900">Services Menu</h3>
+                      <p className="text-sm text-zinc-500 mt-1">Select services you want to book</p>
                     </div>
 
-                    <div
-                      className={`divide-y divide-zinc-200 overflow-y-scroll scrollbar-thin ${selectedServices.length > 0 ? "max-h-[9rem]" : "max-h-[27rem]"}`}
-                    >
+                    <div className={`divide-y divide-zinc-200 overflow-y-scroll scrollbar-thin ${selectedServices.length > 0 ? "max-h-[9rem]" : "max-h-[27rem]"}`}>
                       {menuItems.map((item) => (
                         <div
                           key={item.id}
@@ -543,11 +503,8 @@ export default function MessageDialog({
                               ]);
                             }
                           }}
-                          className={`p-4 cursor-pointer transition-all duration-200 hover:bg-zinc-50 ${
-                            selectedServices.includes(item.id)
-                              ? "bg-indigo-50"
-                              : ""
-                          }`}
+                          className={`p-4 cursor-pointer transition-all duration-200 hover:bg-zinc-50 ${selectedServices.includes(item.id) ? "bg-indigo-50" : ""
+                            }`}
                         >
                           <div className="flex items-center gap-3">
                             {/* Service Image */}
@@ -581,9 +538,7 @@ export default function MessageDialog({
 
                             {/* Service Info */}
                             <div className="flex-1">
-                              <h4 className="font-semibold text-zinc-900">
-                                {item.name}
-                              </h4>
+                              <h4 className="font-semibold text-zinc-900">{item.name}</h4>
                               {item.description && (
                                 <p className="text-xs text-zinc-500 mt-0.5">
                                   {item.description}
@@ -593,9 +548,7 @@ export default function MessageDialog({
 
                             {/* Price & Selection */}
                             <div className="text-right">
-                              <p className="text-lg font-bold text-indigo-600">
-                                ${item.price}
-                              </p>
+                              <p className="text-lg font-bold text-indigo-600">${item.price}</p>
                               {selectedServices.includes(item.id) && (
                                 <Check className="w-5 h-5 text-indigo-600 mt-1 ml-auto" />
                               )}
@@ -609,30 +562,19 @@ export default function MessageDialog({
                   {/* Total Section */}
                   {selectedServices.length > 0 && (
                     <div className="bg-white rounded-2xl border border-zinc-200 p-5 shadow-sm sticky top-6">
-                      <h3 className="text-xl font-bold text-zinc-900 mb-4">
-                        Order Summary
-                      </h3>
+                      <h3 className="text-xl font-bold text-zinc-900 mb-4">Order Summary</h3>
 
                       <div className="max-h-[7rem] overflow-y-scroll scrollbar-thin">
                         {/* Selected Services */}
                         <div className="space-y-2 mb-4">
                           {selectedServicesList.map((service) => (
-                            <div
-                              key={service.id}
-                              className="flex justify-between items-center text-sm"
-                            >
-                              <span className="text-zinc-700">
-                                {service.name}
-                              </span>
-                              <span className="font-semibold text-indigo-600">
-                                ${service.price}
-                              </span>
+                            <div key={service.id} className="flex justify-between items-center text-sm">
+                              <span className="text-zinc-700">{service.name}</span>
+                              <span className="font-semibold text-indigo-600">${service.price}</span>
                             </div>
                           ))}
                           {selectedServicesList.length === 0 && (
-                            <p className="text-center text-zinc-500 py-4 text-sm">
-                              No services selected
-                            </p>
+                            <p className="text-center text-zinc-500 py-4 text-sm">No services selected</p>
                           )}
                         </div>
 
@@ -641,9 +583,7 @@ export default function MessageDialog({
                             {/* Subtotal */}
                             <div className="flex justify-between items-center text-sm pt-2 border-t border-zinc-200">
                               <span className="text-zinc-600">Subtotal</span>
-                              <span className="text-zinc-900">
-                                ${totalAmount}
-                              </span>
+                              <span className="text-zinc-900">${totalAmount}</span>
                             </div>
 
                             {/* GST */}
@@ -654,12 +594,8 @@ export default function MessageDialog({
 
                             {/* Total */}
                             <div className="flex justify-between items-center mt-3 pt-3 border-t border-zinc-200">
-                              <span className="text-lg font-bold text-zinc-900">
-                                Total
-                              </span>
-                              <span className="text-2xl font-bold text-indigo-600">
-                                ${totalWithGst}
-                              </span>
+                              <span className="text-lg font-bold text-zinc-900">Total</span>
+                              <span className="text-2xl font-bold text-indigo-600">${totalWithGst}</span>
                             </div>
 
                             {/* Date & Time Placeholder */}
@@ -667,15 +603,11 @@ export default function MessageDialog({
                               <div className="flex items-center gap-4 text-sm">
                                 <div className="flex items-center gap-1">
                                   <Calendar className="w-3 h-3 text-zinc-400" />
-                                  <span className="text-zinc-600">
-                                    12 April
-                                  </span>
+                                  <span className="text-zinc-600">12 April</span>
                                 </div>
                                 <div className="flex items-center gap-1">
                                   <Clock className="w-3 h-3 text-zinc-400" />
-                                  <span className="text-zinc-600">
-                                    3:00 PM – 7:00 PM
-                                  </span>
+                                  <span className="text-zinc-600">3:00 PM – 7:00 PM</span>
                                 </div>
                               </div>
                             </div>

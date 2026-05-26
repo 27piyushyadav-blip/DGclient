@@ -190,7 +190,9 @@ export default function ChangeExpertDialog({
         <div className="p-1">
           {/* Header */}
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-xl font-bold text-zinc-900">Change Expert</h3>
+            <h3 className="text-xl font-bold text-zinc-900">
+              Change Expert
+            </h3>
           </div>
 
           <p className="text-sm text-zinc-500 mb-6">
@@ -215,11 +217,10 @@ export default function ChangeExpertDialog({
                     <div key={expert.name} className="min-w-[50%] p-1.5">
                       <button
                         onClick={() => setSelectedExpert(expert)}
-                        className={`w-full flex flex-col items-center gap-3 p-4 rounded-2xl transition-all border-2 text-center h-full ${
-                          selectedExpert?.name === expert.name
+                        className={`w-full flex flex-col items-center gap-3 p-4 rounded-2xl transition-all border-2 text-center h-full ${selectedExpert?.name === expert.name
                             ? "bg-indigo-50 border-indigo-500 shadow-md shadow-indigo-100/50"
                             : "bg-white border-zinc-100 hover:border-zinc-300"
-                        }`}
+                          }`}
                       >
                         <div className="relative">
                           <div className="w-16 h-16 rounded-full overflow-hidden ring-2 ring-white shadow-sm flex-shrink-0">
@@ -269,15 +270,14 @@ export default function ChangeExpertDialog({
               )}
 
               {/* Right Navigation Button - centered vertically */}
-              {filteredExperts.length > itemsPerPage &&
-                currentSlide < maxSlides && (
-                  <button
-                    onClick={nextSlide}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 translate-x-3 flex h-8 w-8 items-center justify-center rounded-full bg-white border border-zinc-200 shadow-lg hover:bg-zinc-50 transition-all z-10"
-                  >
-                    <ChevronRight className="h-4 w-4 text-zinc-600" />
-                  </button>
-                )}
+              {filteredExperts.length > itemsPerPage && currentSlide < maxSlides && (
+                <button
+                  onClick={nextSlide}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 translate-x-3 flex h-8 w-8 items-center justify-center rounded-full bg-white border border-zinc-200 shadow-lg hover:bg-zinc-50 transition-all z-10"
+                >
+                  <ChevronRight className="h-4 w-4 text-zinc-600" />
+                </button>
+              )}
             </div>
           )}
 
@@ -288,11 +288,10 @@ export default function ChangeExpertDialog({
                 <button
                   key={idx}
                   onClick={() => setCurrentSlide(idx)}
-                  className={`h-1.5 rounded-full transition-all ${
-                    currentSlide === idx
+                  className={`h-1.5 rounded-full transition-all ${currentSlide === idx
                       ? "w-4 bg-indigo-600"
                       : "w-1.5 bg-zinc-300 hover:bg-zinc-400"
-                  }`}
+                    }`}
                 />
               ))}
             </div>

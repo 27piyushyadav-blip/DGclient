@@ -12,6 +12,7 @@ import {
   Play,
   Plus,
   SearchIcon,
+  Share2,
   Star,
   Users,
 } from "lucide-react";
@@ -177,8 +178,7 @@ function VenueCard({
           <div
             className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-30 mix-blend-overlay"
             style={{
-              backgroundImage:
-                "url('https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=2070&auto=format&fit=crop')",
+              backgroundImage: "url('https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=2070&auto=format&fit=crop')",
             }}
           />
 
@@ -206,10 +206,10 @@ function VenueCard({
                   Relax & Rejuvenate
                 </p>
               </div>
-              <Badge
-                variant="default"
-                className="bg-blue-600 text-white shadow-lg"
-              >
+
+              <Share2 className="mr-1.5 h-5 w-5 cursor-pointer" />
+
+              <Badge variant="default" className="bg-blue-600 text-white shadow-lg">
                 <Clock3 className="mr-1.5 h-3.5 w-3.5" />
                 {hours}
               </Badge>
@@ -241,6 +241,7 @@ function VenueCard({
             { icon: Users, label: "Staff Select", action: "staff" },
             { icon: Mail, label: "Message Now", action: "message" },
           ].map(({ icon: Icon, label, action }) => {
+
             return (
               <button
                 key={label}
@@ -258,10 +259,7 @@ function VenueCard({
                 {/* <Icon className="h-4 w-4 text-blue-600" />
       <span>{label}</span> */}
                 {label === "View" ? (
-                  <Link
-                    href={detailHref}
-                    className="flex flex-col items-center justify-center gap-2 text-center text-xs font-semibold text-slate-700 hover:text-blue-600"
-                  >
+                  <Link href={detailHref} className="flex flex-col items-center justify-center gap-2 text-center text-xs font-semibold text-slate-700 hover:text-blue-600">
                     <Icon className="h-4 w-4 text-blue-600" />
                     <span>{label}</span>
                   </Link>
@@ -271,6 +269,7 @@ function VenueCard({
                     <span className="text-slate-700">{label}</span>
                   </>
                 )}
+
               </button>
             );
           })}
@@ -294,19 +293,14 @@ function VenueCard({
                   <p className="text-[11px] font-semibold text-slate-700 text-center line-clamp-2">
                     {service.name}
                   </p>
-                  <p className="text-xs font-bold text-blue-600">
-                    {service.price}
-                  </p>
+                  <p className="text-xs font-bold text-blue-600">{service.price}</p>
                 </div>
               </div>
             ))}
 
-            <ServiceDrawer
-              services={services}
-              venueName={name}
-              onBookNow={onBookNow}
-            />
+            <ServiceDrawer services={services} venueName={name} onBookNow={onBookNow} />
           </div>
+
         </CardContent>
         <Button
           type="button"
@@ -327,9 +321,7 @@ export default function MainPage() {
   const [messageVenue, setMessageVenue] = useState<MainVenue | null>(null);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false);
-  const [bookingFlow, setBookingFlow] = useState<
-    "service-first" | "staff-first"
-  >("service-first");
+  const [bookingFlow, setBookingFlow] = useState<"service-first" | "staff-first">("service-first");
   const [activeVideoUrl, setActiveVideoUrl] = useState<string | null>(null);
 
   const handleBookNow = (venue: MainVenue) => {
@@ -361,10 +353,7 @@ export default function MainPage() {
         <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4 xl:hidden mb-5">
           <Sheet>
             <SheetTrigger asChild>
-              <Button
-                variant="outline"
-                className="border-slate-200 bg-white shadow-sm"
-              >
+              <Button variant="outline" className="border-slate-200 bg-white shadow-sm">
                 <Menu className="m-1 h-4 w-4 text-black" />
               </Button>
             </SheetTrigger>
@@ -383,7 +372,7 @@ export default function MainPage() {
             <FilterSidebarContent />
           </aside>
 
-          <div>
+          <div >
             <div className="relative mb-5 mt-2 ">
               <input
                 type="text"
@@ -467,10 +456,7 @@ function FilterSidebarContent() {
         <FilterBlock title="Price">
           <div className="space-y-3">
             {["High to Low", "Low to High"].map((option, index) => (
-              <label
-                key={option}
-                className="flex items-center gap-3 text-sm text-slate-700"
-              >
+              <label key={option} className="flex items-center gap-3 text-sm text-slate-700">
                 <input
                   type="radio"
                   name="price"
@@ -537,10 +523,7 @@ function FilterSidebarContent() {
         <FilterBlock title="Availability" collapsible>
           <div className="space-y-3">
             {["Open Now", "All"].map((option, index) => (
-              <label
-                key={option}
-                className="flex items-center gap-3 text-sm text-slate-700"
-              >
+              <label key={option} className="flex items-center gap-3 text-sm text-slate-700">
                 <input
                   type="radio"
                   name="availability"

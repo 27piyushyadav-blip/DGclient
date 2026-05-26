@@ -141,9 +141,7 @@ const StarRating = ({
   return (
     <div className="flex items-center gap-1">
       <Star className={`${sizes[size]} fill-yellow-400 text-yellow-400`} />
-      <span
-        className={`font-semibold text-zinc-900 ${size === "sm" ? "text-sm" : size === "md" ? "text-base" : "text-lg"}`}
-      >
+      <span className={`font-semibold text-zinc-900 ${size === "sm" ? "text-sm" : size === "md" ? "text-base" : "text-lg"}`}>
         {rating}
       </span>
     </div>
@@ -244,23 +242,16 @@ export default function ProfileModal({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-6xl w-[95vw] max-h-[90vh] p-0 overflow-hidden rounded-2xl bg-zinc-50 border-zinc-200">
-          <DialogTitle className="sr-only">
-            Staff Profile - {staff.name}
-          </DialogTitle>
+          <DialogTitle className="sr-only">Staff Profile - {staff.name}</DialogTitle>
 
           <div className="overflow-y-scroll scrollbar-thin max-h-[90vh] p-2">
             <div className="container mx-auto max-w-6xl px-4 py-6">
               {/* Header with Back Button */}
               <div className="flex items-center gap-4 mb-6 sticky top-0 bg-zinc-50 py-2 z-10">
-                <button
-                  onClick={() => onOpenChange(false)}
-                  className="p-2 hover:bg-zinc-200 rounded-lg transition-colors cursor-pointer"
-                >
+                <button onClick={() => onOpenChange(false)} className="p-2 hover:bg-zinc-200 rounded-lg transition-colors cursor-pointer">
                   <ArrowLeft className="w-5 h-5 text-zinc-600" />
                 </button>
-                <h1 className="text-xl font-semibold text-zinc-900">
-                  Staff Details
-                </h1>
+                <h1 className="text-xl font-semibold text-zinc-900">Staff Details</h1>
               </div>
 
               {/* 3 Grid Layout */}
@@ -268,6 +259,7 @@ export default function ProfileModal({
                 {/* GRID 1 - Photo with Play Button + Book & Message Buttons */}
                 <div className="lg:col-span-1">
                   <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden sticky top-24">
+
                     {/* Image with Play Button Overlay */}
                     <div className="relative aspect-square w-full max-h-[20rem] cursor-pointer group overflow-hidden">
                       {!imageError && staffData.imageUrl ? (
@@ -298,17 +290,13 @@ export default function ProfileModal({
 
                     {/* Staff Info */}
                     <div className="p-5 text-center">
-                      <h2 className="text-2xl font-bold text-zinc-900">
-                        {staffData.name}
-                      </h2>
+                      <h2 className="text-2xl font-bold text-zinc-900">{staffData.name}</h2>
                       <p className="text-indigo-600 mt-1">{staffData.role}</p>
 
                       <div className="flex items-center justify-center gap-2 mt-2">
                         <div className="flex items-center gap-1">
                           <Award className="w-4 h-4 text-indigo-600" />
-                          <span className="text-sm text-zinc-600">
-                            {staffData.experience} Experience
-                          </span>
+                          <span className="text-sm text-zinc-600">{staffData.experience} Experience</span>
                         </div>
                       </div>
 
@@ -326,9 +314,7 @@ export default function ProfileModal({
                 <div className="lg:col-span-1 space-y-6">
                   {/* Description */}
                   <div className="bg-white rounded-2xl border border-zinc-200 p-5">
-                    <h3 className="text-lg font-bold text-zinc-900 mb-3">
-                      Description
-                    </h3>
+                    <h3 className="text-lg font-bold text-zinc-900 mb-3">Description</h3>
                     <p className="text-zinc-600 leading-relaxed text-sm">
                       {staffData.bio}
                     </p>
@@ -336,9 +322,7 @@ export default function ProfileModal({
 
                   {/* Tags */}
                   <div className="bg-white rounded-2xl border border-zinc-200 p-5">
-                    <h3 className="text-lg font-bold text-zinc-900 mb-3">
-                      Tags
-                    </h3>
+                    <h3 className="text-lg font-bold text-zinc-900 mb-3">Tags</h3>
                     <div className="flex flex-wrap gap-2">
                       {staffData.tags.map((tag) => (
                         <span
@@ -353,9 +337,7 @@ export default function ProfileModal({
 
                   {/* Certification */}
                   <div className="bg-white rounded-2xl border border-zinc-200 p-5">
-                    <h3 className="text-lg font-bold text-zinc-900 mb-3">
-                      Certification
-                    </h3>
+                    <h3 className="text-lg font-bold text-zinc-900 mb-3">Certification</h3>
                     <div className="space-y-3">
                       {staffData.certifications.map((cert) => (
                         <div key={cert.id} className="flex items-start gap-3">
@@ -363,12 +345,8 @@ export default function ProfileModal({
                             <Check className="w-3 h-3 text-green-600" />
                           </div>
                           <div>
-                            <p className="font-medium text-zinc-900 text-sm">
-                              {cert.name}
-                            </p>
-                            <p className="text-xs text-zinc-500">
-                              - {cert.issuer}
-                            </p>
+                            <p className="font-medium text-zinc-900 text-sm">{cert.name}</p>
+                            <p className="text-xs text-zinc-500">- {cert.issuer}</p>
                           </div>
                         </div>
                       ))}
@@ -380,9 +358,7 @@ export default function ProfileModal({
                 <div className="lg:col-span-1 space-y-6">
                   {/* Hobbies */}
                   <div className="bg-white rounded-2xl border border-zinc-200 p-5">
-                    <h3 className="text-lg font-bold text-zinc-900 mb-3">
-                      Hobbies
-                    </h3>
+                    <h3 className="text-lg font-bold text-zinc-900 mb-3">Hobbies</h3>
                     <div className="flex flex-wrap gap-2">
                       {staffData.hobbies.map((hobby) => (
                         <span
@@ -398,9 +374,7 @@ export default function ProfileModal({
                   {/* Public Reviews */}
                   <div className="bg-white rounded-2xl border border-zinc-200 p-5">
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-bold text-zinc-900">
-                        Public Reviews
-                      </h3>
+                      <h3 className="text-lg font-bold text-zinc-900">Public Reviews</h3>
                       <button
                         onClick={() => setShowAllReviews(!showAllReviews)}
                         className="text-sm text-indigo-600 hover:text-indigo-700 flex items-center gap-1 cursor-pointer"
@@ -412,15 +386,10 @@ export default function ProfileModal({
 
                     <div className="space-y-4">
                       {displayedReviews.map((review) => (
-                        <div
-                          key={review.id}
-                          className="border-b border-zinc-100 last:border-0 pb-4 last:pb-0"
-                        >
+                        <div key={review.id} className="border-b border-zinc-100 last:border-0 pb-4 last:pb-0">
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
-                              <span className="font-semibold text-zinc-900 text-sm">
-                                {review.name}
-                              </span>
+                              <span className="font-semibold text-zinc-900 text-sm">{review.name}</span>
                               {review.isVerified && (
                                 <span className="text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded-full">
                                   Verified
@@ -429,9 +398,7 @@ export default function ProfileModal({
                             </div>
                             <StarRating rating={review.rating} size="sm" />
                           </div>
-                          <p className="text-zinc-600 text-sm">
-                            {review.comment}
-                          </p>
+                          <p className="text-zinc-600 text-sm">{review.comment}</p>
                         </div>
                       ))}
                     </div>

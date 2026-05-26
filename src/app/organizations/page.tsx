@@ -60,7 +60,11 @@ type OrganizationsApiResponse = {
 
 async function getAllOrganizations(): Promise<ApiResponse> {
   try {
-    const response = await getOrganizationsListApi() as OrganizationsApiResponse;
+    const response = await getOrganizationsListApi() as {
+      data?: {
+        organizations?: Organization[];
+      };
+    };
     console.log("Response Organization:-", response);
     return {
       success: true,
@@ -108,7 +112,7 @@ export default async function OrganizationsPage() {
         </div>
 
         <Suspense fallback={<OrganizationLoading />}>
-          <OrganizationsClient 
+          <OrganizationsClient
             initialOrganizations={data.organizations}
             error={data.success ? null : data.message || null}
           />
