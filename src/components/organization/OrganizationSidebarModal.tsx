@@ -128,7 +128,7 @@ export default function OrganizationSidebarModal({
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900 dark:to-purple-900">
-                  <span className="text-xl font-bold text-indigo-600 dark:text-indigo-400">
+                  <span className="text-xl font-bold text-[var(--primary-color)] dark:text-[var(--primary-color)]">
                     {organization.name?.charAt(0) || "O"}
                   </span>
                 </div>
@@ -212,7 +212,7 @@ export default function OrganizationSidebarModal({
               <h3 className="text-sm font-semibold text-zinc-900 dark:text-white uppercase tracking-wider">
                 Experts
               </h3>
-              <button className="text-indigo-600 dark:text-indigo-400 text-sm font-medium hover:underline">
+              <button className="text-[var(--primary-color)] dark:text-[var(--primary-color)] text-sm font-medium hover:underline">
                 View All
               </button>
             </div>
@@ -227,7 +227,7 @@ export default function OrganizationSidebarModal({
                         {expert.avatar ? (
                           <Image src={expert.avatar} alt={expert.name} width={40} height={40} className="rounded-full" />
                         ) : (
-                          <span className="text-sm font-medium text-indigo-600 dark:text-indigo-400">
+                          <span className="text-sm font-medium text-[var(--primary-color)] dark:text-[var(--primary-color)]">
                             {expert.name?.charAt(0) || "E"}
                           </span>
                         )}
@@ -252,7 +252,7 @@ export default function OrganizationSidebarModal({
             </div>
 
             {/* Add Expert Button */}
-            <button className="w-full mt-3 flex items-center justify-center gap-2 px-4 py-2.5 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-xl text-indigo-600 dark:text-indigo-400 text-sm font-medium hover:bg-indigo-50 dark:hover:bg-indigo-950/50 transition-colors">
+            <button className="w-full mt-3 flex items-center justify-center gap-2 px-4 py-2.5 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-xl text-[var(--primary-color)] dark:text-[var(--primary-color)] text-sm font-medium hover:bg-indigo-50 dark:hover:bg-indigo-950/50 transition-colors">
               <UserPlus className="w-4 h-4" />
               Connect Expert
             </button>

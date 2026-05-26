@@ -38,6 +38,7 @@ export const metadata = {
 interface Organization {
   _id: string;
   name: string;
+  slug: string;
   mission?: string;
   country?: string;
   sessionPriceInfo?: string;
@@ -51,13 +52,19 @@ interface ApiResponse {
   message?: string;
 }
 
+type OrganizationsApiResponse = {
+  data?: {
+    organizations?: Organization[];
+  };
+};
+
 async function getAllOrganizations(): Promise<ApiResponse> {
   try {
-    const response = await getOrganizationsListApi();
+    const response = await getOrganizationsListApi() as OrganizationsApiResponse;
     console.log("Response Organization:-", response);
-    return { 
-      success: true, 
-      organizations: response.data.organizations || [] 
+    return {
+      success: true,
+      organizations: response.data?.organizations || []
     };
   } catch (error) {
     return {

@@ -1,0 +1,188 @@
+export type VenueService = {
+  name: string;
+  price: string;
+  image: string;
+};
+
+export type VenueStaff = {
+  name: string;
+  role: string;
+  image: string;
+};
+
+export type VenueReview = {
+  name: string;
+  comment: string;
+  time: string;
+};
+
+export type VenueFeature = {
+  title: string;
+  description: string;
+};
+
+export type Venue = {
+  id: string;
+  name: string;
+  hours: string;
+  address: string;
+  accent: string;
+  glow: string;
+  bgImage: string;
+  tagline: string;
+  description: string;
+  services: VenueService[];
+  staff: VenueStaff[];
+  reviews: VenueReview[];
+  features: VenueFeature[];
+};
+
+export const filters = {
+  suburbs: ["Ascotvale", "Brunswick", "Docklands"],
+  countries: ["Chinese", "Vietnam", "India"],
+  staff: ["Male Therapist", "Female Therapist"],
+};
+
+export const venues: Venue[] = [
+  {
+    id: "lomi-massage",
+    name: "Lomi Massage",
+    hours: "9AM - 5PM",
+    address: "318 Ascotvale Rd, Ascotvale",
+    accent: "from-amber-950 via-amber-800 to-stone-900",
+    glow: "from-amber-300/80 via-orange-200/30 to-transparent",
+    bgImage: "url('/images/massage-1.jpg')",
+    tagline: "Relax & Rejuvenate",
+    description: "Experience the healing touch of our professional therapists in a calm and beautifully designed space.",
+    services: [
+      { name: "Swedish Massage", price: "$80", image: "https://images.unsplash.com/photo-1515377905703-c4788e51af15?q=80&w=900&auto=format&fit=crop" },
+      { name: "Deep Tissue Massage", price: "$120", image: "https://images.unsplash.com/photo-1519823551278-64ac92734fb1?q=80&w=900&auto=format&fit=crop" },
+      { name: "Aromatherapy Massage", price: "$100", image: "https://images.unsplash.com/photo-1507652313519-d4e9174996dd?q=80&w=900&auto=format&fit=crop" },
+      { name: "Hot Stone Massage", price: "$130", image: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=80&w=900&auto=format&fit=crop" },
+      { name: "Thai Massage", price: "$110", image: "https://images.unsplash.com/photo-1515377905703-c4788e51af15?q=80&w=900&auto=format&fit=crop" },
+    ],
+    staff: [
+      { name: "Sony", role: "Massage Therapist", image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=600&auto=format&fit=crop" },
+      { name: "Jessi", role: "Massage Therapist", image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=600&auto=format&fit=crop" },
+      { name: "Sami", role: "Massage Therapist", image: "https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=600&auto=format&fit=crop" },
+    ],
+    reviews: [
+      { name: "Daniel K.", comment: "Amazing experience. The ambiance was so relaxing and the massage was pure bliss.", time: "2 days ago" },
+      { name: "Emma R.", comment: "Professional and friendly staff. I felt so refreshed after the deep tissue massage.", time: "1 week ago" },
+      { name: "Michael T.", comment: "Best massage service in Ascotvale. Clean environment and excellent customer care.", time: "2 weeks ago" },
+    ],
+    features: [
+      { title: "Hygienic Environment", description: "Clean and safe for your comfort" },
+      { title: "Professional Therapists", description: "Certified & experienced" },
+      // { title: "Easy Booking", description: "Quick & hassle-free" },
+      // { title: "Satisfaction Guaranteed", description: "We care about your wellbeing" },
+    ],
+  },
+  {
+    id: "tranquil-touch",
+    name: "Tranquil Touch",
+    hours: "9AM - 5PM",
+    address: "215 Brunswick Road, Ascotvale 3032",
+    accent: "from-stone-950 via-amber-900 to-orange-950",
+    glow: "from-orange-300/70 via-yellow-200/20 to-transparent",
+    bgImage: "url('/images/massage-1.jpg')",
+    tagline: "Restore Your Balance",
+    description: "A peaceful wellness stop for guests looking for restorative treatments and premium body care.",
+    services: [
+      { name: "Swedish Massage", price: "$75", image: "https://images.unsplash.com/photo-1515377905703-c4788e51af15?q=80&w=900&auto=format&fit=crop" },
+      { name: "Oil Massage", price: "$120", image: "https://images.unsplash.com/photo-1507652313519-d4e9174996dd?q=80&w=900&auto=format&fit=crop" },
+      { name: "Foot Therapy", price: "$60", image: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=900&auto=format&fit=crop" },
+      { name: "Thai Massage", price: "$110", image: "https://images.unsplash.com/photo-1519823551278-64ac92734fb1?q=80&w=900&auto=format&fit=crop" },
+      { name: "Back Relief", price: "$95", image: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=80&w=900&auto=format&fit=crop" },
+    ],
+    staff: [
+      { name: "Mila", role: "Senior Therapist", image: "https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?q=80&w=600&auto=format&fit=crop" },
+      { name: "Chris", role: "Wellness Specialist", image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=600&auto=format&fit=crop" },
+      { name: "Ava", role: "Massage Therapist", image: "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?q=80&w=600&auto=format&fit=crop" },
+    ],
+    reviews: [
+      { name: "Nina P.", comment: "Such a cozy place and really attentive staff. I’ll definitely come back.", time: "3 days ago" },
+      { name: "Sam W.", comment: "The oil massage was fantastic and the booking process was smooth.", time: "5 days ago" },
+      { name: "Priya J.", comment: "Very calm vibe with excellent service quality.", time: "2 weeks ago" },
+    ],
+    features: [
+      { title: "Quiet Rooms", description: "A peaceful atmosphere throughout" },
+      { title: "Skilled Team", description: "Experienced bodywork specialists" },
+      // { title: "Fast Booking", description: "Reserve your slot in minutes" },
+      // { title: "Wellness Focused", description: "Personalized care in every session" },
+    ],
+  },
+  {
+    id: "blissful-escape",
+    name: "Blissful Escape",
+    hours: "10AM - 11PM",
+    address: "109 Melrose Drive, Ascotvale 3032",
+    accent: "from-zinc-950 via-amber-900 to-stone-900",
+    glow: "from-orange-200/70 via-amber-100/30 to-transparent",
+    bgImage: "url('/images/massage-1.jpg')",
+    tagline: "Feel Completely Renewed",
+    description: "Modern spa treatments, soft lighting, and therapeutic care designed for complete relaxation.",
+    services: [
+      { name: "Deep Tissue", price: "$125", image: "https://images.unsplash.com/photo-1519823551278-64ac92734fb1?q=80&w=900&auto=format&fit=crop" },
+      { name: "Couples Massage", price: "$180", image: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=900&auto=format&fit=crop" },
+      { name: "Aromatherapy", price: "$95", image: "https://images.unsplash.com/photo-1507652313519-d4e9174996dd?q=80&w=900&auto=format&fit=crop" },
+      { name: "Hot Stone", price: "$135", image: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=80&w=900&auto=format&fit=crop" },
+      { name: "Head Massage", price: "$55", image: "https://images.unsplash.com/photo-1515377905703-c4788e51af15?q=80&w=900&auto=format&fit=crop" },
+    ],
+    staff: [
+      { name: "Zara", role: "Spa Therapist", image: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=600&auto=format&fit=crop" },
+      { name: "Luca", role: "Bodywork Therapist", image: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=600&auto=format&fit=crop" },
+      { name: "Mina", role: "Massage Therapist", image: "https://images.unsplash.com/photo-1517365830460-955ce3ccd263?q=80&w=600&auto=format&fit=crop" },
+    ],
+    reviews: [
+      { name: "Alex G.", comment: "Stylish setup and genuinely great staff. Loved the whole experience.", time: "Yesterday" },
+      { name: "Rita S.", comment: "Hot stone session was worth every dollar.", time: "4 days ago" },
+      { name: "Jon C.", comment: "One of the best wellness spots around.", time: "1 week ago" },
+    ],
+    features: [
+      { title: "Premium Oils", description: "High-quality spa products" },
+      { title: "Extended Hours", description: "Late evening sessions available" },
+      // { title: "Easy Reschedule", description: "Flexible booking support" },
+      // { title: "Client First", description: "Comfort-focused service approach" },
+    ],
+  },
+  {
+    id: "pure-relaxation",
+    name: "Pure Relaxation",
+    hours: "12AM - 7PM",
+    address: "88 Baker Street, Ascotvale 3032",
+    accent: "from-neutral-950 via-amber-900 to-black",
+    glow: "from-orange-300/70 via-amber-100/30 to-transparent",
+    bgImage: "url('/images/massage-1.jpg')",
+    tagline: "Unwind In Comfort",
+    description: "A warm and welcoming massage studio offering tailored sessions and soothing treatments.",
+    services: [
+      { name: "Relaxing Massage", price: "$85", image: "https://images.unsplash.com/photo-1515377905703-c4788e51af15?q=80&w=900&auto=format&fit=crop" },
+      { name: "Oil Massage", price: "$120", image: "https://images.unsplash.com/photo-1507652313519-d4e9174996dd?q=80&w=900&auto=format&fit=crop" },
+      { name: "Body Scrub", price: "$90", image: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=900&auto=format&fit=crop" },
+      { name: "Thai Massage", price: "$105", image: "https://images.unsplash.com/photo-1519823551278-64ac92734fb1?q=80&w=900&auto=format&fit=crop" },
+      { name: "Hot Stone", price: "$130", image: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=80&w=900&auto=format&fit=crop" },
+    ],
+    staff: [
+      { name: "Anya", role: "Massage Therapist", image: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?q=80&w=600&auto=format&fit=crop" },
+      { name: "Bella", role: "Spa Therapist", image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=600&auto=format&fit=crop" },
+      { name: "Noah", role: "Therapy Specialist", image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=600&auto=format&fit=crop" },
+      { name: "Noah", role: "Therapy Specialist", image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=600&auto=format&fit=crop" },
+    ],
+    reviews: [
+      { name: "Sophie T.", comment: "Very comfortable setting and a lovely team.", time: "2 days ago" },
+      { name: "Ben H.", comment: "Great treatment quality and a super clean environment.", time: "6 days ago" },
+      { name: "Leah M.", comment: "I left feeling completely relaxed.", time: "9 days ago" },
+    ],
+    features: [
+      { title: "Relaxing Setup", description: "Soft lighting and peaceful rooms" },
+      { title: "Friendly Team", description: "Warm and attentive professionals" },
+      // { title: "Smooth Booking", description: "Quick service confirmation" },
+      // { title: "Trusted Care", description: "Comfort and hygiene prioritized" },
+    ],
+  },
+];
+
+export function getVenueById(id: string) {
+  return venues.find((venue) => venue.id === id);
+}

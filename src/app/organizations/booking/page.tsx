@@ -102,13 +102,13 @@ interface Expert {
 
 // Sample Data
 const servicesData: Service[] = [
-  { id: "1", name: "Hair Cut", price: 80, rating: 4.8, reviews: 145 },
-  { id: "2", name: "Beard Styling", price: 45, rating: 4.7, reviews: 119 },
-  { id: "3", name: "Trimming", price: 50, rating: 4.6, reviews: 87 },
-  { id: "4", name: "Cleaning", price: 60, rating: 4.9, reviews: 92 },
-  { id: "5", name: "Hair Wash", price: 30, rating: 4.5, reviews: 56 },
-  { id: "6", name: "Hair Coloring", price: 120, rating: 4.8, reviews: 103 },
-  { id: "7", name: "Head Massage", price: 35, rating: 4.7, reviews: 78 },
+  { id: "1", name: "Hair Cut", price: 80, rating: 4.8, reviews: 145, imageUrl: "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?auto=format&fit=crop&q=80&w=100&h=100" },
+  { id: "2", name: "Beard Styling", price: 45, rating: 4.7, reviews: 119, imageUrl: "https://images.unsplash.com/photo-1621605815971-fbc98d665033?auto=format&fit=crop&q=80&w=100&h=100" },
+  { id: "3", name: "Trimming", price: 50, rating: 4.6, reviews: 87, imageUrl: "https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&q=80&w=100&h=100" },
+  { id: "4", name: "Cleaning", price: 60, rating: 4.9, reviews: 92, imageUrl: "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&q=80&w=100&h=100" },
+  { id: "5", name: "Hair Wash", price: 30, rating: 4.5, reviews: 56, imageUrl: "https://images.unsplash.com/photo-1560869713-7d0a29430872?auto=format&fit=crop&q=80&w=100&h=100" },
+  { id: "6", name: "Hair Coloring", price: 120, rating: 4.8, reviews: 103, imageUrl: "https://images.unsplash.com/photo-1560066984-138dad7fe58b?auto=format&fit=crop&q=80&w=100&h=100" },
+  { id: "7", name: "Head Massage", price: 35, rating: 4.7, reviews: 78, imageUrl: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&q=80&w=100&h=100" },
 ];
 
 const expertsData: Expert[] = [
@@ -187,7 +187,7 @@ const handleImageError = (expertId: string) => {
         {/* Progress Steps */}
         <div className="flex items-center justify-center max-w-2xl mx-auto mb-4 gap-5">
 
-             <button className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all">
+             <button className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-[var(--primary-start)] to-[var(--primary-end)] text-white rounded-lg hover:bg-[var(--hover-primary-color)] transition-all cursor-pointer">
                 <ChevronLeft className="w-4 h-4" />
             Back
           </button>
@@ -197,7 +197,7 @@ const handleImageError = (expertId: string) => {
             <div key={idx} className="flex items-center">
               <div className="flex flex-col items-center">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
-                  idx < 2 ? "bg-indigo-600 text-white" : "bg-zinc-200 dark:bg-zinc-800 text-zinc-500"
+                  idx < 2 ? "bg-[var(--primary-color)] text-white" : "bg-zinc-200 dark:bg-zinc-800 text-zinc-500"
                 }`}>
                   {idx + 1}
                 </div>
@@ -210,7 +210,7 @@ const handleImageError = (expertId: string) => {
           ))}
           </div>
 
-          <button className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all">
+          <button className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-[var(--primary-start)] to-[var(--primary-end)] text-white rounded-lg hover:bg-[var(--hover-primary-color)] transition-all cursor-pointer">
             Next
             <ChevronRight className="w-4 h-4" />
           </button>
@@ -256,13 +256,13 @@ const handleImageError = (expertId: string) => {
                     <div className="flex items-center justify-between mb-1">
                     <h3 className="text-xl font-bold text-zinc-900 dark:text-white">{selectedExpertData.name}</h3>
                     </div>
-                    <p className="text-sm text-indigo-600 dark:text-indigo-400 mb-2">{selectedExpertData.role}</p>
+                    <p className="text-sm text-[var(--primary-color)] dark:text-[var(--primary-color)] mb-2">{selectedExpertData.role}</p>
                     <div className="flex items-center gap-4 text-xs text-zinc-600">
                     <span className="flex items-center gap-1">
                         <Award className="w-3 h-3" />
                         {selectedExpertData.experience} Experience
                     </span>
-                    <span className="font-semibold text-indigo-600">${selectedExpertData.price}</span>
+                    <span className="font-semibold text-[var(--primary-color)]">${selectedExpertData.price}</span>
                     </div>
                     <div className="mt-2 flex items-center gap-2">
                     <StarRating rating={selectedExpertData.rating} reviews={selectedExpertData.reviews} />
@@ -304,35 +304,57 @@ const handleImageError = (expertId: string) => {
 
               {/* Services List */}
               <div className={`divide-y divide-zinc-200 dark:divide-zinc-800 ${selectedExpert?"max-h-[15rem]":"max-h-[25rem]"} overflow-y-auto`}>
-                {filteredServices.map((service) => (
-                  <div
-                    key={service.id}
-                    onClick={() => {
-                      if (selectedServices.includes(service.id)) {
-                        setSelectedServices(selectedServices.filter(id => id !== service.id));
-                      } else {
-                        setSelectedServices([...selectedServices, service.id]);
-                      }
-                    }}
-                    className={`p-4 cursor-pointer transition-all duration-200 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 ${
-                      selectedServices.includes(service.id) ? "bg-indigo-50 dark:bg-indigo-950/30" : ""
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="font-semibold text-zinc-900 dark:text-white">{service.name}</h4>
-                        <StarRating rating={service.rating} reviews={service.reviews} />
-                      </div>
-                      <div className="text-right">
-                        <p className="text-lg font-bold text-indigo-600 dark:text-indigo-400">${service.price}</p>
-                        {selectedServices.includes(service.id) && (
-                          <Check className="w-5 h-5 text-indigo-600 mt-1" />
-                        )}
+                  {filteredServices.map((service) => (
+                    <div
+                      key={service.id}
+                      onClick={() => {
+                        if (selectedServices.includes(service.id)) {
+                          setSelectedServices(selectedServices.filter(id => id !== service.id));
+                        } else {
+                          setSelectedServices([...selectedServices, service.id]);
+                        }
+                      }}
+                      className={`p-4 cursor-pointer transition-all duration-200 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 ${
+                        selectedServices.includes(service.id) ? "bg-indigo-50 dark:bg-indigo-950/30" : ""
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        {/* Service Image */}
+                        <div className="w-12 h-12 rounded-xl overflow-hidden bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-950/50 dark:to-purple-950/50 flex-shrink-0">
+                          {service.imageUrl ? (
+                            <Image
+                              src={service.imageUrl}
+                              alt={service.name}
+                              width={48}
+                              height={48}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <svg className="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Service Info */}
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-zinc-900 dark:text-white">{service.name}</h4>
+                          <StarRating rating={service.rating} reviews={service.reviews} />
+                        </div>
+                        
+                        {/* Price & Selection */}
+                        <div className="text-right">
+                          <p className="text-lg font-bold text-[var(--primary-color)] dark:text-[var(--primary-color)]">${service.price}</p>
+                          {selectedServices.includes(service.id) && (
+                            <Check className="w-5 h-5 text-[var(--primary-color)] mt-1 ml-auto" />
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
             </div>
           </div>
 
@@ -381,7 +403,7 @@ const handleImageError = (expertId: string) => {
                         {expert.videoUrl && (
                         <button
                             onClick={(e) => handlePlayVideo(e, expert)}
-                            className="absolute -bottom-[-3px] -right-1 w-6 h-6 bg-indigo-600 rounded-full flex items-center justify-center shadow-lg hover:bg-indigo-700 transition-all hover:scale-110"
+                            className="absolute -bottom-[-3px] -right-1 w-6 h-6 bg-[var(--primary-color)] rounded-full flex items-center justify-center shadow-lg hover:bg-[var(--hover-primary-color)] transition-all hover:scale-110 cursor-pointer"
                         >
                             <Play className="w-3 h-3 fill-white text-white" />
                         </button>
@@ -399,7 +421,7 @@ const handleImageError = (expertId: string) => {
                         <h4 className="font-semibold text-zinc-900 dark:text-white">{expert.name}</h4>
                         <StarRating rating={expert.rating} reviews={expert.reviews} />
                         </div>
-                        <p className="text-sm text-indigo-600 dark:text-indigo-400 mb-1">{expert.role}</p>
+                        <p className="text-sm text-[var(--primary-color)] dark:text-[var(--primary-color)] mb-1">{expert.role}</p>
                         <div className="flex items-center gap-3 text-xs text-zinc-500">
                         <span>⭐ {expert.experience}</span>
                         <span>💰 ${expert.price}/hr</span>
@@ -426,7 +448,7 @@ const handleImageError = (expertId: string) => {
                 {selectedServicesList.map((service) => (
                   <div key={service.id} className="flex justify-between items-center">
                     <span className="text-zinc-700 dark:text-zinc-300">{service.name}</span>
-                    <span className="font-semibold text-indigo-600">${service.price}</span>
+                    <span className="font-semibold text-[var(--primary-color)]">${service.price}</span>
                   </div>
                 ))}
                 {selectedServicesList.length === 0 && (
@@ -438,7 +460,7 @@ const handleImageError = (expertId: string) => {
               <div className="mb-4 p-3 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-zinc-600">Total:</span>
-                  <span className="font-bold text-indigo-600">{selectedDate}</span>
+                  <span className="font-bold text-[var(--primary-color)]">{selectedDate}</span>
                   <span className="text-zinc-600">{selectedTime}</span>
                 </div>
                 <div className="flex items-center justify-between mt-2 text-xs text-zinc-500">
@@ -452,7 +474,7 @@ const handleImageError = (expertId: string) => {
               <div className="pt-3 border-t border-zinc-200 dark:border-zinc-800">
                 <div className="flex justify-between items-center">
                   <span className="text-lg font-bold text-zinc-900 dark:text-white">Total:</span>
-                  <span className="text-2xl font-bold text-indigo-600">${totalAmount}</span>
+                  <span className="text-2xl font-bold text-[var(--primary-color)]">${totalAmount}</span>
                 </div>
               </div>
             </div>
@@ -460,7 +482,7 @@ const handleImageError = (expertId: string) => {
             {/* Payment Method */}
             <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-5 shadow-sm ">
               <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-4">Payment Method</h3>
-              <div className="max-h-[10rem] overflow-y-scroll scroll-smooth scrollbar-hide">
+              <div className="max-h-[5.5rem] overflow-y-scroll scroll-smooth scrollbar-hide">
               
               <div className="space-y-3">
                 {[
@@ -473,7 +495,7 @@ const handleImageError = (expertId: string) => {
                     key={method.id}
                     className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
                       paymentMethod === method.id
-                        ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30"
+                        ? "border-[var(--hover-primary-color)] bg-indigo-50 dark:bg-indigo-950/30"
                         : "border-zinc-200 dark:border-zinc-700"
                     }`}
                   >
@@ -483,7 +505,7 @@ const handleImageError = (expertId: string) => {
                       value={method.id}
                       checked={paymentMethod === method.id}
                       onChange={(e) => setPaymentMethod(e.target.value)}
-                      className="w-4 h-4 text-indigo-600"
+                      className="w-4 h-4 text-[var(--primary-color)]"
                     />
                     <method.icon className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
                     <div className="flex-1">
@@ -495,9 +517,10 @@ const handleImageError = (expertId: string) => {
                   </label>
                 ))}
               </div>
+              </div>
 
               {/* Additional Options */}
-              <div className="mt-4 pt-4 space-y-2 border-t border-zinc-200 dark:border-zinc-800">
+              {/* <div className="mt-4 pt-4 space-y-2 border-t border-zinc-200 dark:border-zinc-800">
                 <label className="flex items-center gap-2 cursor-pointer text-sm">
                   <input type="checkbox" className="w-4 h-4 text-indigo-600 rounded" />
                   <span className="text-zinc-700 dark:text-zinc-300">Chat with expert before booking</span>
@@ -510,7 +533,7 @@ const handleImageError = (expertId: string) => {
                   <input type="checkbox" className="w-4 h-4 text-indigo-600 rounded" />
                   <span className="text-zinc-700 dark:text-zinc-300">Instant booking/Request approval</span>
                 </label>
-              </div>
+              </div> */}
 
               {/* Confirm Button */}
               <button 
@@ -521,17 +544,16 @@ const handleImageError = (expertId: string) => {
                   }
                   alert("Booking confirmed successfully!");
                 }}
-                className="w-full mt-6 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg"
+                className="w-full mt-6 px-6 py-3 bg-gradient-to-r from-[var(--primary-start)] to-[var(--primary-end)] text-white font-semibold rounded-xl transition-all duration-300 shadow-lg cursor-pointer"
               >
                 Confirm & Pay
               </button>
 
-              <div className="mt-3 flex items-center justify-center gap-2 text-xs text-zinc-500">
+              {/* <div className="mt-3 flex items-center justify-center gap-2 text-xs text-zinc-500">
                 <Shield className="w-3 h-3" />
                 <span>Secure payment guaranteed</span>
-              </div>
+              </div> */}
 
-              </div>
             </div>
           </div>
         </div>
