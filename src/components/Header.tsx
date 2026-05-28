@@ -142,6 +142,17 @@ export default function Header() {
             >
               Help
             </Link>
+            <Link
+              href="/voicecallorder"
+              className={cn(
+                "text-sm font-medium transition-colors hover:text-zinc-900 dark:hover:text-white",
+                isActive("/voicecallorder")
+                  ? "text-zinc-900 dark:text-white"
+                  : "text-zinc-600 dark:text-zinc-400",
+              )}
+            >
+              Order On Voice Call
+            </Link>
           </nav>
 
           {/* Right Side Actions */}

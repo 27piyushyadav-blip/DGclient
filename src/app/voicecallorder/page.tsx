@@ -167,12 +167,12 @@ function VenueCard({
           </div>
         </CardContent>
         
-        <Button
-          type="button"
-          className="h-full rounded-xl bg-blue-600 text-sm font-semibold text-white shadow-lg shadow-blue-600/25 hover:bg-blue-700 mr-1 text-[12px] py-3"
+        <div
+          className="h-full rounded-xl bg-blue-600 text-sm font-semibold text-white shadow-lg shadow-blue-600/25 hover:bg-blue-700 mr-1 text-[12px] py-3 cursor-pointer flex flex-col items-center justify-center transition-colors p-2"
         >
+          <Phone className="mr-1.5 h-4 w-4" />
           Book On Call
-        </Button>
+        </div>
       </div>
     </Card>
   );
@@ -197,18 +197,8 @@ const VoiceCall = () => {
       <div className="min-h-screen bg-gray-50 p-4 dark:bg-gray-900 md:p-6">
         <div className="mx-auto max-w-6xl">
           <div className="flex justify-between items-center">
-          <div className="mb-8 flex flex-col items-center space-y-4 text-center">
-            <div className="rounded-full bg-blue-100 p-4 dark:bg-blue-900/30">
-              <Phone className="h-12 w-12 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div className="space-y-2">
-              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                Voice Call Order
-              </h3>
-            </div>
-          </div>
 
-          <div className="relative mb-5 mt-2 w-[50rem]">
+          <div className="relative mb-5 mt-2 w-full">
             <input
               type="text"
               name="search"

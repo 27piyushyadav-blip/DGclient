@@ -2,19 +2,18 @@
 'use client';
 
 import { useState } from 'react';
-import { Phone, RefreshCw, CreditCard } from 'lucide-react';
-import VoiceCall from './component/VoiceCall';
+import { Phone, RefreshCw, CreditCard, X } from 'lucide-react';
 import ExchangeService from './component/ExchangeService';
 import RefundPayment from './component/RefundPayment';
 
 interface SubHeaderProps {
-  initialActiveSection?: 'call' | 'exchange' | 'refund' | null;
+  initialActiveSection?: 'exchange' | 'refund' | null;
 }
 
-const SubHeader: React.FC<SubHeaderProps> = ({ initialActiveSection = "call" }) => {
-  const [activeSection, setActiveSection] = useState<'call' | 'exchange' | 'refund' | null>(initialActiveSection);
+const SubHeader: React.FC<SubHeaderProps> = ({ initialActiveSection = "refund" }) => {
+  const [activeSection, setActiveSection] = useState<'exchange' | 'refund' | null>(initialActiveSection);
 
-  const handleSectionToggle = (section: 'call' | 'exchange' | 'refund') => {
+  const handleSectionToggle = (section:  'exchange' | 'refund') => {
 
       setActiveSection(section); // Open new section
 
@@ -26,77 +25,57 @@ const SubHeader: React.FC<SubHeaderProps> = ({ initialActiveSection = "call" }) 
 
   return (
     <div className="w-full bg-white border-b border-gray-200 shadow-sm">
-      <div className="container mx-auto px-4">
-        {/* Subheader Buttons */}
-        <div className="flex items-center justify-center gap-6 py-3 ">
-          {/* Call Order Button */}
-          <button
-            onClick={() => handleSectionToggle('call')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${
-              activeSection === 'call'
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            <Phone size={18} />
-            <span className="font-medium">Call Order</span>
-          </button>
-
-          {/* Exchange Service Button */}
-          <button
-            onClick={() => handleSectionToggle('exchange')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${
-              activeSection === 'exchange'
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            <RefreshCw size={18} />
-            <span className="font-medium">Edit Service</span>
-          </button>
+      <div className="flex h-full">
+      {/* Sidebar */}
+      <div className="w-64 bg-white border-r border-gray-200 shadow-sm flex-shrink-0">
+        <div className="flex flex-col gap-2 p-4"> 
 
           {/* Payment Refund Option Button */}
           <button
             onClick={() => handleSectionToggle('refund')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${
+            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
               activeSection === 'refund'
                 ? 'bg-blue-600 text-white shadow-md'
                 : 'text-gray-700 hover:bg-gray-100'
             }`}
           >
-            <CreditCard size={18} />
-            <span className="font-medium">Payment Refund</span>
+            <CreditCard size={20} />
+            <span className="font-medium">Refund Payment</span>
+          </button>
+
+          {/* Exchange Service Button */}
+          <button
+            onClick={() => handleSectionToggle('exchange')}
+            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+              activeSection === 'exchange'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            <RefreshCw size={20} />
+            <span className="font-medium">Edit Services</span>
           </button>
         </div>
+      </div>
 
-        {/* Active Section Content */}
+      {/* Content Area */}
+      <div className="flex-1 overflow-auto">
         {activeSection && (
-          <div className="border-gray-200 py-6 animate-fadeIn">
+          <div className="p-3 animate-fadeIn">
             <div className="relative">
-              {/* Close Button */}
-
-              {/* Conditional Content Rendering */}
-              {activeSection === 'call' && (
-                <>
-                <VoiceCall/>
-                </>
-              )}
 
               {activeSection === 'exchange' && (
-                <>
-                <ExchangeService/>
-                </>
+                <ExchangeService />
               )}
 
               {activeSection === 'refund' && (
-                <>
-                <RefundPayment/>
-                </>
+                <RefundPayment />
               )}
             </div>
           </div>
         )}
       </div>
+    </div>
 
     </div>
   );
