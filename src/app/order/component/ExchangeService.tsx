@@ -452,7 +452,7 @@ const ExchangeService = ({
       case 'exchange':
         return selectedServices.length > 0;
       case 'experts':
-        return true;
+        return selectedExpert !== null;
       case 'summary':
         return true;
       case 'history':
@@ -650,7 +650,7 @@ const ExchangeService = ({
                   {/* Selected Exchange Services */}
                   <div className="mt-6">
                     <div className="flex justify-between items-center mb-3">
-                      <p className="text-sm font-medium text-slate-700">Selected Edit Services</p>
+                      <p className="text-sm font-medium text-slate-700">Add & Remove Services</p>
                       {selectedServices.length > 0 && (
                         <button onClick={clearAllServices} className="text-xs text-red-500 hover:text-red-600 flex items-center gap-1">
                           <Trash2 className="w-3 h-3" />
@@ -1155,7 +1155,7 @@ const ExchangeService = ({
                   }`}
                   disabled={tabs.findIndex(t => t.id === activeTab) === 0}
                 >
-                  Previous
+                  Back
                 </button>
                 {activeTab !== 'history' ? (
                   <button
