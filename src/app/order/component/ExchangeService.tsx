@@ -594,7 +594,7 @@ const ExchangeService = ({
                       <ArrowLeftRight className="w-5 h-5 text-blue-600" />
                     </div>
                     <div>
-                      <h2 className="text-xl font-semibold text-slate-800">Add New Services (Exchange)</h2>
+                      <h2 className="text-xl font-semibold text-slate-800">Add New Services</h2>
                       <p className="text-sm text-slate-500">Select services to exchange with original purchase</p>
                     </div>
                   </div>
@@ -628,7 +628,7 @@ const ExchangeService = ({
                   {/* Available Services Grid */}
                   <div className="mb-6">
                     <p className="text-sm font-medium text-slate-700 mb-3">Available Services</p>
-                    <div className="grid grid-cols-2 gap-3 max-h-80 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent pr-2">
+                    <div className="grid grid-cols-2 gap-3  pr-2">
                       {filteredServices.map((service) => (
                         <button
                           key={service.id}
@@ -660,7 +660,7 @@ const ExchangeService = ({
                     </div>
                     
                     {selectedServices.length > 0 ? (
-                      <div className="space-y-2 bg-slate-100 p-3 max-h-[15rem] overflow-y-scroll scrollbar-thin">
+                      <div className="space-y-2 bg-slate-100 p-3">
                         {selectedServices.map((service) => (
                           <div key={service.id} className="flex items-center gap-3 p-3 bg-white rounded-xl">
                             <ServiceImage src={service.image} alt={service.name} className="w-10 h-10 rounded-lg object-cover" />
@@ -800,8 +800,8 @@ const ExchangeService = ({
                       <Users className="w-5 h-5 text-blue-600" />
                     </div>
                     <div>
-                      <h2 className="text-xl font-semibold text-slate-800">Exchange Expert</h2>
-                      <p className="text-sm text-slate-500">Select a preferred expert for the exchanged services (optional)</p>
+                      <h2 className="text-xl font-semibold text-slate-800">Edit Expert</h2>
+                      <p className="text-sm text-slate-500">Select a preferred expert for the edited services (optional)</p>
                     </div>
                   </div>
 

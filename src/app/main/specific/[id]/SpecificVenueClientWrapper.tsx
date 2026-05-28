@@ -299,7 +299,7 @@ export default function SpecificVenueClientWrapper({
                 </CardContent>
               </Card>
 
-              <Card className="rounded-[28px] border-slate-200 shadow-sm bg-white">
+              {/* <Card className="rounded-[28px] border-slate-200 shadow-sm bg-white">
                 <CardContent className="space-y-5 p-5">
                   {venue.features.map((feature, index) => {
                     const Icon = infoIcons[index % infoIcons.length];
@@ -324,7 +324,7 @@ export default function SpecificVenueClientWrapper({
                     );
                   })}
                 </CardContent>
-              </Card>
+              </Card> */}
 
               {/* <Button variant="outline" asChild className="w-full rounded-2xl border-slate-200 bg-white text-black">
                 <Link href="/main">
@@ -337,6 +337,19 @@ export default function SpecificVenueClientWrapper({
                 <CardContent className="space-y-5 p-5">
                   <h2 className="text-3xl font-bold text-slate-900">Product</h2>
                   <div className="space-y-4">
+                    {venue.products.slice(0, 5).map((product) => (
+                      <div key={product.name} className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3" >
+                          <div
+                            className="h-12 w-12 rounded-xl bg-cover bg-center"
+                            style={{ backgroundImage: `url('${product.image}')` }}
+                          />
+
+                        </div>
+                        <span className="text-sm font-medium text-slate-700">{product.name}</span>
+                        <span className="text-2xl font-bold text-blue-600">{product.price}</span>
+                      </div>
+                    ))}
                     {venue.products.slice(0, 5).map((product) => (
                       <div key={product.name} className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-3" >
