@@ -315,8 +315,8 @@ const ExchangeService = ({
       actionIcon: RefreshCw,
     },
     adjust_equal: {
-      title: 'Exchange for same amount',
-      description: 'Customer wants to exchange services for same value. Generate new receipt.',
+      title: 'Edit for same amount',
+      description: 'Customer wants to edit services for same value. Generate new receipt.',
       icon: ArrowRightLeft,
       color: 'purple',
       bgColor: 'purple',
@@ -766,7 +766,7 @@ const ExchangeService = ({
                     </div>
                     <div>
                       <h2 className="text-xl font-semibold text-slate-800">Add New Services</h2>
-                      <p className="text-sm text-slate-500">Select services to exchange with original purchase</p>
+                      <p className="text-sm text-slate-500">Select services to edit with original purchase</p>
                     </div>
                   </div>
 
@@ -872,7 +872,7 @@ const ExchangeService = ({
                     ) : (
                       <div className="text-center py-10 bg-slate-50 rounded-xl">
                         <ArrowLeftRight className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-                        <p className="text-slate-400">No services selected for exchange</p>
+                        <p className="text-slate-400">No services selected for editing</p>
                         <p className="text-xs text-slate-400">Click on services above to add</p>
                       </div>
                     )}
@@ -1181,8 +1181,8 @@ const ExchangeService = ({
                       <Receipt className="w-5 h-5 text-blue-600" />
                     </div>
                     <div>
-                      <h2 className="text-xl font-semibold text-slate-800">Exchange Summary</h2>
-                      <p className="text-sm text-slate-500">Review exchange details before confirming</p>
+                      <h2 className="text-xl font-semibold text-slate-800">Edit Summary</h2>
+                      <p className="text-sm text-slate-500">Review edit details before confirming</p>
                     </div>
                   </div>
 
@@ -1273,7 +1273,7 @@ const ExchangeService = ({
                     <div className="p-4 bg-blue-50 rounded-xl">
                       <h3 className="font-medium text-slate-800 mb-3 flex items-center gap-2">
                         <HelpCircle className="w-4 h-4 text-blue-600" />
-                        How Exchange Works
+                        How Editing Works
                       </h3>
                       <div className="space-y-2 text-sm text-slate-600">
                         <div className="flex items-center gap-2">
@@ -1293,12 +1293,12 @@ const ExchangeService = ({
                           <span>
                             {exchangeType === 'add_more' ? 'Send payment link for remaining amount' :
                              exchangeType === 'refund' ? 'Process refund to customer' :
-                             'Generate new receipt for exchange'}
+                             'Generate new receipt for editing'}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <div className="w-5 h-5 rounded-full bg-blue-200 text-blue-700 flex items-center justify-center text-xs font-bold">5</div>
-                          <span>Confirm exchange once settled</span>
+                          <span>Confirm edit once settled</span>
                         </div>
                       </div>
                     </div>
@@ -1315,7 +1315,7 @@ const ExchangeService = ({
                     </div>
                     <div>
                       <h2 className="text-xl font-semibold text-slate-800">Transaction History</h2>
-                      <p className="text-sm text-slate-500">All exchange transactions are logged for transparency</p>
+                      <p className="text-sm text-slate-500">All editing transactions are logged for transparency</p>
                     </div>
                   </div>
 
@@ -1353,23 +1353,23 @@ const ExchangeService = ({
                               <ArrowLeftRight className={`w-4 h-4 text-${currentExchange.color}-600`} />
                             </div>
                             <div>
-                              <p className="font-medium text-slate-800">Service Exchange</p>
+                              <p className="font-medium text-slate-800">Service Edit</p>
                               <p className="text-xs text-slate-500">{new Date().toLocaleDateString()} • {new Date().toLocaleTimeString()}</p>
                             </div>
                           </div>
                           <span className={`font-semibold text-${currentExchange.color}-600`}>
                             {exchangeType === 'add_more' ? `+$${additionalAmount}` : 
                              exchangeType === 'refund' ? `-$${refundAmount}` : 
-                             'Exchange'}
+                             'Edit'}
                           </span>
                         </div>
                         <div className="pl-10 space-y-1 text-sm">
                           <div className="flex justify-between">
-                            <span className="text-slate-500">Exchange ID</span>
-                            <span className="font-mono text-xs">EXC-{Math.floor(Math.random() * 90000) + 10000}</span>
+                            <span className="text-slate-500">Edit ID</span>
+                            <span className="font-mono text-xs">EDIT-{Math.floor(Math.random() * 90000) + 10000}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-slate-500">Exchange Type</span>
+                            <span className="text-slate-500">Edit Type</span>
                             <span className="capitalize">{exchangeType.replace('_', ' ')}</span>
                           </div>
                           <div className="flex justify-between">
@@ -1401,8 +1401,8 @@ const ExchangeService = ({
                     {!exchangeConfirmed && selectedServices.length === 0 && (
                       <div className="p-4 bg-slate-50 rounded-xl text-center">
                         <ArrowLeftRight className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                        <p className="text-sm text-slate-500">No exchange initiated yet</p>
-                        <p className="text-xs text-slate-400">Select services to start exchange</p>
+                        <p className="text-sm text-slate-500">No edit initiated yet</p>
+                        <p className="text-xs text-slate-400">Select services to start edit</p>
                       </div>
                     )}
                   </div>
@@ -1456,7 +1456,7 @@ const ExchangeService = ({
                     ) : (
                       <>
                         <CheckCircle className="w-4 h-4" />
-                        Confirm Exchange
+                        Confirm Edit
                       </>
                     )}
                   </button>

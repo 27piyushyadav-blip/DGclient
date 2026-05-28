@@ -23,6 +23,7 @@ import {
   Eye,
   Receipt,
   Sparkles,
+  Landmark,
 } from 'lucide-react';
 import { createRefundRequestApi } from '@/lib/bookingsApi';
 
@@ -94,6 +95,10 @@ const RefundPayment = ({ bookingId, services = [], totalPaid: propTotalPaid = 0 
   const [partialAmount, setPartialAmount] = useState(100);
   const [isProcessing, setIsProcessing] = useState(false);
   const [refundConfirmed, setRefundConfirmed] = useState(false);
+  const [accountRefundValue, setAccountRefundValue] = useState('Axis Bank - 459812341234');
+  const [accountbsb, setAccountBsb] = useState('123-456');
+  const [accountBankName, setAccountBankName] = useState('Axis Bank');
+  const [accountHolderName, setAccountHolderName] = useState('John Doe');
 
   const originalServices: Service[] = services;
   const totalPaid = propTotalPaid > 0 ? propTotalPaid : originalServices.reduce((sum, s) => sum + s.price, 0);
@@ -614,10 +619,73 @@ const RefundPayment = ({ bookingId, services = [], totalPaid: propTotalPaid = 0 
 
                   {/* Refund Method */}
                   <div className="p-4 bg-slate-50 rounded-xl">
-                    <p className="text-sm text-slate-500 mb-1">Refund Method</p>
-                    <div className="flex items-center gap-2">
-                      <CreditCard className="w-4 h-4 text-slate-400" />
-                      <span className="text-slate-800">Original Payment Method (•••• 4242)</span>
+                    <p className="text-sm text-slate-500 mb-3">Refund Bank Details</p>
+                    <div className="space-y-3">
+
+                      <label
+                        className="block rounded-xl border-2 p-4 transition cursor-pointer'border-slate-200 bg-white hover:border-blue-200"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="flex-1 space-y-2">
+                            <div className="mb-2 flex items-center gap-2">
+                              <Landmark className="w-4 h-4 text-blue-500" />
+                              <span className="font-medium text-slate-800">Account</span>
+                            </div>
+
+                            <div>
+                            <label className="block text-xs font-medium text-slate-900 mb-1 ml-2">
+                              Account Number :
+                            </label>
+                            <input
+                              type="text"
+                              value={accountRefundValue}
+                              onChange={(e) => setAccountRefundValue(e.target.value)}
+                              placeholder="Enter Account Number"
+                              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                            />
+                            </div>
+
+                            <div>
+                            <label className="block text-xs font-medium text-slate-900 mb-1 ml-2">
+                              BSB Code :
+                            </label>
+                            <input
+                              type="text"
+                              value={accountbsb}
+                              onChange={(e) => setAccountBsb(e.target.value)}
+                              placeholder="Enter BSB Code"
+                              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                            />
+                            </div>
+
+                            <div>
+                            <label className="block text-xs font-medium text-slate-900 mb-1 ml-2">
+                              Bank Name :
+                            </label>
+                            <input
+                              type="text"
+                              value={accountBankName}
+                              onChange={(e) => setAccountBankName(e.target.value)}
+                              placeholder="Enter Bank Name"
+                              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                            />
+                            </div>
+
+                            <div>
+                            <label className="block text-xs font-medium text-slate-900 mb-1 ml-2">
+                              Account Holder Name :
+                            </label>
+                            <input
+                              type="text"
+                              value={accountHolderName}
+                              onChange={(e) => setAccountHolderName(e.target.value)}
+                              placeholder="Enter Account Holder Name"
+                              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                            />
+                            </div>
+                          </div>
+                        </div>
+                      </label>
                     </div>
                   </div>
 
