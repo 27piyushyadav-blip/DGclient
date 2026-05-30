@@ -53,6 +53,7 @@ import {
   Settings,
   BadgeDollarSignIcon,
 } from 'lucide-react';
+import { createEditServiceRequestApi } from '@/lib/bookingsApi';
 
 // Types
 type Service = {
@@ -84,6 +85,7 @@ type TabType = 'exchange' | 'experts' | 'summary' | 'history';
 type ExchangeType = 'add_more' | 'refund' | 'adjust_equal';
 
 interface ExchangePageProps {
+  bookingId?: string;
   originalServices?: Service[];
   originalTotal?: number;
   availableServices?: Service[];
@@ -205,10 +207,11 @@ const ServiceImage = ({ src, alt, className }: { src: string; alt: string; class
 };
 
 const ExchangeService = ({
-  originalServices = defaultOriginalServices,
-  originalTotal = 250,
-  availableServices = defaultAvailableServices,
-  availableExperts = defaultAvailableExperts,
+  bookingId,
+  originalServices = [],
+  originalTotal = 0,
+  availableServices = [],
+  availableExperts = [],
   onExchangeComplete,
 }: ExchangePageProps) => {
   const [activeTab, setActiveTab] = useState<TabType>('exchange');
@@ -338,13 +341,35 @@ const ExchangeService = ({
     }, 1500);
   };
 
-  const handleProcessRefund = () => {
+  const handleProcessRefund = async () => {
     setIsProcessing(true);
-    setTimeout(() => {
+    try {
+      // Call the API to create edit service request
+      await createEditServiceRequestApi({
+        bookingId: bookingId || 'booking-id-placeholder', // Use prop or fallback
+        originalService: originalServices.map(s => s.name).join(', '),
+        originalAmount: originalTotal?.toString() || '0',
+        newService: selectedServices.map(s => s.name).join(', '),
+        newAmount: selectedServices.reduce((sum, s) => sum + s.price * s.quantity, 0).toString(),
+        reason: 'Client requested service change',
+        metadata: {
+          additionalServices: selectedServices,
+          removedServices: [],
+        },
+      });
+      
       setIsProcessing(false);
       setRefundProcessed(true);
-      setTimeout(() => setRefundProcessed(false), 3000);
-    }, 1500);
+      
+      // Redirect to appointments page after successful submission
+      setTimeout(() => {
+        window.location.href = '/appointments';
+      }, 2000);
+    } catch (error) {
+      console.error('Failed to process edit service request:', error);
+      setIsProcessing(false);
+      alert('Failed to process edit service request. Please try again.');
+    }
   };
 
   const handleGenerateReceipt = () => {

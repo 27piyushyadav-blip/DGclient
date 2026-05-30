@@ -71,10 +71,10 @@ export default function UserProfileForm({ user }: { user: any }) {
     startTransition(async () => {
       try {
         if (selectedFile) {
-          await uploadUserProfileImageApi(selectedFile, authHeaders);
+          await uploadUserProfileImageApi(selectedFile);
         }
         
-        await updateUserProfileApi({ name: data.name }, authHeaders);
+        await updateUserProfileApi({ name: data.name });
         
         toast.success("Profile updated successfully!");
         

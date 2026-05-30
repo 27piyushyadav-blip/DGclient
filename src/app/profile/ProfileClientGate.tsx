@@ -18,7 +18,7 @@ export default function ProfileClientGate() {
     if (!isLoading && !isAuthenticated) {
       router.push("/login");
     } else if (isAuthenticated && authHeaders.Authorization) {
-      getUserProfileApi(authHeaders)
+      getUserProfileApi()
         .then((res) => setFullProfile(res.data))
         .catch(console.error)
         .finally(() => setIsFetchingProfile(false));

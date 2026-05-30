@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, type ReactNode, useEffect } from "react";
 import {
   CalendarDays,
   ChevronDown,
@@ -76,9 +76,11 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer";
 import Link from "next/link";
-import { venues, type Venue } from "./data";
+import { venues, type Venue, mapOrgToVenue } from "./data";
+import { getOrganizationsListApi } from "@/lib/directoryApi";
 import SpecificVenueBookingModal from "./specific/[id]/SpecificVenueBookingModal";
 import MessageDialog from "./specific/[id]/MessageDialog";
+import ExpertSelectionDialog from "./specific/[id]/ExpertSelectionDialog";
 import VideoModal from "@/components/modals/VideoModal";
 
 const filters = {
@@ -156,6 +158,9 @@ function VenueCard({
   address,
   accent,
   glow,
+  bgImage,
+  tagline,
+  description,
   services,
   detailHref,
   onBookNow,
@@ -177,9 +182,7 @@ function VenueCard({
           {/* Background Image with Light Overlay */}
           <div
             className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-30 mix-blend-overlay"
-            style={{
-              backgroundImage: "url('https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=2070&auto=format&fit=crop')",
-            }}
+            style={{ backgroundImage: bgImage }}
           />
 
           {/* Dark Gradient Overlay */}
@@ -203,7 +206,7 @@ function VenueCard({
               <div>
                 <h2 className="text-[1.8rem] font-bold leading-none">{name}</h2>
                 <p className="mt-2 text-lg italic text-white/90">
-                  Relax & Rejuvenate
+                  {tagline || "Relax & Rejuvenate"}
                 </p>
               </div>
 
@@ -216,7 +219,7 @@ function VenueCard({
             </div>
 
             <p className="mt-6 max-w-xs text-sm leading-6 text-white/88">
-              Experience the healing touch of our professional therapists.
+              {description || "Experience premium care from our professional team."}
             </p>
 
             <div className="mt-auto flex flex-col gap-4 pt-8">
@@ -316,13 +319,41 @@ function VenueCard({
 }
 
 export default function MainPage() {
-  const [venueList] = useState<MainVenue[]>(defaultVenueCards);
+  const [venueList, setVenueList] = useState<MainVenue[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedVenue, setSelectedVenue] = useState<MainVenue | null>(null);
   const [messageVenue, setMessageVenue] = useState<MainVenue | null>(null);
+  const [selectedExpert, setSelectedExpert] = useState<any>(null);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false);
+  const [isExpertSelectionOpen, setIsExpertSelectionOpen] = useState(false);
   const [bookingFlow, setBookingFlow] = useState<"service-first" | "staff-first">("service-first");
   const [activeVideoUrl, setActiveVideoUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadOrganizations() {
+      try {
+        const res = await getOrganizationsListApi();
+        if (res && (res as any).status === 'success' && (res as any).data?.organizations) {
+          const mapped = (res as any).data.organizations.map((org: any, idx: number) => ({
+            ...mapOrgToVenue(org, idx),
+            detailHref: `/main/specific/${org._id}`,
+            videoUrl: org.introVideo || fallbackVideoUrl,
+          }));
+          setVenueList(mapped);
+        } else {
+          setError("Failed to load organizations");
+        }
+      } catch (err: any) {
+        console.error("Error loading organizations:", err);
+        setError("Error fetching organizations from backend");
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadOrganizations();
+  }, []);
 
   const handleBookNow = (venue: MainVenue) => {
     setSelectedVenue(venue);
@@ -344,6 +375,11 @@ export default function MainPage() {
     if (!venue.staff.length) return;
 
     setMessageVenue(venue);
+    setIsExpertSelectionOpen(true);
+  };
+
+  const handleSelectExpert = (expert: any) => {
+    setSelectedExpert(expert);
     setIsMessageDialogOpen(true);
   };
 
@@ -383,16 +419,36 @@ export default function MainPage() {
               <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             </div>
             <section className="grid gap-6 lg:grid-cols-2">
-              {venueList.map((venue) => (
-                <VenueCard
-                  key={`${venue.id}-${venue.name}`}
-                  {...venue}
-                  onBookNow={() => handleBookNow(venue)}
-                  onStaffSelect={() => handleStaffSelect(venue)}
-                  onPlayVideo={() => handlePlayVideo(venue)}
-                  onMessageNow={() => handleMessageNow(venue)}
-                />
-              ))}
+              {loading ? (
+                Array.from({ length: 4 }).map((_, index) => (
+                  <Card key={index} className="overflow-hidden rounded-[28px] border-slate-200 shadow-md animate-pulse">
+                    <div className="h-[250px] bg-slate-200" />
+                    <div className="p-6 space-y-4">
+                      <div className="h-6 w-1/3 bg-slate-200 rounded" />
+                      <div className="h-4 w-2/3 bg-slate-200 rounded" />
+                    </div>
+                  </Card>
+                ))
+              ) : error ? (
+                <div className="col-span-2 text-center py-10">
+                  <p className="text-red-500 font-semibold">{error}</p>
+                </div>
+              ) : venueList.length === 0 ? (
+                <div className="col-span-2 text-center py-10">
+                  <p className="text-slate-500">No partner organizations found.</p>
+                </div>
+              ) : (
+                venueList.map((venue) => (
+                  <VenueCard
+                    key={`${venue.id}-${venue.name}`}
+                    {...venue}
+                    onBookNow={() => handleBookNow(venue)}
+                    onStaffSelect={() => handleStaffSelect(venue)}
+                    onPlayVideo={() => handlePlayVideo(venue)}
+                    onMessageNow={() => handleMessageNow(venue)}
+                  />
+                ))
+              )}
             </section>
           </div>
         </div>
@@ -414,11 +470,21 @@ export default function MainPage() {
         />
       ) : null}
 
-      {messageVenue?.staff[0] ? (
+      {messageVenue ? (
+        <ExpertSelectionDialog
+          open={isExpertSelectionOpen}
+          onOpenChange={setIsExpertSelectionOpen}
+          allStaff={messageVenue.staff}
+          venueName={messageVenue.name}
+          onSelectExpert={handleSelectExpert}
+        />
+      ) : null}
+
+      {messageVenue && selectedExpert ? (
         <MessageDialog
           open={isMessageDialogOpen}
           onOpenChange={setIsMessageDialogOpen}
-          staff={messageVenue.staff[0]}
+          staff={selectedExpert}
           venueName={messageVenue.name}
           allStaff={messageVenue.staff}
         />

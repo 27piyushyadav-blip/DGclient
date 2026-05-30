@@ -3,7 +3,7 @@ import { apiClient } from "./apiClient";
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 export async function getExpertsListApi() {
-  return apiClient(`${BASE_URL}/directory/experts`, {
+  return apiClient<any>(`${BASE_URL}/directory/experts`, {
     method: "GET",
     skipAuth: true
   });
@@ -11,7 +11,7 @@ export async function getExpertsListApi() {
 
 export async function getExpertProfileByIdApi(id: string) {
   try {
-    return await apiClient(`${BASE_URL}/directory/experts/${id}`, {
+    return await apiClient<any>(`${BASE_URL}/directory/experts/${id}`, {
       method: "GET",
       skipAuth: true
     });
@@ -22,7 +22,7 @@ export async function getExpertProfileByIdApi(id: string) {
 }
 
 export async function getOrganizationsListApi() {
-  return apiClient(`${BASE_URL}/directory/organizations`, {
+  return apiClient<any>(`${BASE_URL}/directory/organizations`, {
     method: "GET",
     skipAuth: true
   });
@@ -30,7 +30,7 @@ export async function getOrganizationsListApi() {
 
 export async function getOrganizationProfileByIdApi(id: string) {
   try {
-    return await apiClient(`${BASE_URL}/directory/organizations/${id}`, {
+    return await apiClient<any>(`${BASE_URL}/directory/organizations/${id}`, {
       method: "GET",
       skipAuth: true
     });

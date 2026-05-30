@@ -133,6 +133,20 @@ export default function Header() {
             >
               Main
             </Link>
+            {isAuthenticated && (
+              <Link
+                href="/chat"
+                className={cn(
+                  "flex items-center gap-1.5 text-sm font-medium transition-colors hover:text-zinc-900 dark:hover:text-white relative",
+                  isActive("/chat")
+                    ? "text-zinc-900 dark:text-white"
+                    : "text-zinc-600 dark:text-zinc-400",
+                )}
+              >
+                <MessageCircle className="h-4 w-4" />
+                Messages
+              </Link>
+            )}
             <Link
               href="/order"
               className={cn(
@@ -204,6 +218,15 @@ export default function Header() {
                     >
                       <Calendar className="h-4 w-4" />
                       Main
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link
+                      href="/chat"
+                      className="flex items-center gap-2 cursor-pointer"
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                      Messages
                     </Link>
                   </DropdownMenuItem>
 
@@ -333,6 +356,21 @@ export default function Header() {
             >
               Main
             </Link>
+            {isAuthenticated && (
+              <Link
+                href="/chat"
+                className={cn(
+                  "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors",
+                  isActive("/chat")
+                    ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white"
+                    : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900",
+                )}
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                <MessageCircle className="h-4 w-4" />
+                Messages
+              </Link>
+            )}
             {!isAuthenticated && (
               <>
                 <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800">

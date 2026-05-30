@@ -24,6 +24,7 @@ import {
   Receipt,
   Sparkles,
 } from 'lucide-react';
+import { createRefundRequestApi } from '@/lib/bookingsApi';
 
 type RefundReason = 
   | 'not_as_described'
@@ -50,10 +51,11 @@ type UploadedFile = {
 
 type TabType = 'reason' | 'feedback' | 'summary';
 
-const originalServices: Service[] = [
-  { id: '1', name: 'Swedish Massage', duration: '60 min', price: 150, image: 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=150&h=150&fit=crop' },
-  { id: '2', name: 'Hair Styling', duration: '45 min', price: 100, image: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=150&h=150&fit=crop' },
-];
+interface RefundPaymentProps {
+  bookingId?: string;
+  services?: Service[];
+  totalPaid?: number;
+}
 
 function ServiceImage({ src, alt, className }: { src: string; alt: string; className: string }) {
   const [hasError, setHasError] = useState(false);
@@ -80,7 +82,7 @@ function ServiceImage({ src, alt, className }: { src: string; alt: string; class
   );
 }
 
-const RefundPayment = () => {
+const RefundPayment = ({ bookingId, services = [], totalPaid: propTotalPaid = 0 }: RefundPaymentProps) => {
   const [activeTab, setActiveTab] = useState<TabType>('reason');
   const [selectedReason, setSelectedReason] = useState<RefundReason>('did_not_receive');
   const [additionalNotes, setAdditionalNotes] = useState('Customer mentioned that the massage was too rough and caused discomfort.');
@@ -93,7 +95,8 @@ const RefundPayment = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [refundConfirmed, setRefundConfirmed] = useState(false);
 
-  const totalPaid = 250;
+  const originalServices: Service[] = services;
+  const totalPaid = propTotalPaid > 0 ? propTotalPaid : originalServices.reduce((sum, s) => sum + s.price, 0);
   const processingFee = refundType === 'full' ? totalPaid * 0.02 : partialAmount * 0.02;
   const refundAmount = refundType === 'full' ? totalPaid : partialAmount;
   const totalRefund = refundAmount - processingFee;
@@ -168,15 +171,36 @@ const RefundPayment = () => {
     }
   };
 
-  const handleProcessRefund = () => {
+  const handleProcessRefund = async () => {
     setIsProcessing(true);
-    setTimeout(() => {
+    try {
+      // Call the API to create refund request
+      await createRefundRequestApi({
+        bookingId: bookingId || 'booking-id-placeholder', // Use prop or fallback
+        amount: refundAmount.toString(),
+        reason: selectedReason,
+        refundType: refundType,
+        paymentMethod: 'card',
+        metadata: {
+          rating,
+          feedback: customerFeedback,
+          files,
+        },
+      });
+
       setIsProcessing(false);
       setRefundConfirmed(true);
+      
+      // Redirect to appointments page after successful submission
       setTimeout(() => {
-        setRefundConfirmed(false);
+        window.location.href = '/appointments';
       }, 2000);
-    }, 1500);
+    } catch (error) {
+      console.error('Failed to process refund:', error);
+      setIsProcessing(false);
+      // Show error message to user
+      alert('Failed to process refund request. Please try again.');
+    }
   };
 
   const isTabComplete = (tab: TabType): boolean => {

@@ -1,14 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { Venue } from "@/app/main/data";
-import { venues } from "@/app/main/data";
+import { venues, mapOrgToVenue } from "@/app/main/data";
+import { getOrganizationsListApi } from "@/lib/directoryApi";
 import SpecificVenueBookingModal from "@/app/main/specific/[id]/SpecificVenueBookingModal";
 import VideoModal from "@/components/modals/VideoModal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Clock3, MapPin, Phone, Play, Plus, SearchIcon } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  DialogHeader,
+} from "@/components/ui/dialog";
 
 const fallbackVideoUrl = "https://youtu.be/sRWcJrMTtMI?si=hbh0v0HYOocQsXrE";
 
@@ -41,10 +49,12 @@ function VenueCard({
   venue,
   onOpenBooking,
   onPlayVideo,
+  onBookOnCall,
 }: {
   venue: Venue;
   onOpenBooking: (venue: Venue) => void;
   onPlayVideo: (venue: Venue) => void;
+  onBookOnCall: (venue: Venue) => void;
 }) {
   const handlePlayClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
@@ -60,10 +70,7 @@ function VenueCard({
         >
           <div
             className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-30 mix-blend-overlay"
-            style={{
-              backgroundImage:
-                "url('https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=2070&auto=format&fit=crop')",
-            }}
+            style={{ backgroundImage: venue.bgImage }}
           />
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-black/60 via-black/40 to-transparent" />
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.22),transparent_32%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.18),transparent_24%)]" />
@@ -85,7 +92,7 @@ function VenueCard({
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-[1.8rem] font-bold leading-none">{venue.name}</h2>
-                <p className="mt-2 text-lg italic text-white/90">Relax & Rejuvenate</p>
+                <p className="mt-2 text-lg italic text-white/90">{venue.tagline || `${venue.name} Wellness`}</p>
               </div>
               <Badge variant="default" className="bg-blue-600 text-white shadow-lg">
                 <Clock3 className="mr-1.5 h-3.5 w-3.5" />
@@ -94,7 +101,7 @@ function VenueCard({
             </div>
 
             <p className="mt-6 max-w-xs text-sm leading-6 text-white/88">
-              Experience the healing touch of our professional therapists.
+              {venue.description || `Welcome to ${venue.name}. Contact us to book our premium services.`}
             </p>
 
             <div className="mt-auto flex flex-col gap-4 pt-8">
@@ -169,6 +176,7 @@ function VenueCard({
         
         <div
           className="h-full rounded-xl bg-blue-600 text-sm font-semibold text-white shadow-lg shadow-blue-600/25 hover:bg-blue-700 mr-1 text-[12px] py-3 cursor-pointer flex flex-col items-center justify-center transition-colors p-2"
+          onClick={() => onBookOnCall(venue)}
         >
           <Phone className="mr-1.5 h-4 w-4" />
           Book On Call
@@ -179,13 +187,45 @@ function VenueCard({
 }
 
 const VoiceCall = () => {
+  const [venueList, setVenueList] = useState<Venue[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [activeVideoUrl, setActiveVideoUrl] = useState<string | null>(null);
+  const [callVenue, setCallVenue] = useState<Venue | null>(null);
+  const [isCallModalOpen, setIsCallModalOpen] = useState(false);
+
+  useEffect(() => {
+    async function loadOrganizations() {
+      try {
+        const res = await getOrganizationsListApi();
+        if (res && (res as any).status === 'success' && (res as any).data?.organizations) {
+          const mapped = (res as any).data.organizations.map((org: any, idx: number) => 
+            mapOrgToVenue(org, idx)
+          );
+          setVenueList(mapped);
+        } else {
+          setError("Failed to load organizations");
+        }
+      } catch (err: any) {
+        console.error("Error loading organizations in voicecallorder:", err);
+        setError("Error fetching organizations from backend");
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadOrganizations();
+  }, []);
 
   const handleOpenBooking = (venue: Venue) => {
     setSelectedVenue(venue);
     setIsBookingOpen(true);
+  };
+
+  const handleBookOnCall = (venue: Venue) => {
+    setCallVenue(venue);
+    setIsCallModalOpen(true);
   };
 
   const handlePlayVideo = (_venue: Venue) => {
@@ -210,14 +250,35 @@ const VoiceCall = () => {
           </div>
 
           <div className="grid gap-6 xl:grid-cols-2">
-            {venues.map((venue) => (
-              <VenueCard
-                key={venue.id}
-                venue={venue}
-                onOpenBooking={handleOpenBooking}
-                onPlayVideo={handlePlayVideo}
-              />
-            ))}
+            {loading ? (
+              Array.from({ length: 4 }).map((_, index) => (
+                <Card key={index} className="overflow-hidden rounded-[28px] border-slate-200 shadow-md animate-pulse">
+                  <div className="h-[250px] bg-slate-200" />
+                  <div className="p-6 space-y-4">
+                    <div className="h-6 w-1/3 bg-slate-200 rounded" />
+                    <div className="h-4 w-2/3 bg-slate-200 rounded" />
+                  </div>
+                </Card>
+              ))
+            ) : error ? (
+              <div className="col-span-2 text-center py-10">
+                <p className="text-red-500 font-semibold">{error}</p>
+              </div>
+            ) : venueList.length === 0 ? (
+              <div className="col-span-2 text-center py-10">
+                <p className="text-slate-500">No partner organizations found.</p>
+              </div>
+            ) : (
+              venueList.map((venue) => (
+                <VenueCard
+                  key={venue.id}
+                  venue={venue}
+                  onOpenBooking={handleOpenBooking}
+                  onPlayVideo={handlePlayVideo}
+                  onBookOnCall={handleBookOnCall}
+                />
+              ))
+            )}
           </div>
         </div>
       </div>
@@ -228,6 +289,59 @@ const VoiceCall = () => {
           onOpenChange={setIsBookingOpen}
           venue={selectedVenue}
         />
+      ) : null}
+
+      {callVenue ? (
+        <Dialog open={isCallModalOpen} onOpenChange={setIsCallModalOpen}>
+          <DialogContent className="sm:max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800">
+            <DialogHeader className="space-y-3">
+              <DialogTitle className="text-xl font-bold text-center flex items-center justify-center gap-2 text-slate-900 dark:text-white">
+                <Phone className="h-5 w-5 text-blue-600 animate-pulse" />
+                Book On Call
+              </DialogTitle>
+              <DialogDescription className="text-center text-slate-500 dark:text-slate-400">
+                Call {callVenue.name} to book your service directly over the phone.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="flex flex-col items-center justify-center space-y-6 py-4">
+              {/* Phone Number Display */}
+              <div className="text-center">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1">
+                  Phone Number
+                </p>
+                <a
+                  href={`tel:${callVenue.phone || "+1234567890"}`}
+                  className="text-2xl font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors flex items-center gap-2 justify-center"
+                >
+                  {callVenue.phone || "+1 (555) 019-2834"}
+                </a>
+              </div>
+
+              {/* QR Code Section */}
+              <div className="flex flex-col items-center p-4 bg-slate-50 dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800">
+                <div className="bg-white p-3 rounded-xl shadow-inner mb-3">
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=tel:${encodeURIComponent(callVenue.phone || "+1234567890")}`}
+                    alt="Phone number QR Code"
+                    className="w-[180px] h-[180px] object-contain"
+                  />
+                </div>
+                <p className="text-xs text-center text-slate-500 dark:text-slate-400 max-w-[200px]">
+                  Scan this QR code with your mobile camera to call instantly
+                </p>
+              </div>
+
+              {/* Call Now Button (for mobile users) */}
+              <Button asChild className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-3 font-semibold shadow-lg shadow-blue-600/25 transition-all">
+                <a href={`tel:${callVenue.phone || "+1234567890"}`} className="flex items-center justify-center gap-2">
+                  <Phone className="h-4 w-4" />
+                  Call Now
+                </a>
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       ) : null}
 
       {activeVideoUrl ? (

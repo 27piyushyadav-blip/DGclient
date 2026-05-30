@@ -212,7 +212,7 @@ export default function SpecificVenueClientWrapper({
                             className="flex-1 rounded-xl bg-blue-600 text-white hover:bg-blue-700"
                             onClick={() => handleMessageStaff(member)}
                           >
-                            Massage
+                            Message
                           </Button>
                         </div>
                       </CardContent>
@@ -299,57 +299,40 @@ export default function SpecificVenueClientWrapper({
                 </CardContent>
               </Card>
 
-              {/* <Card className="rounded-[28px] border-slate-200 shadow-sm bg-white">
+              <Card className="rounded-[28px] border-slate-200 shadow-sm bg-white">
                 <CardContent className="space-y-5 p-5">
-                  {venue.features.map((feature, index) => {
-                    const Icon = infoIcons[index % infoIcons.length];
+                  <h3 className="text-xl font-bold text-slate-900 mb-2">Key Features</h3>
+                  <div className="space-y-4">
+                    {venue.features?.map((feature, index) => {
+                      const Icon = infoIcons[index % infoIcons.length];
 
-                    return (
-                      <div
-                        key={feature.title}
-                        className="flex items-start gap-3"
-                      >
-                        <div className="rounded-2xl bg-blue-50 p-3 text-blue-600">
-                          <Icon className="h-5 w-5" />
+                      return (
+                        <div
+                          key={feature.title}
+                          className="flex items-start gap-3"
+                        >
+                          <div className="rounded-2xl bg-blue-50 p-3 text-blue-600">
+                            <Icon className="h-5 w-5" />
+                          </div>
+                          <div>
+                            <h4 className="font-semibold text-slate-900 text-sm">
+                              {feature.title}
+                            </h4>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              {feature.description}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <h3 className="font-semibold text-slate-900">
-                            {feature.title}
-                          </h3>
-                          <p className="text-sm text-slate-500">
-                            {feature.description}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </CardContent>
-              </Card> */}
-
-              {/* <Button variant="outline" asChild className="w-full rounded-2xl border-slate-200 bg-white text-black">
-                <Link href="/main">
-                  <Clock3 className="h-4 w-4 text-blue-600" />
-                  Back to Listings
-                </Link>
-              </Button> */}
+              </Card>
 
               <Card className="rounded-[28px] border-slate-200 shadow-sm bg-white">
                 <CardContent className="space-y-5 p-5">
-                  <h2 className="text-3xl font-bold text-slate-900">Product</h2>
+                  <h2 className="text-3xl font-bold text-slate-900">Products</h2>
                   <div className="space-y-4">
-                    {venue.products.slice(0, 5).map((product) => (
-                      <div key={product.name} className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3" >
-                          <div
-                            className="h-12 w-12 rounded-xl bg-cover bg-center"
-                            style={{ backgroundImage: `url('${product.image}')` }}
-                          />
-
-                        </div>
-                        <span className="text-sm font-medium text-slate-700">{product.name}</span>
-                        <span className="text-2xl font-bold text-blue-600">{product.price}</span>
-                      </div>
-                    ))}
                     {venue.products.slice(0, 5).map((product) => (
                       <div key={product.name} className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-3" >

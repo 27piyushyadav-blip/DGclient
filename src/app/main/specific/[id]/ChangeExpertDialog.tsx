@@ -132,6 +132,7 @@ import Image from "next/image";
 import { useState } from "react";
 
 interface StaffMember {
+  id?: string;
   name: string;
   role: string;
   imageUrl: string;

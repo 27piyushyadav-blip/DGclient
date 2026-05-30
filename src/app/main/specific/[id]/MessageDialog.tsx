@@ -1,38 +1,25 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import {
   Star,
-  Phone,
-  Video,
-  MoreVertical,
-  Send,
-  ArrowLeft,
-  Check,
-  CheckCheck,
   User,
   Award,
   Clock,
   Calendar,
   Play,
-  Paperclip
+  Check,
 } from "lucide-react";
 import Image from "next/image";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
 import VideoModal from "@/components/modals/VideoModal";
 import ChangeExpertDialog from "./ChangeExpertDialog";
 import ProfileModal from "./ProfileModal";
+import RealChatPanel from "./RealChatPanel";
 
 // Types
-interface Message {
-  id: string;
-  text: string;
-  sender: "user" | "expert";
-  timestamp: string;
-  status?: "sent" | "delivered" | "read";
-}
-
 interface MenuItem {
   id: string;
   name: string;
@@ -42,6 +29,7 @@ interface MenuItem {
 }
 
 interface StaffMember {
+  id?: string;
   name: string;
   role: string;
   image: string;
@@ -112,51 +100,6 @@ const menuItems: MenuItem[] = [
   },
 ];
 
-const initialMessages: Message[] = [
-  {
-    id: "1",
-    text: "Hi Suraj\n+91 98265 5999",
-    sender: "expert",
-    timestamp: "7 mins",
-    status: "read",
-  },
-  {
-    id: "2",
-    text: "Hello!\nCan I get service?",
-    sender: "user",
-    timestamp: "7 mins",
-    status: "read",
-  },
-  {
-    id: "3",
-    text: "Sure, What are you after?",
-    sender: "expert",
-    timestamp: "5 mins",
-    status: "read",
-  },
-  {
-    id: "4",
-    text: "Hi Suraj",
-    sender: "expert",
-    timestamp: "5 mins",
-    status: "read",
-  },
-  {
-    id: "5",
-    text: "Manicure, Haircut & Shaving",
-    sender: "user",
-    timestamp: "4 mins",
-    status: "read",
-  },
-  {
-    id: "6",
-    text: "OK! I will add services & book you now :)",
-    sender: "expert",
-    timestamp: "3 mins",
-    status: "read",
-  },
-];
-
 const StarRating = ({
   rating,
   reviews,
@@ -167,111 +110,69 @@ const StarRating = ({
   <div className="flex items-center gap-1">
     <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
     <span className="text-sm font-semibold text-zinc-700">{rating}</span>
-    <span className="text-xs text-zinc-500">★★★★★({reviews} Public Reviews)</span>
+    <span className="text-xs text-zinc-500">
+      ★★★★★({reviews} Public Reviews)
+    </span>
   </div>
 );
 
-const MessageStatus = ({ status }: { status: string }) => {
-  if (status === "sent") return <Check className="w-3 h-3 text-zinc-400" />;
-  if (status === "delivered")
-    return <CheckCheck className="w-3 h-3 text-zinc-400" />;
-  if (status === "read")
-    return <CheckCheck className="w-3 h-3 text-blue-500" />;
-  return null;
-};
-
-export default function MessageDialog({ open, onOpenChange, staff, venueName, allStaff = [] }: MessageDialogProps) {
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
-  const [inputMessage, setInputMessage] = useState("");
+export default function MessageDialog({
+  open,
+  onOpenChange,
+  staff,
+  venueName,
+  allStaff = [],
+}: MessageDialogProps) {
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [isChangeExpertOpen, setIsChangeExpertOpen] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  // Track which staff member is actively being chatted with (allows switching)
+  const [activeStaff, setActiveStaff] = useState<StaffMember>(staff);
 
-  // Expert data with staff info
+  console.log("[MessageDialog] activeStaff:", activeStaff);
+  console.log("[MessageDialog] activeStaff.id:", activeStaff.id);
+
+  // Expert data
   const expertData = {
-    id: staff.name,
-    name: staff.name,
-    role: staff.role,
+    id: activeStaff.id || activeStaff.name,
+    name: activeStaff.name,
+    role: activeStaff.role,
     rating: 4.9,
     reviews: 119,
     experience: "10 Years",
-    imageUrl: staff.image || staff.imageUrl || "",
+    imageUrl: activeStaff.image || activeStaff.imageUrl || "",
     videoUrl: "https://youtu.be/sRWcJrMTtMI?si=hbh0v0HYOocQsXrE",
     isOnline: true,
-    bio: `Professional ${staff.role.toLowerCase()} with 10+ years of experience. Specialized in providing relaxing and rejuvenating treatments.`,
+    bio: `Professional ${activeStaff.role.toLowerCase()} with 10+ years of experience. Specialized in providing relaxing and rejuvenating treatments.`,
   };
 
   const normalizedStaff: NormalizedStaffMember = {
-    ...staff,
-    imageUrl: staff.imageUrl || staff.image || "",
+    ...activeStaff,
+    imageUrl: activeStaff.imageUrl || activeStaff.image || "",
   };
 
   const normalizedAllStaff: NormalizedStaffMember[] = allStaff.map(
     (expert) => ({
       ...expert,
       imageUrl: expert.imageUrl || expert.image || "",
-    }),
+    })
   );
 
   const selectedServicesList = menuItems.filter((s) =>
-    selectedServices.includes(s.id),
+    selectedServices.includes(s.id)
   );
   const totalAmount = selectedServicesList.reduce(
     (sum, service) => sum + service.price,
-    0,
+    0
   );
   const gst = Math.round(totalAmount * 0.05);
   const totalWithGst = totalAmount + gst;
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const handleSendMessage = () => {
-    if (!inputMessage.trim()) return;
-
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      text: inputMessage,
-      sender: "user",
-      timestamp: "Just now",
-      status: "sent",
-    };
-
-    setMessages([...messages, newMessage]);
-    setInputMessage("");
-
-    setTimeout(() => {
-      const replyMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        text: "Thanks for your message! I'll help you with the booking.",
-        sender: "expert",
-        timestamp: "Just now",
-        status: "read",
-      };
-      setMessages((prev) => [...prev, replyMessage]);
-    }, 1000);
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  };
-
   const handlePlayVideo = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-
     if (expertData.videoUrl) {
       onOpenChange(false);
       window.setTimeout(() => {
@@ -293,20 +194,25 @@ export default function MessageDialog({ open, onOpenChange, staff, venueName, al
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-7xl w-[95vw] h-[90vh] p-0 overflow-hidden rounded-2xl bg-zinc-50 border-zinc-200">
-          <DialogTitle className="sr-only">Chat with {staff.name}</DialogTitle>
+          <DialogTitle className="sr-only">
+            Chat with {activeStaff.name}
+          </DialogTitle>
 
-          <div className="min-h-full bg-zinc-50">
+          <div className="min-h-full bg-zinc-50 h-full overflow-auto">
             <div className="container mx-auto max-w-7xl px-4 py-6 h-full flex flex-col">
-              {/* Header with Back Button */}
+              {/* Header */}
               <div className="flex items-center gap-4 mb-6">
-                <button onClick={() => onOpenChange(false)} className="p-2 hover:bg-zinc-200 rounded-lg transition-colors cursor-pointer">
+                <button
+                  onClick={() => onOpenChange(false)}
+                  className="p-2 hover:bg-zinc-200 rounded-lg transition-colors cursor-pointer"
+                >
                   <ArrowLeft className="w-5 h-5 text-zinc-600" />
                 </button>
                 <h1 className="text-2xl font-bold text-zinc-900">Messages</h1>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0">
-                {/* LEFT COLUMN - Staff Profile with Play Button */}
+                {/* LEFT COLUMN - Expert Profile */}
                 <div className="lg:col-span-4">
                   <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden sticky top-6">
                     {/* Profile Image with Play Button */}
@@ -319,8 +225,8 @@ export default function MessageDialog({ open, onOpenChange, staff, venueName, al
                             fill
                             className="object-cover transition-transform duration-500"
                             onError={() => setImageError(true)}
+                            unoptimized
                           />
-                          {/* Play Button Overlay */}
                           <button
                             onClick={handlePlayVideo}
                             className="absolute inset-0 flex items-center justify-center transition-all duration-300 cursor-pointer"
@@ -340,10 +246,12 @@ export default function MessageDialog({ open, onOpenChange, staff, venueName, al
                     {/* Staff Info */}
                     <div className="p-5">
                       <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-2xl font-bold text-zinc-900">{expertData.name}</h3>
+                        <h3 className="text-2xl font-bold text-zinc-900">
+                          {expertData.name}
+                        </h3>
                         {expertData.isOnline && (
                           <div className="flex items-center gap-1">
-                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                             <span className="text-xs text-green-600">
                               Online
                             </span>
@@ -351,16 +259,23 @@ export default function MessageDialog({ open, onOpenChange, staff, venueName, al
                         )}
                       </div>
 
-                      <p className="text-md text-indigo-600 mb-3">{expertData.role}</p>
+                      <p className="text-md text-indigo-600 mb-3">
+                        {expertData.role}
+                      </p>
 
                       <div className="flex items-center gap-4 mb-3">
                         <div className="flex items-center gap-1">
                           <Award className="w-4 h-4 text-indigo-600" />
-                          <span className="text-sm text-zinc-700">{expertData.experience} Experience</span>
+                          <span className="text-sm text-zinc-700">
+                            {expertData.experience} Experience
+                          </span>
                         </div>
                       </div>
 
-                      <StarRating rating={expertData.rating} reviews={expertData.reviews} />
+                      <StarRating
+                        rating={expertData.rating}
+                        reviews={expertData.reviews}
+                      />
 
                       <p className="text-sm text-zinc-600 mt-4 pt-4 border-t border-zinc-200">
                         {expertData.bio}
@@ -368,20 +283,23 @@ export default function MessageDialog({ open, onOpenChange, staff, venueName, al
 
                       {/* Action Buttons */}
                       <div className="flex gap-3 mt-4 pt-4 border-t border-zinc-200">
-                        <Button variant="outline" className="flex-1 rounded-xl border-slate-200 text-blue-600 bg-white text-black hover:bg-white hover:text-black"
+                        <Button
+                          variant="outline"
+                          className="flex-1 rounded-xl border-slate-200 text-blue-600 bg-white text-black hover:bg-white hover:text-black"
                           onClick={() => setIsProfileModalOpen(true)}
-                        >View Profile</Button>
+                        >
+                          View Profile
+                        </Button>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* MIDDLE COLUMN - Chat UI */}
+                {/* MIDDLE COLUMN - Real Chat */}
                 <div className="lg:col-span-5 flex flex-col min-h-0">
-                  <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden flex flex-col  h-[33rem]">
-
+                  <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden flex flex-col h-[33rem]">
                     {/* Chat Header */}
-                    <div className="flex items-center justify-between p-4 border-b border-zinc-200 bg-white">
+                    <div className="flex items-center justify-between p-4 border-b border-zinc-200 bg-white flex-shrink-0">
                       <div className="flex items-center gap-3">
                         <div className="relative">
                           <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-indigo-500 to-purple-600">
@@ -392,6 +310,7 @@ export default function MessageDialog({ open, onOpenChange, staff, venueName, al
                                 width={40}
                                 height={40}
                                 className="w-full h-full object-cover"
+                                unoptimized
                               />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center">
@@ -400,80 +319,55 @@ export default function MessageDialog({ open, onOpenChange, staff, venueName, al
                             )}
                           </div>
                           {expertData.isOnline && (
-                            <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                            <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
                           )}
                         </div>
                         <div>
-                          <h3 className="font-semibold text-zinc-900">Chat with {expertData.name}</h3>
-                          <p className="text-xs text-green-600">Usually responds in a few minutes</p>
+                          <h3 className="font-semibold text-zinc-900 text-sm">
+                            Chat with {expertData.name}
+                          </h3>
+                          <p className="text-xs text-green-600">
+                            {activeStaff.id
+                              ? "Live · Usually responds in minutes"
+                              : "Demo mode"}
+                          </p>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1">
-                        <Button variant="outline" className="rounded-xl border-slate-200 text-blue-600 bg-white text-black hover:bg-white hover:text-black"
-                          onClick={() => setIsChangeExpertOpen(true)}
-                        > Change Expert</Button>
-                      </div>
+                      <Button
+                        variant="outline"
+                        className="rounded-xl border-slate-200 text-blue-600 bg-white text-black hover:bg-white hover:text-black text-sm"
+                        onClick={() => setIsChangeExpertOpen(true)}
+                      >
+                        Change Expert
+                      </Button>
                     </div>
 
-                    {/* Messages Area */}
-                    <div className="flex-1 overflow-y-scroll no-scrollbar p-4 space-y-4 bg-zinc-50/50 max-h-[23rem]">
-                      {messages.map((message) => (
-                        <div
-                          key={message.id}
-                          className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}
-                        >
-                          <div
-                            className={`max-w-[80%] rounded-2xl px-4 py-2 ${message.sender === "user"
-                                ? "bg-indigo-600 text-white rounded-br-sm"
-                                : "bg-white text-zinc-900 border border-zinc-200 rounded-bl-sm"
-                              }`}
-                          >
-                            <p className="text-sm whitespace-pre-line">
-                              {message.text}
-                            </p>
-                            <div
-                              className={`flex items-center gap-1 mt-1 text-xs ${message.sender === "user"
-                                  ? "text-indigo-200"
-                                  : "text-zinc-400"
-                                }`}
-                            >
-                              <span>{message.timestamp}</span>
-                              {message.sender === "user" && message.status && (
-                                <MessageStatus status={message.status} />
-                              )}
-                            </div>
+                    {/* Real Chat Panel */}
+                    <div className="flex-1 overflow-hidden">
+                      {activeStaff.id ? (
+                        <RealChatPanel
+                          key={activeStaff.id}
+                          expertId={activeStaff.id}
+                          expertName={expertData.name}
+                          expertAvatar={expertData.imageUrl}
+                          messagesHeightClass="h-[19rem]"
+                        />
+                      ) : (
+                        /* Fallback when no expert ID (static/demo data) */
+                        <div className="flex flex-col items-center justify-center h-full py-8 text-zinc-400 px-4 text-center">
+                          <div className="w-14 h-14 rounded-full bg-indigo-50 flex items-center justify-center mb-3">
+                            <User className="w-7 h-7 text-indigo-400" />
                           </div>
+                          <p className="text-sm font-medium text-zinc-600">
+                            Chat unavailable
+                          </p>
+                          <p className="text-xs text-zinc-400 mt-1">
+                            This expert is from demo data. Browse real
+                            organizations to start a live chat.
+                          </p>
                         </div>
-                      ))}
-                      <div ref={messagesEndRef} />
-                    </div>
-
-                    {/* Input Area */}
-                    <div className="p-4 border-t border-zinc-200 bg-white">
-                      <div className="flex items-center gap-2">
-                        <button className="p-2 hover:bg-zinc-100 rounded-full transition-colors cursor-pointer">
-                          <Paperclip className="w-5 h-5 text-zinc-500" />
-                        </button>
-                        <div className="flex-1 relative">
-                          <input
-                            ref={inputRef}
-                            type="text"
-                            value={inputMessage}
-                            onChange={(e) => setInputMessage(e.target.value)}
-                            onKeyPress={handleKeyPress}
-                            placeholder="Write a message..."
-                            className="w-full px-4 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-zinc-900 placeholder:text-zinc-400"
-                          />
-                        </div>
-                        <button
-                          onClick={handleSendMessage}
-                          disabled={!inputMessage.trim()}
-                          className="p-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-xl transition-all duration-300 cursor-pointer"
-                        >
-                          <Send className="w-5 h-5" />
-                        </button>
-                      </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -483,18 +377,28 @@ export default function MessageDialog({ open, onOpenChange, staff, venueName, al
                   {/* Menu Section */}
                   <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm">
                     <div className="p-5 border-b border-zinc-200">
-                      <h3 className="text-xl font-bold text-zinc-900">Services Menu</h3>
-                      <p className="text-sm text-zinc-500 mt-1">Select services you want to book</p>
+                      <h3 className="text-xl font-bold text-zinc-900">
+                        Services Menu
+                      </h3>
+                      <p className="text-sm text-zinc-500 mt-1">
+                        Select services you want to book
+                      </p>
                     </div>
 
-                    <div className={`divide-y divide-zinc-200 overflow-y-scroll scrollbar-thin ${selectedServices.length > 0 ? "max-h-[9rem]" : "max-h-[27rem]"}`}>
+                    <div
+                      className={`divide-y divide-zinc-200 overflow-y-auto scrollbar-thin ${
+                        selectedServices.length > 0
+                          ? "max-h-[9rem]"
+                          : "max-h-[27rem]"
+                      }`}
+                    >
                       {menuItems.map((item) => (
                         <div
                           key={item.id}
                           onClick={() => {
                             if (selectedServices.includes(item.id)) {
                               setSelectedServices(
-                                selectedServices.filter((id) => id !== item.id),
+                                selectedServices.filter((id) => id !== item.id)
                               );
                             } else {
                               setSelectedServices([
@@ -503,11 +407,13 @@ export default function MessageDialog({ open, onOpenChange, staff, venueName, al
                               ]);
                             }
                           }}
-                          className={`p-4 cursor-pointer transition-all duration-200 hover:bg-zinc-50 ${selectedServices.includes(item.id) ? "bg-indigo-50" : ""
-                            }`}
+                          className={`p-4 cursor-pointer transition-all duration-200 hover:bg-zinc-50 ${
+                            selectedServices.includes(item.id)
+                              ? "bg-indigo-50"
+                              : ""
+                          }`}
                         >
                           <div className="flex items-center gap-3">
-                            {/* Service Image */}
                             <div className="w-12 h-12 rounded-xl overflow-hidden bg-gradient-to-br from-indigo-100 to-purple-100 flex-shrink-0">
                               {item.imageUrl ? (
                                 <Image
@@ -516,6 +422,7 @@ export default function MessageDialog({ open, onOpenChange, staff, venueName, al
                                   width={48}
                                   height={48}
                                   className="w-full h-full object-cover"
+                                  unoptimized
                                 />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center">
@@ -536,9 +443,10 @@ export default function MessageDialog({ open, onOpenChange, staff, venueName, al
                               )}
                             </div>
 
-                            {/* Service Info */}
                             <div className="flex-1">
-                              <h4 className="font-semibold text-zinc-900">{item.name}</h4>
+                              <h4 className="font-semibold text-zinc-900 text-sm">
+                                {item.name}
+                              </h4>
                               {item.description && (
                                 <p className="text-xs text-zinc-500 mt-0.5">
                                   {item.description}
@@ -546,11 +454,12 @@ export default function MessageDialog({ open, onOpenChange, staff, venueName, al
                               )}
                             </div>
 
-                            {/* Price & Selection */}
                             <div className="text-right">
-                              <p className="text-lg font-bold text-indigo-600">${item.price}</p>
+                              <p className="text-base font-bold text-indigo-600">
+                                ${item.price}
+                              </p>
                               {selectedServices.includes(item.id) && (
-                                <Check className="w-5 h-5 text-indigo-600 mt-1 ml-auto" />
+                                <Check className="w-4 h-4 text-indigo-600 mt-1 ml-auto" />
                               )}
                             </div>
                           </div>
@@ -562,52 +471,63 @@ export default function MessageDialog({ open, onOpenChange, staff, venueName, al
                   {/* Total Section */}
                   {selectedServices.length > 0 && (
                     <div className="bg-white rounded-2xl border border-zinc-200 p-5 shadow-sm sticky top-6">
-                      <h3 className="text-xl font-bold text-zinc-900 mb-4">Order Summary</h3>
+                      <h3 className="text-xl font-bold text-zinc-900 mb-4">
+                        Order Summary
+                      </h3>
 
-                      <div className="max-h-[7rem] overflow-y-scroll scrollbar-thin">
-                        {/* Selected Services */}
+                      <div className="max-h-[7rem] overflow-y-auto scrollbar-thin">
                         <div className="space-y-2 mb-4">
                           {selectedServicesList.map((service) => (
-                            <div key={service.id} className="flex justify-between items-center text-sm">
-                              <span className="text-zinc-700">{service.name}</span>
-                              <span className="font-semibold text-indigo-600">${service.price}</span>
+                            <div
+                              key={service.id}
+                              className="flex justify-between items-center text-sm"
+                            >
+                              <span className="text-zinc-700">
+                                {service.name}
+                              </span>
+                              <span className="font-semibold text-indigo-600">
+                                ${service.price}
+                              </span>
                             </div>
                           ))}
-                          {selectedServicesList.length === 0 && (
-                            <p className="text-center text-zinc-500 py-4 text-sm">No services selected</p>
-                          )}
                         </div>
 
                         {selectedServicesList.length > 0 && (
                           <>
-                            {/* Subtotal */}
                             <div className="flex justify-between items-center text-sm pt-2 border-t border-zinc-200">
                               <span className="text-zinc-600">Subtotal</span>
-                              <span className="text-zinc-900">${totalAmount}</span>
+                              <span className="text-zinc-900">
+                                ${totalAmount}
+                              </span>
                             </div>
 
-                            {/* GST */}
                             <div className="flex justify-between items-center text-sm mt-2">
                               <span className="text-zinc-600">GST (5%)</span>
                               <span className="text-zinc-900">${gst}</span>
                             </div>
 
-                            {/* Total */}
                             <div className="flex justify-between items-center mt-3 pt-3 border-t border-zinc-200">
-                              <span className="text-lg font-bold text-zinc-900">Total</span>
-                              <span className="text-2xl font-bold text-indigo-600">${totalWithGst}</span>
+                              <span className="text-lg font-bold text-zinc-900">
+                                Total
+                              </span>
+                              <span className="text-2xl font-bold text-indigo-600">
+                                ${totalWithGst}
+                              </span>
                             </div>
 
-                            {/* Date & Time Placeholder */}
                             <div className="mt-3 pt-3 border-t border-zinc-200">
                               <div className="flex items-center gap-4 text-sm">
                                 <div className="flex items-center gap-1">
                                   <Calendar className="w-3 h-3 text-zinc-400" />
-                                  <span className="text-zinc-600">12 April</span>
+                                  <span className="text-zinc-600">
+                                    12 April
+                                  </span>
                                 </div>
                                 <div className="flex items-center gap-1">
                                   <Clock className="w-3 h-3 text-zinc-400" />
-                                  <span className="text-zinc-600">3:00 PM – 7:00 PM</span>
+                                  <span className="text-zinc-600">
+                                    3:00 PM – 7:00 PM
+                                  </span>
                                 </div>
                               </div>
                             </div>
@@ -615,12 +535,12 @@ export default function MessageDialog({ open, onOpenChange, staff, venueName, al
                         )}
                       </div>
 
-                      {/* Book Button */}
                       <button
                         onClick={handleBookNow}
-                        className="w-full mt-6 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg cursor-pointer"
+                        className="w-full mt-6 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg cursor-pointer text-sm"
                       >
-                        Book & Pay {totalWithGst > 0 && `$${totalWithGst} USD`}
+                        Book &amp; Pay{" "}
+                        {totalWithGst > 0 && `$${totalWithGst} USD`}
                       </button>
                     </div>
                   )}
@@ -642,9 +562,16 @@ export default function MessageDialog({ open, onOpenChange, staff, venueName, al
       <ChangeExpertDialog
         open={isChangeExpertOpen}
         onOpenChange={setIsChangeExpertOpen}
-        currentExpert={expertData}
+        currentExpert={{ ...expertData, imageUrl: expertData.imageUrl }}
         allExperts={normalizedAllStaff}
         onSelectExpert={(newExpert) => {
+          // Switch to new expert and re-initialize chat
+          setActiveStaff({
+            id: newExpert.id,
+            name: newExpert.name,
+            role: newExpert.role,
+            image: newExpert.imageUrl || "",
+          });
           setIsChangeExpertOpen(false);
         }}
       />

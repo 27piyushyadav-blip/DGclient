@@ -85,6 +85,7 @@ interface Service {
   duration?: string;
   rating: number;
   reviews: number;
+  imageUrl?: string;
 }
 
 interface Expert {

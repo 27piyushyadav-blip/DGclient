@@ -67,6 +67,11 @@ const nextConfig = {
         hostname: "localhost",
         port: "3000",
       },
+      // ✅ Allow production backend API uploads
+      {
+        protocol: "https",
+        hostname: "api.digitaloffices.com.au",
+      },
       // ✅ Allow example.com for development/testing images
       {
         protocol: "https",

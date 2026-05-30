@@ -5,6 +5,7 @@ export type VenueService = {
 };
 
 export type VenueStaff = {
+  id?: string;
   name: string;
   role: string;
   image: string;
@@ -23,6 +24,7 @@ export type VenueFeature = {
 
 export type Venue = {
   id: string;
+  userId?: string; // This is the organisation.id from the organisation table
   name: string;
   hours: string;
   address: string;
@@ -36,6 +38,7 @@ export type Venue = {
   staff: VenueStaff[];
   reviews: VenueReview[];
   features: VenueFeature[];
+  phone?: string;
 };
 
 export const filters = {
@@ -214,4 +217,118 @@ export const venues: Venue[] = [
 
 export function getVenueById(id: string) {
   return venues.find((venue) => venue.id === id);
+}
+
+const ACCENT_PRESETS = [
+  "from-amber-950 via-amber-800 to-stone-900",
+  "from-stone-950 via-amber-900 to-orange-950",
+  "from-zinc-950 via-amber-900 to-stone-900",
+  "from-neutral-950 via-amber-900 to-black"
+];
+
+const GLOW_PRESETS = [
+  "from-amber-300/80 via-orange-200/30 to-transparent",
+  "from-orange-300/70 via-yellow-200/20 to-transparent",
+  "from-orange-200/70 via-amber-100/30 to-transparent",
+  "from-orange-300/70 via-amber-100/30 to-transparent"
+];
+
+const BG_IMAGE_PRESETS = [
+  "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=2070&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1519823551278-64ac92734fb1?q=80&w=2070&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1507652313519-d4e9174996dd?q=80&w=2070&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=80&w=2070&auto=format&fit=crop"
+];
+
+export function mapOrgToVenue(org: any, index: number = 0): Venue {
+  const accent = ACCENT_PRESETS[index % ACCENT_PRESETS.length];
+  const glow = GLOW_PRESETS[index % GLOW_PRESETS.length];
+
+  // Use organization's cover image as background, fall back to preset image
+  const bgImageUrl = org.coverImageUrl || BG_IMAGE_PRESETS[index % BG_IMAGE_PRESETS.length];
+
+  // Build hours string from operatingHours, picking first non-closed weekday
+  let hours = "9AM - 5PM";
+  if (org.operatingHours && Array.isArray(org.operatingHours) && org.operatingHours.length > 0) {
+    const open = org.operatingHours.find((h: any) => !h.is_closed);
+    if (open) {
+      const fmt = (t: string) => {
+        const [hStr, mStr] = t.split(":");
+        const h = parseInt(hStr, 10);
+        const suffix = h >= 12 ? "PM" : "AM";
+        const h12 = h % 12 === 0 ? 12 : h % 12;
+        return mStr === "00" ? `${h12}${suffix}` : `${h12}:${mStr}${suffix}`;
+      };
+      hours = `${fmt(open.open)} - ${fmt(open.close)}`;
+    }
+  }
+
+  const services = (org.services || []).map((s: any) => ({
+    name: s.name,
+    price: `$${s.basePrice || 0}`,
+    image: s.imageUrl || "https://images.unsplash.com/photo-1515377905703-c4788e51af15?q=80&w=900&auto=format&fit=crop",
+  }));
+
+  const staff = (org.experts || []).map((e: any) => ({
+    id: e.id || e._id,
+    name: e.name,
+    role: e.specialization || "Wellness Professional",
+    image: e.profilePicture || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=600&auto=format&fit=crop",
+  }));
+
+  const reviews = (org.reviews && org.reviews.length > 0)
+    ? org.reviews.map((r: any) => ({
+        name: r.name,
+        comment: r.comment,
+        time: r.time,
+      }))
+    : [
+        { name: "Daniel K.", comment: "Amazing experience. The ambiance was so relaxing and the sessions were pure bliss.", time: "2 days ago" },
+        { name: "Emma R.", comment: "Professional and friendly staff. I felt so refreshed after the service.", time: "1 week ago" }
+      ];
+
+  // Use real products if the org has any, otherwise use fallback mock products
+  const products = (org.products && org.products.length > 0)
+    ? org.products.map((p: any) => ({
+        name: p.name,
+        price: p.price,
+        image: p.image || "https://images.unsplash.com/photo-1507652313519-d4e9174996dd?q=80&w=900&auto=format&fit=crop",
+      }))
+    : [
+        { name: "Lavender Massage Oil", price: "$25", image: "https://images.unsplash.com/photo-1507652313519-d4e9174996dd?q=80&w=900&auto=format&fit=crop" },
+        { name: "Herbal Body Balm", price: "$32", image: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=80&w=900&auto=format&fit=crop" },
+      ];
+
+  // Use real features if the org has any, otherwise use fallback
+  const features = (org.features && org.features.length > 0)
+    ? org.features
+    : [
+        { title: "Hygienic Environment", description: "Clean and safe for your comfort" },
+        { title: "Professional Experts", description: "Certified & experienced" },
+      ];
+
+  return {
+    id: org._id,
+    userId: org.userId, // This is the organisation.id from the organisation table
+    name: org.name,
+    hours,
+    address: [org.location, org.city, org.state].filter(Boolean).join(", ") || "Online",
+    phone: org.phone || org.phoneNumber || "+1 (555) 019-2834",
+    accent,
+    glow,
+    bgImage: `url('${bgImageUrl}')`,
+    tagline: org.tagline || (org.description ? org.description.slice(0, 40) + "..." : `${org.name} Wellness`),
+    description: org.description || `Welcome to ${org.name}. Contact us to book our premium services.`,
+    services: services.length > 0 ? services : [
+      { name: "Swedish Massage", price: "$80", image: "https://images.unsplash.com/photo-1515377905703-c4788e51af15?q=80&w=900&auto=format&fit=crop" },
+      { name: "Deep Tissue Massage", price: "$120", image: "https://images.unsplash.com/photo-1519823551278-64ac92734fb1?q=80&w=900&auto=format&fit=crop" },
+    ],
+    products,
+    staff: staff.length > 0 ? staff : [
+      { name: "Sony", role: "Massage Therapist", image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=600&auto=format&fit=crop" },
+      { name: "Jessi", role: "Massage Therapist", image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=600&auto=format&fit=crop" },
+    ],
+    reviews,
+    features,
+  };
 }

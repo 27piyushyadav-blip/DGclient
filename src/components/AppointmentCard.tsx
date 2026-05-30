@@ -173,6 +173,13 @@ export default function AppointmentCard({ appointment, onCancelClick }) {
               <span className="font-medium">{expertName}</span> • {expertRole}
             </p>
 
+            {appointment.organizationName && (
+              <p className="text-sm text-zinc-500 mb-3">
+                at{" "}
+                <span className="font-medium">{appointment.organizationName}</span>
+              </p>
+            )}
+
             <div className="flex flex-wrap gap-2">
               <Badge variant="secondary" className="text-xs gap-1.5">
                 <Clock className="w-3 h-3" />

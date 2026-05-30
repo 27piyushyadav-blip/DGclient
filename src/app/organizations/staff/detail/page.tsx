@@ -56,7 +56,7 @@ const staffData = {
   name: "Georgina Kate",
   role: "Certified Hairdresser",
   rating: 4.9,
-  reviews: 119,
+  reviewsCount: 119,
   experience: "10 Years",
   imageUrl: "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=800&h=800",
   videoUrl: "https://youtu.be/sRWcJrMTtMI?si=hbh0v0HYOocQsXrE",

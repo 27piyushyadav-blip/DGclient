@@ -39,6 +39,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { createBookingApi } from "@/lib/bookingsApi";
 
 type SpecificVenueBookingModalProps = {
   open: boolean;
@@ -131,6 +132,10 @@ export default function SpecificVenueBookingModal({
   const cardsToShow = 2;
   const totalCards = staff.length;
   const maxIndex = Math.max(0, totalCards - cardsToShow);
+
+  // Booking state
+  const [isCreatingBooking, setIsCreatingBooking] = useState(false);
+  const [bookingError, setBookingError] = useState<string | null>(null);
 
   // Add these states and calculations
   const [scrollIndex, setScrollIndex] = useState(0);
@@ -242,6 +247,61 @@ const handleDateTimeConfirm = () => {
     setSelectedDate(tempSelectedDate);
     setSelectedTime(tempSelectedTime);
     setIsDateTimeModalOpen(false);
+  }
+};
+
+// Add this function to handle booking creation
+const handleCreateBooking = async () => {
+  if (!selectedService || !selectedStaff || !selectedDate || !selectedTime) {
+    setBookingError('Please complete all required fields');
+    return;
+  }
+
+  setIsCreatingBooking(true);
+  setBookingError(null);
+
+  try {
+    // Parse the time to get hours and minutes
+    const [timeStr, period] = selectedTime.split(' ');
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    let hour24 = hours;
+    if (period === 'PM' && hours !== 12) hour24 += 12;
+    if (period === 'AM' && hours === 12) hour24 = 0;
+
+    // Create the scheduled date
+    const scheduledDateTime = new Date(selectedDate);
+    scheduledDateTime.setHours(hour24, minutes, 0, 0);
+
+    // Calculate duration (default to 60 minutes for now)
+    const duration = 60;
+
+    // Calculate amount from service price
+    const amount = parsePrice(selectedService.price);
+
+    // Create booking
+    const response = await createBookingApi({
+      expertId: selectedStaff.id || '',
+      organizationId: venue.userId || venue.id, // Use userId (organisation.id) if available, otherwise fall back to id
+      service: selectedService.name,
+      consultationType: 'offline', // Default to offline for venue bookings
+      scheduledDate: scheduledDateTime.toISOString(),
+      duration: duration,
+      amount: amount,
+      notes: `Booking for ${selectedService.name} at ${venue.name}`,
+    });
+
+    // Close modal and show success
+    onOpenChange(false);
+    
+    // Optionally redirect to booking success page
+    if (response.booking?.id) {
+      window.location.href = `/booking-success/${response.booking.id}`;
+    }
+  } catch (error: any) {
+    console.error('Booking creation failed:', error);
+    setBookingError(error.message || 'Failed to create booking. Please try again.');
+  } finally {
+    setIsCreatingBooking(false);
   }
 };
 
@@ -887,9 +947,9 @@ return (
                               setStep(step + 1);
                               return;
                             }
-                            onOpenChange(false);
+                            handleCreateBooking();
                           }}
-                          disabled={!canGoNext}
+                          disabled={!canGoNext || isCreatingBooking}
                           className="flex-1 rounded-xl bg-blue-600 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
                         >
                           {step < paymentStep ? (
@@ -897,11 +957,19 @@ return (
                               Next
                               <ChevronRight className="h-3.5 w-3.5" />
                             </>
+                          ) : isCreatingBooking ? (
+                            <>Processing...</>
                           ) : (
                             <>Pay Now</>
                           )}
                         </Button>
                       </div>
+
+                      {bookingError && (
+                        <div className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-600">
+                          {bookingError}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ) : null}
