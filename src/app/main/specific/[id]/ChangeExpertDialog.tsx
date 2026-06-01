@@ -136,6 +136,8 @@ interface StaffMember {
   name: string;
   role: string;
   imageUrl: string;
+  services?: any[];
+  [key: string]: any;
 }
 
 interface ChangeExpertDialogProps {
@@ -144,6 +146,40 @@ interface ChangeExpertDialogProps {
   currentExpert: StaffMember;
   allExperts: StaffMember[];
   onSelectExpert: (expert: StaffMember) => void;
+}
+
+// Stateful avatar component with nice colored initials fallback on loading failures or empty values
+function ExpertAvatar({ imageUrl, name }: { imageUrl?: string; name: string }) {
+  const [hasError, setHasError] = useState(false);
+
+  const initials = name
+    ? name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
+    : "?";
+
+  if (!imageUrl || hasError) {
+    return (
+      <div className="w-full h-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold text-lg select-none">
+        {initials}
+      </div>
+    );
+  }
+
+  return (
+    <Image
+      src={imageUrl}
+      alt={name}
+      width={64}
+      height={64}
+      className="w-full h-full object-cover"
+      onError={() => setHasError(true)}
+      unoptimized
+    />
+  );
 }
 
 export default function ChangeExpertDialog({
@@ -159,7 +195,7 @@ export default function ChangeExpertDialog({
   const [currentSlide, setCurrentSlide] = useState(0);
 
   const filteredExperts = allExperts.filter(
-    (expert) => expert.name !== currentExpert.name,
+    (expert) => expert.name?.trim().toLowerCase() !== currentExpert.name?.trim().toLowerCase(),
   );
 
   const itemsPerPage = 2;
@@ -225,19 +261,7 @@ export default function ChangeExpertDialog({
                       >
                         <div className="relative">
                           <div className="w-16 h-16 rounded-full overflow-hidden ring-2 ring-white shadow-sm flex-shrink-0">
-                            {expert.imageUrl ? (
-                              <Image
-                                src={expert.imageUrl}
-                                alt={expert.name}
-                                width={64}
-                                height={64}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <div className="w-full h-full bg-zinc-100 flex items-center justify-center">
-                                <User className="w-8 h-8 text-zinc-400" />
-                              </div>
-                            )}
+                            <ExpertAvatar imageUrl={expert.imageUrl} name={expert.name} />
                           </div>
                           {selectedExpert?.name === expert.name && (
                             <div className="absolute -right-1 -bottom-1 bg-indigo-600 rounded-full p-1 border-2 border-white z-10">

@@ -15,7 +15,7 @@ import {
   Wallet,
 } from "lucide-react";
 
-import type { Venue } from "@/app/main/data";
+import type { Venue, VenueStaff, VenueService } from "@/app/main/data";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -49,6 +49,7 @@ type SpecificVenueBookingModalProps = {
   preselectedStaff?: any;
   initialStep?: number;
   bookingFlow?: "service-first" | "staff-first";
+  verticalBannerUrl?: string;
 };
 
 const whyChooseUs = [
@@ -97,6 +98,7 @@ export default function SpecificVenueBookingModal({
   preselectedStaff,
   initialStep = 1,
   bookingFlow = "service-first",
+  verticalBannerUrl,
 }: SpecificVenueBookingModalProps) {
   const services = venue.services;
   const staff = venue.staff;
@@ -116,8 +118,8 @@ export default function SpecificVenueBookingModal({
   );
 
   const [step, setStep] = useState(initialStep);
-  const [selectedService, setSelectedService] = useState(services[0] ?? null);
-  const [selectedStaff, setSelectedStaff] = useState(staff[0] ?? null);
+  const [selectedService, setSelectedService] = useState<VenueService | null>(null);
+  const [selectedStaff, setSelectedStaff] = useState<VenueStaff | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(paymentMethods[0].id);
@@ -128,9 +130,37 @@ export default function SpecificVenueBookingModal({
   const [tempSelectedTime, setTempSelectedTime] = useState<string | null>(
     selectedTime,
   );
+  // Filter staff based on the selected service
+  const filteredStaff = useMemo(() => {
+    if (!selectedService) return staff;
+    return staff.filter((member: any) => {
+      // If member has services listed, check if one of them matches selectedService.name
+      if (member.services && Array.isArray(member.services) && member.services.length > 0) {
+        return member.services.some(
+          (s: any) => s.name.toLowerCase() === selectedService.name.toLowerCase()
+        );
+      }
+      return true;
+    });
+  }, [staff, selectedService]);
+
+  // Filter services based on the selected staff
+  const filteredServices = useMemo(() => {
+    if (!selectedStaff) return services;
+    return services.filter((service) => {
+      // If selectedStaff has services listed, check if one of them matches service.name
+      if (selectedStaff.services && Array.isArray(selectedStaff.services) && selectedStaff.services.length > 0) {
+        return selectedStaff.services.some(
+          (s: any) => s.name.toLowerCase() === service.name.toLowerCase()
+        );
+      }
+      return true;
+    });
+  }, [services, selectedStaff]);
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const cardsToShow = 2;
-  const totalCards = staff.length;
+  const totalCards = filteredStaff.length;
   const maxIndex = Math.max(0, totalCards - cardsToShow);
 
   // Booking state
@@ -140,8 +170,8 @@ export default function SpecificVenueBookingModal({
   // Add these states and calculations
   const [scrollIndex, setScrollIndex] = useState(0);
   const cardsPerView = 2; // Always show 2 cards
-  const maxScrollIndex = Math.max(0, staff.length - cardsPerView);
-  const totalDots = Math.ceil(staff.length / cardsPerView);
+  const maxScrollIndex = Math.max(0, filteredStaff.length - cardsPerView);
+  const totalDots = Math.ceil(filteredStaff.length / cardsPerView);
 
   const handlePrev = () => {
     setScrollIndex(Math.max(0, scrollIndex - 1));
@@ -150,6 +180,39 @@ export default function SpecificVenueBookingModal({
   const handleNext = () => {
     setScrollIndex(Math.min(maxScrollIndex, scrollIndex + 1));
   };
+
+  // Reset selected staff and scroll index if selected service changes and filters staff
+  useEffect(() => {
+    setScrollIndex(0);
+    if (selectedStaff) {
+      if (filteredStaff.length > 0) {
+        const isStillAvailable = filteredStaff.some(
+          (member: any) => member.id === selectedStaff.id || member.name === selectedStaff.name
+        );
+        if (!isStillAvailable) {
+          setSelectedStaff(filteredStaff[0]);
+        }
+      } else {
+        setSelectedStaff(null);
+      }
+    }
+  }, [filteredStaff, selectedStaff]);
+
+  // Reset selected service if selected staff changes and filters services
+  useEffect(() => {
+    if (selectedService) {
+      if (filteredServices.length > 0) {
+        const isStillAvailable = filteredServices.some(
+          (service: any) => service.name === selectedService.name
+        );
+        if (!isStillAvailable) {
+          setSelectedService(filteredServices[0]);
+        }
+      } else {
+        setSelectedService(null);
+      }
+    }
+  }, [filteredServices, selectedService]);
 
   const isServiceFirstFlow = bookingFlow === "service-first";
   const serviceStep = isServiceFirstFlow ? 1 : 2;
@@ -167,14 +230,14 @@ export default function SpecificVenueBookingModal({
     if (preselectedService) {
       setSelectedService(preselectedService);
     } else {
-      setSelectedService(services[0] ?? null);
+      setSelectedService(null);
     }
 
     // If there's a preselected staff, use it
     if (preselectedStaff) {
       setSelectedStaff(preselectedStaff);
     } else {
-      setSelectedStaff(staff[0] ?? null);
+      setSelectedStaff(null);
     }
 
     setSelectedDate(null);
@@ -311,10 +374,12 @@ return (
       <div className="grid max-h-[90vh] min-h-[680px] md:grid-cols-[280px_minmax(0,1fr)]">
         <div className="relative hidden overflow-hidden bg-gradient-to-br from-amber-950 via-amber-800 to-stone-950 p-6 text-white md:flex md:flex-col md:justify-end">
           <div
-            className="absolute inset-0 bg-cover bg-center opacity-70"
+            className="absolute inset-0 bg-cover bg-center transition-opacity duration-500"
             style={{
-              backgroundImage:
-                "url('https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=1200&auto=format&fit=crop')",
+              backgroundImage: verticalBannerUrl
+                ? `url('${verticalBannerUrl}')`
+                : "url('https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=1200&auto=format&fit=crop')",
+              opacity: verticalBannerUrl ? 1 : 0.7,
             }}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/45 to-black/20" />
@@ -406,7 +471,7 @@ return (
                     <p className="mt-1 text-sm text-slate-500">Choose the treatment you want to book today.</p>
 
                     <div className={`mt-5 grid gap-4 md:grid-cols-2`}>
-                      {services.map((service, index) => {
+                      {filteredServices.map((service, index) => {
                         const isSelected =
                           selectedService?.name === service.name;
                         const duration = 60 + index * 15;
@@ -487,14 +552,13 @@ return (
                             transform: `translateX(-${scrollIndex * (100 / cardsPerView)}%)`,
                           }}
                         >
-                          {staff.map((member, index) => {
+                          {filteredStaff.map((member, index) => {
                             const isSelected =
                               selectedStaff?.name === member.name;
-                            const experience = 3 + index * 2;
-                            const specialties = services
-                              .slice(index, index + 2)
-                              .map((item) => item.name)
-                              .join(", ");
+                            const experience = member.experienceYears || (3 + index * 2);
+                            const specialties = (member.services && member.services.length > 0)
+                              ? member.services.map((item: any) => item.name).join(", ")
+                              : member.role;
 
                             return (
                               <div
@@ -555,7 +619,7 @@ return (
                                         </div>
                                         <p className="mt-3 text-xs leading-5 text-slate-500">
                                           Specializes in{" "}
-                                          {specialties || member.role}
+                                          {specialties}
                                         </p>
                                       </div>
                                     </>
@@ -606,7 +670,7 @@ return (
 
                                         <p className="mt-3 text-xs leading-5 text-slate-500">
                                           Specializes in{" "}
-                                          {specialties || member.role}
+                                          {specialties}
                                         </p>
                                       </div>
                                     </div>
@@ -619,7 +683,7 @@ return (
                       </div>
 
                       {/* Navigation Buttons */}
-                      {staff.length > cardsPerView && (
+                      {filteredStaff.length > cardsPerView && (
                         <>
                           <button
                             onClick={handlePrev}
@@ -650,7 +714,7 @@ return (
                       )}
 
                       {/* Dots Indicator */}
-                      {staff.length > cardsPerView && (
+                      {filteredStaff.length > cardsPerView && (
                         <div className="mt-6 flex justify-center gap-2">
                           {Array.from({ length: totalDots }).map((_, idx) => (
                             <button
@@ -831,8 +895,7 @@ return (
                             <div
                               className="h-16 rounded-xl bg-cover bg-center"
                               style={{
-                                backgroundImage:
-                                  "url('https://images.unsplash.com/photo-1552693673-1bf958298935?q=80&w=1200&auto=format&fit=crop')",
+                                backgroundImage: `url('${venue.bgImage?.replace(/^url\(['"]?/, "").replace(/['"]?\)$/, "") || "https://images.unsplash.com/photo-1552693673-1bf958298935?q=80&w=1200&auto=format&fit=crop"}')`,
                               }}
                             />
                             <div className="mt-2 flex items-start gap-2">

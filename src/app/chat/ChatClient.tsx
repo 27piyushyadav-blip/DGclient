@@ -145,6 +145,26 @@ export default function ChatClient({ initialConversations }: { initialConversati
       console.log("All conversations:", conversations);
       console.log("User name:", user?.name);
       
+      // If id is missing, empty, or not a UUID, try to extract the real database UUID from client_access_token JWT
+      const token = localStorage.getItem("client_access_token") || localStorage.getItem("access_token");
+      if (token) {
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          const tokenUserId = payload.sub || payload.userId;
+          if (tokenUserId) {
+            console.log("Successfully extracted real user UUID from JWT:", tokenUserId);
+            if (user) {
+              user.id = tokenUserId;
+              user.uuid = tokenUserId;
+            } else {
+              return { id: tokenUserId, uuid: tokenUserId };
+            }
+          }
+        } catch (jwtErr) {
+          console.error("Failed to extract sub from JWT token:", jwtErr);
+        }
+      }
+
       // Debug: Log the first conversation to see its structure
       if (conversations.length > 0) {
         console.log("First conversation structure:", conversations[0]);
@@ -310,6 +330,12 @@ export default function ChatClient({ initialConversations }: { initialConversati
         // Prevent duplicates
         if (prev.some(m => m._id === message._id)) {
           console.log("🔥 Preventing duplicate message");
+          return prev;
+        }
+
+        // Don't add message if it's from the current user (to avoid echo)
+        if (message.sender === currentUser?.id) {
+          console.log("🔥 Skipping message from current user to avoid echo");
           return prev;
         }
         
@@ -955,7 +981,7 @@ export default function ChatClient({ initialConversations }: { initialConversati
                       value={newMessage}
                       onChange={handleTyping}
                       placeholder="Type a message..."
-                      className="flex-1 bg-transparent border-none px-2 py-2 text-sm focus:outline-none"
+                      className="flex-1 bg-transparent border-none px-2 py-2 text-sm text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none"
                       onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
                     />
                     <button 

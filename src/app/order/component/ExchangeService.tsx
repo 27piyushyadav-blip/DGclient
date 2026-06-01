@@ -78,6 +78,7 @@ type Expert = {
   reviewCount: number;
   image: string;
   specialties: string[];
+  services?: any[];
   available: boolean;
 };
 
@@ -217,10 +218,59 @@ const ExchangeService = ({
   const [activeTab, setActiveTab] = useState<TabType>('exchange');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedServices, setSelectedServices] = useState<SelectedService[]>(
     () => originalServices.map(service => ({ ...service, quantity: 1 }))
   );
-  const [selectedExpert, setSelectedExpert] = useState<Expert | null>(null);
+  const [selectedExperts, setSelectedExperts] = useState<Record<string, Expert>>({});
+  const [activeServiceForExpert, setActiveServiceForExpert] = useState<string | null>(null);
+
+  // Auto-initialize or adjust active service for expert selection
+  React.useEffect(() => {
+    if (selectedServices.length > 0) {
+      const exists = selectedServices.some(s => s.id === activeServiceForExpert);
+      if (!exists) {
+        setActiveServiceForExpert(selectedServices[0].id);
+      }
+    } else {
+      setActiveServiceForExpert(null);
+    }
+  }, [selectedServices, activeServiceForExpert]);
+
+  // Backward compatibility wrapper for single selectedExpert
+  const selectedExpert = Object.values(selectedExperts)[0] || null;
+  const setSelectedExpert = (expert: Expert | null) => {
+    if (!expert) {
+      setSelectedExperts({});
+    } else if (activeServiceForExpert) {
+      setSelectedExperts(prev => ({ ...prev, [activeServiceForExpert]: expert }));
+    }
+  };
+
+  const getExpertMatchScore = (expert: Expert, serviceId: string | null) => {
+    if (!serviceId) return 0;
+    const service = selectedServices.find(s => s.id === serviceId);
+    if (!service) return 0;
+
+    const serviceName = service.name.toLowerCase();
+    const serviceCategory = service.category.toLowerCase();
+
+    // Check matching services
+    const hasMatchingService = expert.services?.some((s: any) => {
+      const name = typeof s === 'string' ? s : s?.name || '';
+      return name.toLowerCase().includes(serviceName) || serviceName.includes(name.toLowerCase());
+    });
+
+    // Check matching specialties
+    const hasMatchingSpecialty = expert.specialties?.some(sp =>
+      sp.toLowerCase().includes(serviceCategory) || serviceCategory.includes(sp.toLowerCase())
+    );
+
+    if (hasMatchingService) return 2;
+    if (hasMatchingSpecialty) return 1;
+    return 0;
+  };
+
   const [balanceAction, setBalanceAction] = useState<'refund' | 'credit'>('refund');
   const [exchangeConfirmed, setExchangeConfirmed] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -313,11 +363,18 @@ const ExchangeService = ({
   };
 
   const handleSelectExpert = (expert: Expert) => {
-    if (selectedExpert?.id === expert.id) {
-      setSelectedExpert(null);
-    } else {
-      setSelectedExpert(expert);
-    }
+    if (!activeServiceForExpert) return;
+    
+    setSelectedExperts(prev => {
+      const isAlreadySelected = prev[activeServiceForExpert]?.id === expert.id;
+      const next = { ...prev };
+      if (isAlreadySelected) {
+        delete next[activeServiceForExpert];
+      } else {
+        next[activeServiceForExpert] = expert;
+      }
+      return next;
+    });
   };
 
   const handleScrollLeft = () => {
@@ -332,70 +389,159 @@ const ExchangeService = ({
     }
   };
 
-  const handleSendPaymentLink = () => {
+  const handleSendPaymentLink = async () => {
     setIsProcessing(true);
-    setTimeout(() => {
+    try {
+      await createEditServiceRequestApi({
+        bookingId: bookingId || 'booking-id-placeholder',
+        originalService: originalServices.map(s => s.name).join(', '),
+        originalAmount: originalTotal?.toString() || '0',
+        newService: selectedServices.map(s => s.name).join(', '),
+        newAmount: selectedServices.reduce((sum, s) => sum + s.price * s.quantity, 0).toString(),
+        reason: `Client requested service change (Additional Payment of $${additionalAmount} Needed)`,
+        metadata: {
+          additionalServices: selectedServices,
+          removedServices: [],
+          balanceDifference: additionalAmount,
+          actionNeeded: 'Collect Additional Payment',
+          expertAssignments: Object.entries(selectedExperts).map(([serviceId, exp]) => ({
+            serviceId,
+            serviceName: selectedServices.find(s => s.id === serviceId)?.name || '',
+            expertId: exp.id,
+            expertName: exp.name,
+          })),
+        },
+      });
       setIsProcessing(false);
       setPaymentLinkSent(true);
-      setTimeout(() => setPaymentLinkSent(false), 3000);
-    }, 1500);
+      setTimeout(() => {
+        window.location.href = '/appointments';
+      }, 2000);
+    } catch (error) {
+      console.error('Failed to send payment request:', error);
+      setIsProcessing(false);
+      alert('Failed to process additional payment request. Please try again.');
+    }
   };
 
   const handleProcessRefund = async () => {
     setIsProcessing(true);
     try {
-      // Call the API to create edit service request
       await createEditServiceRequestApi({
-        bookingId: bookingId || 'booking-id-placeholder', // Use prop or fallback
+        bookingId: bookingId || 'booking-id-placeholder',
         originalService: originalServices.map(s => s.name).join(', '),
         originalAmount: originalTotal?.toString() || '0',
         newService: selectedServices.map(s => s.name).join(', '),
         newAmount: selectedServices.reduce((sum, s) => sum + s.price * s.quantity, 0).toString(),
-        reason: 'Client requested service change',
+        reason: `Client requested service change (Refund of $${refundAmount} Needed)`,
         metadata: {
           additionalServices: selectedServices,
           removedServices: [],
+          balanceDifference: -refundAmount,
+          actionNeeded: 'Refund Difference',
+          expertAssignments: Object.entries(selectedExperts).map(([serviceId, exp]) => ({
+            serviceId,
+            serviceName: selectedServices.find(s => s.id === serviceId)?.name || '',
+            expertId: exp.id,
+            expertName: exp.name,
+          })),
         },
       });
       
       setIsProcessing(false);
       setRefundProcessed(true);
-      
-      // Redirect to appointments page after successful submission
       setTimeout(() => {
         window.location.href = '/appointments';
       }, 2000);
     } catch (error) {
       console.error('Failed to process edit service request:', error);
       setIsProcessing(false);
-      alert('Failed to process edit service request. Please try again.');
+      alert('Failed to process refund request. Please try again.');
     }
   };
 
-  const handleGenerateReceipt = () => {
+  const handleGenerateReceipt = async () => {
     setIsProcessing(true);
-    setTimeout(() => {
+    try {
+      await createEditServiceRequestApi({
+        bookingId: bookingId || 'booking-id-placeholder',
+        originalService: originalServices.map(s => s.name).join(', '),
+        originalAmount: originalTotal?.toString() || '0',
+        newService: selectedServices.map(s => s.name).join(', '),
+        newAmount: selectedServices.reduce((sum, s) => sum + s.price * s.quantity, 0).toString(),
+        reason: 'Client requested service change (Equal Amount)',
+        metadata: {
+          additionalServices: selectedServices,
+          removedServices: [],
+          balanceDifference: 0,
+          actionNeeded: 'Direct Exchange',
+          expertAssignments: Object.entries(selectedExperts).map(([serviceId, exp]) => ({
+            serviceId,
+            serviceName: selectedServices.find(s => s.id === serviceId)?.name || '',
+            expertId: exp.id,
+            expertName: exp.name,
+          })),
+        },
+      });
       setIsProcessing(false);
       setNewReceiptGenerated(true);
-      setTimeout(() => setNewReceiptGenerated(false), 3000);
-    }, 1500);
+      setTimeout(() => {
+        window.location.href = '/appointments';
+      }, 2000);
+    } catch (error) {
+      console.error('Failed to generate exchange request:', error);
+      setIsProcessing(false);
+      alert('Failed to process exchange request. Please try again.');
+    }
   };
 
-  const handleConfirmExchange = () => {
+  const handleConfirmExchange = async () => {
+    setShowPaymentModal(true);
     setIsProcessing(true);
-    setTimeout(() => {
+    try {
+      await createEditServiceRequestApi({
+        bookingId: bookingId || 'booking-id-placeholder',
+        originalService: originalServices.map(s => s.name).join(', '),
+        originalAmount: originalTotal?.toString() || '0',
+        newService: selectedServices.map(s => s.name).join(', '),
+        newAmount: selectedServices.reduce((sum, s) => sum + s.price * s.quantity, 0).toString(),
+        reason: `Client confirmed service exchange (${exchangeType.replace('_', ' ')})`,
+        metadata: {
+          additionalServices: selectedServices,
+          removedServices: [],
+          balanceDifference: balanceDifference,
+          actionNeeded: exchangeType === 'add_more' ? 'Collect Additional Payment' : exchangeType === 'refund' ? 'Refund Difference' : 'Direct Exchange',
+          expertAssignments: Object.entries(selectedExperts).map(([serviceId, exp]) => ({
+            serviceId,
+            serviceName: selectedServices.find(s => s.id === serviceId)?.name || '',
+            expertId: exp.id,
+            expertName: exp.name,
+          })),
+        },
+      });
+      
       setIsProcessing(false);
       setExchangeConfirmed(true);
-      if (onExchangeComplete) {
-        onExchangeComplete({
-          selectedServices,
-          selectedExpert,
-          exchangeType,
-          newTotal,
-          difference: balanceDifference,
-        });
-      }
-    }, 1500);
+      
+      setTimeout(() => {
+        setShowPaymentModal(false);
+        if (onExchangeComplete) {
+          onExchangeComplete({
+            selectedServices,
+            selectedExperts,
+            exchangeType,
+            newTotal,
+            difference: balanceDifference,
+          });
+        }
+        window.location.href = '/appointments';
+      }, 3000);
+    } catch (error) {
+      console.error('Failed to confirm exchange request:', error);
+      setIsProcessing(false);
+      setShowPaymentModal(false);
+      alert('Failed to submit exchange request. Please try again.');
+    }
   };
 
   const getActionButton = () => {
@@ -633,7 +779,7 @@ const ExchangeService = ({
                         placeholder="Search service..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition bg-slate-50/30"
+                        className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition bg-slate-50/30 text-slate-800"
                       />
                     </div>
                     <div className="relative">
@@ -641,10 +787,10 @@ const ExchangeService = ({
                       <select
                         value={selectedCategory}
                         onChange={(e) => setSelectedCategory(e.target.value)}
-                        className="pl-10 pr-8 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-slate-50/30 appearance-none cursor-pointer"
+                        className="pl-10 pr-8 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-slate-50/30 appearance-none cursor-pointer text-slate-800"
                       >
                         {categories.map(cat => (
-                          <option key={cat} value={cat}>{cat}</option>
+                          <option key={cat} value={cat} className="text-slate-800 bg-white">{cat}</option>
                         ))}
                       </select>
                     </div>
@@ -750,7 +896,7 @@ const ExchangeService = ({
                           <div className="space-y-2 text-sm">
                             <div className="flex justify-between">
                               <span className="text-slate-600">Already Paid</span>
-                              <span className="font-semibold">${originalTotal}</span>
+                              <span className="font-semibold text-blue-600">${originalTotal}</span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-slate-600">New Services Total</span>
@@ -826,100 +972,189 @@ const ExchangeService = ({
                     </div>
                     <div>
                       <h2 className="text-xl font-semibold text-slate-800">Edit Expert</h2>
-                      <p className="text-sm text-slate-500">Select a preferred expert for the edited services (optional)</p>
+                      <p className="text-sm text-slate-500">Select preferred experts for your edited services (optional)</p>
                     </div>
                   </div>
 
-                  {/* Horizontal Scroll Experts Section */}
-                  <div className="relative">
-                    <button
-                      onClick={handleScrollLeft}
-                      className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white shadow-md border border-slate-200 flex items-center justify-center hover:bg-blue-50 hover:border-blue-300 transition"
-                    >
-                      <ChevronLeft className="w-4 h-4 text-slate-600" />
-                    </button>
-
-                    <div
-                      ref={scrollContainerRef}
-                      className="flex gap-4 overflow-x-auto scroll-smooth pb-4 px-8 hide-scrollbar"
-                      style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-                    >
-                      {availableExperts.map((expert) => {
-                        const isSelected = selectedExpert?.id === expert.id;
+                  {/* Selected Services Assignment Tracker */}
+                  <div className="mb-6">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Assign Expert Per Service</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {selectedServices.map((service) => {
+                        const assignedExpert = selectedExperts[service.id];
+                        const isActive = activeServiceForExpert === service.id;
                         return (
                           <div
-                            key={expert.id}
-                            onClick={() => handleSelectExpert(expert)}
-                            className={`flex-shrink-0 w-72 cursor-pointer transition-all duration-200 ${isSelected ? 'scale-[1.02]' : 'hover:scale-[1.01]'}`}
+                            key={service.id}
+                            onClick={() => setActiveServiceForExpert(service.id)}
+                            className={`p-3.5 rounded-xl border-2 cursor-pointer transition-all ${
+                              isActive
+                                ? 'border-blue-500 bg-blue-50/40 shadow-sm'
+                                : 'border-slate-200 bg-white hover:border-slate-300'
+                            }`}
                           >
-                            <div className={`relative rounded-xl border-2 overflow-hidden transition-all ${isSelected ? 'border-blue-500 shadow-lg shadow-blue-200' : 'border-slate-200 hover:border-blue-300 hover:shadow-md'} ${!expert.available ? 'opacity-60' : ''}`}>
-                              {!expert.available && (
-                                <div className="absolute top-3 right-3 z-10 bg-slate-500 text-white text-xs px-2 py-0.5 rounded-full">
-                                  Unavailable
-                                </div>
-                              )}
-                              {isSelected && expert.available && (
-                                <div className="absolute top-3 right-3 z-10">
-                                  <CheckCircle className="w-6 h-6 text-blue-500 bg-white rounded-full" />
-                                </div>
-                              )}
-                              <div className="p-4">
-                                <div className="flex items-center gap-3 mb-3">
-                                  <ServiceImage src={expert.image} alt={expert.name} className="w-16 h-16 rounded-xl object-cover" />
-                                  <div className="flex-1">
-                                    <h3 className="font-semibold text-slate-800">{expert.name}</h3>
-                                    <p className="text-xs text-blue-600">{expert.role}</p>
-                                    <div className="flex items-center gap-1 mt-1">
-                                      <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                                      <span className="text-xs font-medium text-slate-700">{expert.rating}</span>
-                                      <span className="text-xs text-slate-400">({expert.reviewCount})</span>
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2 text-xs text-slate-500 mb-3">
-                                  <Briefcase className="w-3 h-3" />
-                                  <span>{expert.experience} experience</span>
-                                  <Award className="w-3 h-3 ml-2" />
-                                  <span>Certified</span>
-                                </div>
-                                <div className="flex flex-wrap gap-1">
-                                  {expert.specialties.slice(0, 2).map((specialty, idx) => (
-                                    <span key={idx} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
-                                      {specialty}
-                                    </span>
-                                  ))}
-                                  {expert.specialties.length > 2 && (
-                                    <span className="text-xs text-slate-400">+{expert.specialties.length - 2}</span>
-                                  )}
+                            <div className="flex justify-between items-start mb-2">
+                              <div>
+                                <h4 className="font-semibold text-slate-800 text-sm">{service.name}</h4>
+                                <p className="text-xs text-slate-500">{service.duration} • ${service.price}</p>
+                              </div>
+                              <span className={`text-[9px] px-2 py-0.5 rounded-full font-medium ${
+                                isActive ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'
+                              }`}>
+                                {isActive ? 'Assigning Now' : 'Click to Assign'}
+                              </span>
+                            </div>
+                            
+                            {assignedExpert ? (
+                              <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100">
+                                <ServiceImage src={assignedExpert.image} alt={assignedExpert.name} className="w-6 h-6 rounded-full object-cover" />
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-xs font-medium text-slate-700 truncate">{assignedExpert.name}</p>
+                                  <p className="text-[10px] text-slate-500 truncate">{assignedExpert.role}</p>
                                 </div>
                               </div>
-                            </div>
+                            ) : (
+                              <div className="mt-2 pt-2 border-t border-slate-100 border-dashed text-center">
+                                <span className="text-[11px] text-slate-400 italic">No expert assigned yet</span>
+                              </div>
+                            )}
                           </div>
                         );
                       })}
                     </div>
-
-                    <button
-                      onClick={handleScrollRight}
-                      className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white shadow-md border border-slate-200 flex items-center justify-center hover:bg-blue-50 hover:border-blue-300 transition"
-                    >
-                      <ChevronRight className="w-4 h-4 text-slate-600" />
-                    </button>
                   </div>
 
-                  {selectedExpert && (
+                  {activeServiceForExpert && (
+                    <div className="mt-6 border-t border-slate-100 pt-6">
+                      <div className="flex justify-between items-center mb-4">
+                        <p className="text-sm font-medium text-slate-700">
+                          Available Specialists for <span className="font-semibold text-blue-600">{selectedServices.find(s => s.id === activeServiceForExpert)?.name}</span>:
+                        </p>
+                      </div>
+
+                      {/* Horizontal Scroll Experts Section */}
+                      <div className="relative">
+                        <button
+                          onClick={handleScrollLeft}
+                          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white shadow-md border border-slate-200 flex items-center justify-center hover:bg-blue-50 hover:border-blue-300 transition"
+                        >
+                          <ChevronLeft className="w-4 h-4 text-slate-600" />
+                        </button>
+
+                        <div
+                          ref={scrollContainerRef}
+                          className="flex gap-4 overflow-x-auto scroll-smooth pb-4 px-8 hide-scrollbar"
+                          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                        >
+                          {(() => {
+                            const filtered = availableExperts.filter((expert) => {
+                              if (!activeServiceForExpert) return true;
+                              const score = getExpertMatchScore(expert, activeServiceForExpert);
+                              return score > 0;
+                            });
+
+                            if (filtered.length === 0) {
+                              return (
+                                <div className="w-full text-center py-10 text-slate-400 italic text-sm">
+                                  No specialists currently provide this service.
+                                </div>
+                              );
+                            }
+
+                            return filtered.map((expert) => {
+                              const isSelected = selectedExperts[activeServiceForExpert]?.id === expert.id;
+                              const matchScore = getExpertMatchScore(expert, activeServiceForExpert);
+                              return (
+                                <div
+                                  key={expert.id}
+                                  onClick={() => handleSelectExpert(expert)}
+                                  className={`flex-shrink-0 w-72 cursor-pointer transition-all duration-200 ${isSelected ? 'scale-[1.02]' : 'hover:scale-[1.01]'}`}
+                                >
+                                  <div className={`relative rounded-xl border-2 overflow-hidden transition-all ${isSelected ? 'border-blue-500 shadow-lg shadow-blue-200' : 'border-slate-200 hover:border-blue-300 hover:shadow-md'} ${!expert.available ? 'opacity-60' : ''}`}>
+                                    {!expert.available && (
+                                      <div className="absolute top-3 right-3 z-10 bg-slate-500 text-white text-xs px-2 py-0.5 rounded-full">
+                                        Unavailable
+                                      </div>
+                                    )}
+                                    {matchScore > 0 && expert.available && (
+                                      <div className="absolute top-3 left-3 z-10 bg-emerald-500 text-white text-[9px] px-2 py-0.5 rounded-full font-medium shadow-sm">
+                                        Specialist Match
+                                      </div>
+                                    )}
+                                    {isSelected && expert.available && (
+                                      <div className="absolute top-3 right-3 z-10">
+                                        <CheckCircle className="w-6 h-6 text-blue-500 bg-white rounded-full" />
+                                      </div>
+                                    )}
+                                    <div className="p-4">
+                                      <div className="flex items-center gap-3 mb-3">
+                                        <ServiceImage src={expert.image} alt={expert.name} className="w-16 h-16 rounded-xl object-cover" />
+                                        <div className="min-w-0 flex-1">
+                                          <h3 className="font-semibold text-slate-800 truncate">{expert.name}</h3>
+                                          <p className="text-xs text-blue-600 truncate">{expert.role}</p>
+                                          <div className="flex items-center gap-1 mt-1">
+                                            <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                                            <span className="text-xs font-medium text-slate-700">{expert.rating}</span>
+                                            <span className="text-xs text-slate-400">({expert.reviewCount})</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-2 text-xs text-slate-500 mb-3">
+                                        <Briefcase className="w-3 h-3" />
+                                        <span>{expert.experience} experience</span>
+                                        <Award className="w-3 h-3 ml-2" />
+                                        <span>Certified</span>
+                                      </div>
+                                      <div className="flex flex-wrap gap-1">
+                                        {expert.specialties.slice(0, 2).map((specialty, idx) => (
+                                          <span key={idx} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
+                                            {specialty}
+                                          </span>
+                                        ))}
+                                        {expert.specialties.length > 2 && (
+                                          <span className="text-xs text-slate-400">+{expert.specialties.length - 2}</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            });
+                          })()}
+                        </div>
+
+                        <button
+                          onClick={handleScrollRight}
+                          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white shadow-md border border-slate-200 flex items-center justify-center hover:bg-blue-50 hover:border-blue-300 transition"
+                        >
+                          <ChevronRight className="w-4 h-4 text-slate-600" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {activeServiceForExpert && selectedExperts[activeServiceForExpert] && (
                     <div className="mt-6 p-4 bg-green-50 rounded-xl border border-green-200">
                       <div className="flex items-center gap-3">
-                        <ServiceImage src={selectedExpert.image} alt={selectedExpert.name} className="w-14 h-14 rounded-xl object-cover" />
-                        <div className="flex-1">
+                        <ServiceImage src={selectedExperts[activeServiceForExpert].image} alt={selectedExperts[activeServiceForExpert].name} className="w-14 h-14 rounded-xl object-cover" />
+                        <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <CheckCircle className="w-4 h-4 text-green-600" />
-                            <span className="font-medium text-green-700">Selected Expert</span>
+                            <span className="font-medium text-green-700">Selected Expert for {selectedServices.find(s => s.id === activeServiceForExpert)?.name}</span>
                           </div>
-                          <p className="font-semibold text-slate-800 mt-1">{selectedExpert.name}</p>
-                          <p className="text-sm text-slate-500">{selectedExpert.role}</p>
+                          <p className="font-semibold text-slate-800 mt-1 truncate">{selectedExperts[activeServiceForExpert].name}</p>
+                          <p className="text-sm text-slate-500 truncate">{selectedExperts[activeServiceForExpert].role}</p>
                         </div>
-                        <button onClick={() => setSelectedExpert(null)} className="text-sm text-red-500 hover:text-red-600 flex items-center gap-1">
+                        <button
+                          onClick={() => {
+                            setSelectedExperts(prev => {
+                              const next = { ...prev };
+                              delete next[activeServiceForExpert];
+                              return next;
+                            });
+                          }}
+                          className="text-sm text-red-500 hover:text-red-600 flex items-center gap-1"
+                        >
                           <Trash2 className="w-3 h-3" />
                           Deselect
                         </button>
@@ -927,11 +1162,11 @@ const ExchangeService = ({
                     </div>
                   )}
 
-                  {!selectedExpert && (
+                  {activeServiceForExpert && !selectedExperts[activeServiceForExpert] && (
                     <div className="mt-6 p-3 bg-blue-50 rounded-xl border border-blue-200">
                       <div className="flex items-center gap-2 text-blue-700">
                         <Users className="w-4 h-4" />
-                        <span className="text-sm">No expert selected. You can skip this step or choose an expert above.</span>
+                        <span className="text-sm">No expert selected for this service. You can skip this or select a specialist above.</span>
                       </div>
                     </div>
                   )}
@@ -967,7 +1202,7 @@ const ExchangeService = ({
                     <div className="p-4 bg-slate-50 rounded-xl">
                       <div className="flex justify-between mb-2">
                         <span className="text-slate-600">Original Services Total</span>
-                        <span className="font-semibold">${originalTotal}</span>
+                        <span className="font-semibold text-blue-600">${originalTotal}</span>
                       </div>
                       <div className="flex justify-between mb-2">
                         <span className="text-slate-600">New Services Total</span>
@@ -975,7 +1210,7 @@ const ExchangeService = ({
                       </div>
                       <div className="flex justify-between mb-2">
                         <span className="text-slate-600">Amount Paid</span>
-                        <span className="font-semibold">${originalTotal}</span>
+                        <span className="font-semibold text-blue-600">${originalTotal}</span>
                       </div>
                       <div className="pt-2 border-t border-slate-200 flex justify-between">
                         <span className="font-medium text-slate-800">
@@ -995,22 +1230,30 @@ const ExchangeService = ({
                       </div>
                     </div>
 
-                    {selectedExpert && (
+                    {Object.keys(selectedExperts).length > 0 && (
                       <div className="p-4 bg-slate-50 rounded-xl">
                         <div className="flex items-center gap-2 mb-3">
                           <Users className="w-4 h-4 text-blue-600" />
-                          <span className="font-medium text-slate-700">Assigned Expert</span>
+                          <span className="font-medium text-slate-700">Assigned Experts per Service</span>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <ServiceImage src={selectedExpert.image} alt={selectedExpert.name} className="w-12 h-12 rounded-xl object-cover" />
-                          <div>
-                            <p className="font-medium text-slate-800">{selectedExpert.name}</p>
-                            <p className="text-xs text-slate-500">{selectedExpert.role}</p>
-                            <div className="flex items-center gap-1 mt-1">
-                              <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                              <span className="text-xs text-slate-600">{selectedExpert.rating} ({selectedExpert.reviewCount} reviews)</span>
-                            </div>
-                          </div>
+                        <div className="space-y-3">
+                          {selectedServices.map(service => {
+                            const exp = selectedExperts[service.id];
+                            if (!exp) return null;
+                            return (
+                              <div key={service.id} className="flex items-center gap-3 bg-white p-3 rounded-lg border border-slate-100">
+                                <ServiceImage src={exp.image} alt={exp.name} className="w-10 h-10 rounded-lg object-cover" />
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-semibold text-slate-800 text-xs truncate">{exp.name}</p>
+                                  <p className="text-[10px] text-slate-500 truncate">{service.name} Specialist</p>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                                  <span className="text-[10px] font-medium text-slate-700">{exp.rating}</span>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
@@ -1021,7 +1264,7 @@ const ExchangeService = ({
                         {selectedServices.map((service) => (
                           <div key={service.id} className="flex justify-between text-sm">
                             <span className="text-slate-600">{service.name} x{service.quantity}</span>
-                            <span className="font-medium">${service.price * service.quantity}</span>
+                            <span className="font-medium text-blue-600">${service.price * service.quantity}</span>
                           </div>
                         ))}
                       </div>
@@ -1235,24 +1478,31 @@ const ExchangeService = ({
               <div className="p-5 space-y-4">
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-600">Original Total</span>
-                  <span className="font-semibold">${originalTotal}</span>
+                  <span className="font-semibold text-blue-600">${originalTotal}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-600">New Total</span>
                   <span className="font-semibold text-blue-600">${newTotal}</span>
                 </div>
 
-                {selectedExpert && (
+                {Object.keys(selectedExperts).length > 0 && (
                   <div className="pt-2">
-                    <p className="text-xs text-slate-500 uppercase tracking-wide mb-2">Assigned Expert</p>
-                    <div className="flex items-center gap-2 text-xs bg-slate-50 p-2 rounded-lg">
-                      <ServiceImage src={selectedExpert.image} alt={selectedExpert.name} className="w-8 h-8 rounded-lg object-cover" />
-                      <div className="flex-1">
-                        <p className="font-medium text-slate-700 text-xs">{selectedExpert.name}</p>
-                        <p className="text-slate-500 text-xs">{selectedExpert.role}</p>
-                      </div>
-                      <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                      <span className="text-xs text-slate-600">{selectedExpert.rating}</span>
+                    <p className="text-xs text-slate-500 uppercase tracking-wide mb-2">Assigned Experts</p>
+                    <div className="space-y-2">
+                      {selectedServices.map(service => {
+                        const exp = selectedExperts[service.id];
+                        if (!exp) return null;
+                        return (
+                          <div key={service.id} className="flex items-center gap-2 text-xs bg-slate-50 p-2 rounded-lg">
+                            <ServiceImage src={exp.image} alt={exp.name} className="w-8 h-8 rounded-lg object-cover" />
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-slate-700 text-xs truncate">{exp.name}</p>
+                              <p className="text-slate-500 text-[10px] truncate">{service.name}</p>
+                            </div>
+                            <span className="text-[10px] text-slate-600 font-semibold">{exp.rating} ★</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -1299,6 +1549,44 @@ const ExchangeService = ({
           </div>
         </div>
       </div>
+
+      {showPaymentModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full text-center shadow-2xl border border-slate-100 transform scale-100 transition-all">
+            {!exchangeConfirmed ? (
+              <div className="space-y-6">
+                <div className="relative w-20 h-20 mx-auto flex items-center justify-center bg-blue-50 rounded-2xl">
+                  <RefreshCw className="w-10 h-10 text-blue-600 animate-spin" />
+                  <div className="absolute inset-0 border-4 border-blue-100 rounded-2xl animate-ping opacity-25"></div>
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-xl font-bold text-slate-800">Waiting for Payment Confirmation</h3>
+                  <p className="text-sm text-slate-500">
+                    We are currently processing and verifying your exchange order transaction details. Please do not close or refresh this page.
+                  </p>
+                </div>
+                <div className="flex items-center justify-center gap-2 text-xs bg-slate-50 py-2.5 px-4 rounded-xl text-slate-600 border border-slate-100">
+                  <Shield className="w-4 h-4 text-emerald-500" />
+                  <span>Secured and encrypted transaction gateway</span>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-6 animate-scaleUp">
+                <div className="w-20 h-20 mx-auto bg-green-50 rounded-2xl flex items-center justify-center text-green-600">
+                  <CheckCircle className="w-12 h-12" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-xl font-bold text-slate-800">Exchange Request Submitted!</h3>
+                  <p className="text-sm text-slate-500">
+                    Your request has been successfully created and sent to the organization dashboard for final approval.
+                  </p>
+                </div>
+                <p className="text-xs text-blue-600 animate-pulse font-medium">Redirecting you to your appointments...</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <style>{`
         .hide-scrollbar::-webkit-scrollbar {

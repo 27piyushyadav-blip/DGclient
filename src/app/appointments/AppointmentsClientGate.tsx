@@ -29,8 +29,39 @@ export default function AppointmentsClientGate() {
         // Handle the response structure - it might be nested with booking and expert
         const bookingsArray = Array.isArray(response) ? response : (response.bookings || []);
         
+        // Group by booking ID to deduplicate left-joined rows
+        const bookingsMap = new Map<string, any>();
+        
+        bookingsArray.forEach((item: any) => {
+          const booking = item.booking || item;
+          const bookingId = booking.id;
+          if (!bookingId) return;
+
+          const existingItem = bookingsMap.get(bookingId);
+          if (!existingItem) {
+            bookingsMap.set(bookingId, { ...item });
+          } else {
+            // Prioritize items with pending edit requests, or take the latest requestedAt date
+            if (item.editRequest) {
+              const existingEdit = existingItem.editRequest;
+              if (!existingEdit || item.editRequest.status === 'pending' || new Date(item.editRequest.requestedAt || item.editRequest.createdAt || 0) > new Date(existingEdit.requestedAt || existingEdit.createdAt || 0)) {
+                existingItem.editRequest = item.editRequest;
+              }
+            }
+            // Prioritize items with pending refund requests, or take the latest requestedAt date
+            if (item.refundRequest) {
+              const existingRefund = existingItem.refundRequest;
+              if (!existingRefund || item.refundRequest.status === 'pending' || new Date(item.refundRequest.requestedAt || item.refundRequest.createdAt || 0) > new Date(existingRefund.requestedAt || existingRefund.createdAt || 0)) {
+                existingItem.refundRequest = item.refundRequest;
+              }
+            }
+          }
+        });
+
+        const deduplicatedBookings = Array.from(bookingsMap.values());
+
         // Transform booking data to match the expected appointment structure
-        const transformedAppointments = bookingsArray.map((item: any) => {
+        const transformedAppointments = deduplicatedBookings.map((item: any) => {
           // Handle both nested structure (booking + expert + organization) and flat structure
           const booking = item.booking || item;
           const expert = item.expert || booking.expert;
@@ -61,6 +92,8 @@ export default function AppointmentsClientGate() {
             },
             organizationName: organization?.name || booking.organizationName || '',
             organizationId: booking.organizationId,
+            editRequest: item.editRequest || null,
+            refundRequest: item.refundRequest || null,
           };
         });
         

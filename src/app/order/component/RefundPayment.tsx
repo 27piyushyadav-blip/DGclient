@@ -409,7 +409,7 @@ const RefundPayment = ({ bookingId, services = [], totalPaid: propTotalPaid = 0 
                       value={additionalNotes}
                       onChange={(e) => setAdditionalNotes(e.target.value)}
                       rows={3}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition bg-slate-50/30"
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition bg-slate-50/30 text-black"
                       placeholder="Add any additional details about the refund request..."
                     />
                   </div>
@@ -509,7 +509,7 @@ const RefundPayment = ({ bookingId, services = [], totalPaid: propTotalPaid = 0 
                       value={customerFeedback}
                       onChange={(e) => setCustomerFeedback(e.target.value)}
                       rows={4}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition bg-slate-50/30"
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition bg-slate-50/30 text-black"
                       placeholder="Share your experience with the service..."
                     />
                   </div>

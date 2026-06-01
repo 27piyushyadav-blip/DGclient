@@ -487,6 +487,7 @@ export default function MainPage() {
           staff={selectedExpert}
           venueName={messageVenue.name}
           allStaff={messageVenue.staff}
+          services={messageVenue.services}
         />
       ) : null}
     </>

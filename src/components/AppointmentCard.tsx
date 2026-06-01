@@ -21,6 +21,7 @@ import {
   Download,
   RotateCcw,
   AlertCircle,
+  CheckCircle,
 } from "lucide-react";
 
 export default function AppointmentCard({ appointment, onCancelClick }) {
@@ -216,7 +217,89 @@ export default function AppointmentCard({ appointment, onCancelClick }) {
                   ? "Upcoming"
                   : "Pending"}
               </Badge>
+
+              {appointment.editRequest && appointment.editRequest.status === 'pending' && (
+                <Badge
+                  variant="secondary"
+                  className="text-[10px] font-bold uppercase bg-amber-500 text-white animate-pulse hover:bg-amber-600"
+                >
+                  Exchange Pending
+                </Badge>
+              )}
+
+              {appointment.refundRequest && (
+                <Badge
+                  variant="secondary"
+                  className={cn(
+                    "text-[10px] font-bold uppercase hover:opacity-90",
+                    appointment.refundRequest.status === 'pending'
+                      ? "bg-rose-500 text-white animate-pulse hover:bg-rose-600"
+                      : appointment.refundRequest.status === 'approved'
+                      ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                      : appointment.refundRequest.status === 'rejected'
+                      ? "bg-zinc-600 text-white hover:bg-zinc-700"
+                      : "bg-amber-500 text-white hover:bg-amber-600"
+                  )}
+                >
+                  Refund {appointment.refundRequest.status}
+                </Badge>
+              )}
             </div>
+
+            {appointment.editRequest && appointment.editRequest.status === 'pending' && (
+              <div className="mt-4 flex items-start gap-2.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 rounded-xl p-3 text-xs text-amber-800 dark:text-amber-300">
+                <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <span className="font-bold">Pending Service Exchange:</span> Changing to <span className="font-semibold">{appointment.editRequest.newService}</span> (₹{appointment.editRequest.newAmount}). Waiting for final confirmation.
+                </div>
+              </div>
+            )}
+
+            {appointment.editRequest && appointment.editRequest.status === 'approved' && (
+              <div className="mt-4 flex items-start gap-2.5 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/50 rounded-xl p-3 text-xs text-emerald-800 dark:text-emerald-300">
+                <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <span className="font-bold">Service Exchanged:</span> Successfully upgraded/switched service to <span className="font-semibold">{appointment.editRequest.newService}</span>.
+                </div>
+              </div>
+            )}
+
+            {appointment.editRequest && appointment.editRequest.status === 'rejected' && (
+              <div className="mt-4 flex items-start gap-2.5 bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/50 rounded-xl p-3 text-xs text-rose-800 dark:text-rose-300">
+                <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <span className="font-bold">Exchange Declined:</span> Request to switch to <span className="font-semibold">{appointment.editRequest.newService}</span> was rejected. Reason: <span className="italic">{appointment.editRequest.rejectionReason || 'Declined by partner'}</span>.
+                </div>
+              </div>
+            )}
+
+            {/* Refund Request Banners */}
+            {appointment.refundRequest && appointment.refundRequest.status === 'pending' && (
+              <div className="mt-4 flex items-start gap-2.5 bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/50 rounded-xl p-3 text-xs text-rose-800 dark:text-rose-300">
+                <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <span className="font-bold">Pending Refund Request:</span> A refund of <span className="font-semibold">₹{appointment.refundRequest.amount}</span> has been requested. Reason: <span className="italic">"{appointment.refundRequest.reason}"</span>. Waiting for confirmation.
+                </div>
+              </div>
+            )}
+
+            {appointment.refundRequest && appointment.refundRequest.status === 'approved' && (
+              <div className="mt-4 flex items-start gap-2.5 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/50 rounded-xl p-3 text-xs text-emerald-800 dark:text-emerald-300">
+                <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <span className="font-bold">Refund Approved:</span> A refund of <span className="font-semibold">₹{appointment.refundRequest.amount}</span> has been approved and processed.
+                </div>
+              </div>
+            )}
+
+            {appointment.refundRequest && appointment.refundRequest.status === 'rejected' && (
+              <div className="mt-4 flex items-start gap-2.5 bg-zinc-50 dark:bg-zinc-900/20 border border-zinc-200 dark:border-zinc-800/50 rounded-xl p-3 text-xs text-zinc-800 dark:text-zinc-300">
+                <AlertCircle className="w-4 h-4 text-zinc-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <span className="font-bold">Refund Request Declined:</span> The request for a refund of <span className="font-semibold">₹{appointment.refundRequest.amount}</span> was declined. Reason: <span className="italic">"{appointment.refundRequest.rejectionReason || 'Declined by partner'}"</span>.
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

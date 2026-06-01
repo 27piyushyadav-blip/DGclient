@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import {
   Star,
   User,
@@ -47,58 +47,10 @@ type MessageDialogProps = {
   staff: StaffMember;
   venueName: string;
   allStaff?: StaffMember[];
+  services?: any[];
 };
 
-const menuItems: MenuItem[] = [
-  {
-    id: "1",
-    name: "Hair Cut",
-    price: 80,
-    description: "Professional haircut and styling",
-    imageUrl:
-      "https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&q=80&w=100&h=100",
-  },
-  {
-    id: "2",
-    name: "Beard Styling",
-    price: 45,
-    description: "Beard trim and shape",
-    imageUrl:
-      "https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&q=80&w=100&h=100",
-  },
-  {
-    id: "3",
-    name: "Manicure",
-    price: 45,
-    description: "Complete nail care",
-    imageUrl:
-      "https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&q=80&w=100&h=100",
-  },
-  {
-    id: "4",
-    name: "Shaving",
-    price: 22,
-    description: "Traditional hot towel shave",
-    imageUrl:
-      "https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&q=80&w=100&h=100",
-  },
-  {
-    id: "5",
-    name: "Hair Coloring",
-    price: 120,
-    description: "Full hair color service",
-    imageUrl:
-      "https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&q=80&w=100&h=100",
-  },
-  {
-    id: "6",
-    name: "Head Massage",
-    price: 35,
-    description: "Relaxing head and scalp massage",
-    imageUrl:
-      "https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&q=80&w=100&h=100",
-  },
-];
+// No hardcoded demo services — only real organization services are shown
 
 const StarRating = ({
   rating,
@@ -122,6 +74,7 @@ export default function MessageDialog({
   staff,
   venueName,
   allStaff = [],
+  services = [],
 }: MessageDialogProps) {
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
@@ -131,8 +84,57 @@ export default function MessageDialog({
   // Track which staff member is actively being chatted with (allows switching)
   const [activeStaff, setActiveStaff] = useState<StaffMember>(staff);
 
+  // Sync activeStaff when the staff prop changes (e.g. user opens dialog with a different expert)
+  useEffect(() => {
+    setActiveStaff(staff);
+  }, [staff]);
+
   console.log("[MessageDialog] activeStaff:", activeStaff);
   console.log("[MessageDialog] activeStaff.id:", activeStaff.id);
+
+  // Convert and map dynamic services to MenuItem format
+  const activeMenuItems = useMemo(() => {
+    if (services && services.length > 0) {
+      return services.map((s: any, index: number) => {
+        // Handle both VenueService format (price: "$80") and raw API format (basePrice: 80)
+        const rawPrice = s.basePrice ?? s.price ?? 0;
+        const parsedPrice = typeof rawPrice === 'string'
+          ? parseFloat(rawPrice.replace(/[^0-9.]/g, "")) || 0
+          : typeof rawPrice === 'number' ? rawPrice : 0;
+        return {
+          id: s.id || s._id || s.name || String(index),
+          name: s.name,
+          price: parsedPrice,
+          description: s.description || null,
+          imageUrl: s.imageUrl || s.image || "",
+        };
+      });
+    }
+    // No services configured yet
+    return [];
+  }, [services]);
+
+  // Filter services by what the active expert provides
+  const filteredMenuItems = useMemo(() => {
+    if (activeStaff.services && Array.isArray(activeStaff.services) && activeStaff.services.length > 0) {
+      const filtered = activeMenuItems.filter((item: any) => {
+        return activeStaff.services.some((s: any) => {
+          if (!s) return false;
+          // If s is an object (e.g. { id, name })
+          if (typeof s === 'object') {
+            return s.id === item.id || s._id === item.id || s.name === item.name;
+          }
+          // If s is a string (could be id or name)
+          return s === item.id || s === item.name;
+        });
+      });
+      // Fallback: If filtered is empty, show all activeMenuItems so the menu is never empty
+      if (filtered.length > 0) {
+        return filtered;
+      }
+    }
+    return activeMenuItems;
+  }, [activeMenuItems, activeStaff.services]);
 
   // Expert data
   const expertData = {
@@ -141,11 +143,11 @@ export default function MessageDialog({
     role: activeStaff.role,
     rating: 4.9,
     reviews: 119,
-    experience: "10 Years",
+    experience: activeStaff.experienceYears ? `${activeStaff.experienceYears} Years` : "10 Years",
     imageUrl: activeStaff.image || activeStaff.imageUrl || "",
     videoUrl: "https://youtu.be/sRWcJrMTtMI?si=hbh0v0HYOocQsXrE",
     isOnline: true,
-    bio: `Professional ${activeStaff.role.toLowerCase()} with 10+ years of experience. Specialized in providing relaxing and rejuvenating treatments.`,
+    bio: `Professional ${activeStaff.role.toLowerCase()} with ${activeStaff.experienceYears || 10}+ years of experience. Specialized in providing relaxing and rejuvenating treatments.`,
   };
 
   const normalizedStaff: NormalizedStaffMember = {
@@ -160,7 +162,7 @@ export default function MessageDialog({
     })
   );
 
-  const selectedServicesList = menuItems.filter((s) =>
+  const selectedServicesList = filteredMenuItems.filter((s) =>
     selectedServices.includes(s.id)
   );
   const totalAmount = selectedServicesList.reduce(
@@ -198,10 +200,10 @@ export default function MessageDialog({
             Chat with {activeStaff.name}
           </DialogTitle>
 
-          <div className="min-h-full bg-zinc-50 h-full overflow-auto">
-            <div className="container mx-auto max-w-7xl px-4 py-6 h-full flex flex-col">
+          <div className="bg-zinc-50 h-full overflow-hidden flex flex-col">
+            <div className="container mx-auto max-w-7xl px-4 py-6 h-full flex flex-col flex-1 min-h-0">
               {/* Header */}
-              <div className="flex items-center gap-4 mb-6">
+              <div className="flex items-center gap-4 mb-4 flex-shrink-0">
                 <button
                   onClick={() => onOpenChange(false)}
                   className="p-2 hover:bg-zinc-200 rounded-lg transition-colors cursor-pointer"
@@ -211,9 +213,9 @@ export default function MessageDialog({
                 <h1 className="text-2xl font-bold text-zinc-900">Messages</h1>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0 overflow-hidden">
                 {/* LEFT COLUMN - Expert Profile */}
-                <div className="lg:col-span-4">
+                <div className="lg:col-span-4 h-full overflow-y-auto pr-1">
                   <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden sticky top-6">
                     {/* Profile Image with Play Button */}
                     <div className="relative aspect-square w-full cursor-pointer group overflow-hidden h-[12rem]">
@@ -296,8 +298,8 @@ export default function MessageDialog({
                 </div>
 
                 {/* MIDDLE COLUMN - Real Chat */}
-                <div className="lg:col-span-5 flex flex-col min-h-0">
-                  <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden flex flex-col h-[33rem]">
+                <div className="lg:col-span-5 flex flex-col h-full min-h-0">
+                  <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden flex flex-col flex-1 h-full min-h-0">
                     {/* Chat Header */}
                     <div className="flex items-center justify-between p-4 border-b border-zinc-200 bg-white flex-shrink-0">
                       <div className="flex items-center gap-3">
@@ -344,14 +346,14 @@ export default function MessageDialog({
                     </div>
 
                     {/* Real Chat Panel */}
-                    <div className="flex-1 overflow-hidden">
+                    <div className="flex-1 overflow-hidden min-h-0">
                       {activeStaff.id ? (
                         <RealChatPanel
                           key={activeStaff.id}
                           expertId={activeStaff.id}
                           expertName={expertData.name}
                           expertAvatar={expertData.imageUrl}
-                          messagesHeightClass="h-[19rem]"
+                          messagesHeightClass="flex-1"
                         />
                       ) : (
                         /* Fallback when no expert ID (static/demo data) */
@@ -373,10 +375,10 @@ export default function MessageDialog({
                 </div>
 
                 {/* RIGHT COLUMN - Menu & Total */}
-                <div className="lg:col-span-3 space-y-4">
+                <div className="lg:col-span-3 flex flex-col h-full min-h-0 space-y-4 overflow-hidden">
                   {/* Menu Section */}
-                  <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm">
-                    <div className="p-5 border-b border-zinc-200">
+                  <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm flex flex-col flex-1 min-h-0 overflow-hidden">
+                    <div className="p-5 border-b border-zinc-200 flex-shrink-0">
                       <h3 className="text-xl font-bold text-zinc-900">
                         Services Menu
                       </h3>
@@ -385,92 +387,98 @@ export default function MessageDialog({
                       </p>
                     </div>
 
-                    <div
-                      className={`divide-y divide-zinc-200 overflow-y-auto scrollbar-thin ${
-                        selectedServices.length > 0
-                          ? "max-h-[9rem]"
-                          : "max-h-[27rem]"
-                      }`}
-                    >
-                      {menuItems.map((item) => (
-                        <div
-                          key={item.id}
-                          onClick={() => {
-                            if (selectedServices.includes(item.id)) {
-                              setSelectedServices(
-                                selectedServices.filter((id) => id !== item.id)
-                              );
-                            } else {
-                              setSelectedServices([
-                                ...selectedServices,
-                                item.id,
-                              ]);
-                            }
-                          }}
-                          className={`p-4 cursor-pointer transition-all duration-200 hover:bg-zinc-50 ${
-                            selectedServices.includes(item.id)
-                              ? "bg-indigo-50"
-                              : ""
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-xl overflow-hidden bg-gradient-to-br from-indigo-100 to-purple-100 flex-shrink-0">
-                              {item.imageUrl ? (
-                                <Image
-                                  src={item.imageUrl}
-                                  alt={item.name}
-                                  width={48}
-                                  height={48}
-                                  className="w-full h-full object-cover"
-                                  unoptimized
-                                />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center">
-                                  <svg
-                                    className="w-6 h-6 text-indigo-400"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                                    />
-                                  </svg>
-                                </div>
-                              )}
-                            </div>
+                    <div className="divide-y divide-zinc-200 overflow-y-auto flex-1 min-h-0 scrollbar-thin">
+                      {filteredMenuItems.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center h-full py-10 px-4 text-center">
+                          <div className="w-14 h-14 rounded-full bg-indigo-50 flex items-center justify-center mb-3">
+                            <svg className="w-7 h-7 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                            </svg>
+                          </div>
+                          <p className="text-sm font-medium text-zinc-600">No services listed</p>
+                          <p className="text-xs text-zinc-400 mt-1">This organization hasn't added any services yet.</p>
+                        </div>
+                      ) : (
+                        filteredMenuItems.map((item) => (
+                          <div
+                            key={item.id}
+                            onClick={() => {
+                              if (selectedServices.includes(item.id)) {
+                                setSelectedServices(
+                                  selectedServices.filter((id) => id !== item.id)
+                                );
+                              } else {
+                                setSelectedServices([
+                                  ...selectedServices,
+                                  item.id,
+                                ]);
+                              }
+                            }}
+                            className={`p-4 cursor-pointer transition-all duration-200 hover:bg-zinc-50 ${
+                              selectedServices.includes(item.id)
+                                ? "bg-indigo-50"
+                                : ""
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="w-12 h-12 rounded-xl overflow-hidden bg-gradient-to-br from-indigo-100 to-purple-100 flex-shrink-0">
+                                {item.imageUrl ? (
+                                  <Image
+                                    src={item.imageUrl}
+                                    alt={item.name}
+                                    width={48}
+                                    height={48}
+                                    className="w-full h-full object-cover"
+                                    unoptimized
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <svg
+                                      className="w-6 h-6 text-indigo-400"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                                      />
+                                    </svg>
+                                  </div>
+                                )}
+                              </div>
 
-                            <div className="flex-1">
-                              <h4 className="font-semibold text-zinc-900 text-sm">
-                                {item.name}
-                              </h4>
-                              {item.description && (
-                                <p className="text-xs text-zinc-500 mt-0.5">
-                                  {item.description}
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-semibold text-zinc-900 text-sm truncate">
+                                  {item.name}
+                                </h4>
+                                {item.description && (
+                                  <p className="text-xs text-zinc-500 mt-0.5 line-clamp-1">
+                                    {item.description}
+                                  </p>
+                                )}
+                              </div>
+
+                              <div className="text-right flex-shrink-0">
+                                <p className="text-base font-bold text-indigo-600">
+                                  {item.price > 0 ? `$${item.price}` : "Free"}
                                 </p>
-                              )}
-                            </div>
-
-                            <div className="text-right">
-                              <p className="text-base font-bold text-indigo-600">
-                                ${item.price}
-                              </p>
-                              {selectedServices.includes(item.id) && (
-                                <Check className="w-4 h-4 text-indigo-600 mt-1 ml-auto" />
-                              )}
+                                {selectedServices.includes(item.id) && (
+                                  <Check className="w-4 h-4 text-indigo-600 mt-1 ml-auto" />
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        ))
+                      )}
                     </div>
                   </div>
 
                   {/* Total Section */}
                   {selectedServices.length > 0 && (
-                    <div className="bg-white rounded-2xl border border-zinc-200 p-5 shadow-sm sticky top-6">
+                    <div className="bg-white rounded-2xl border border-zinc-200 p-5 shadow-sm flex-shrink-0">
                       <h3 className="text-xl font-bold text-zinc-900 mb-4">
                         Order Summary
                       </h3>
@@ -570,7 +578,8 @@ export default function MessageDialog({
             id: newExpert.id,
             name: newExpert.name,
             role: newExpert.role,
-            image: newExpert.imageUrl || "",
+            image: newExpert.imageUrl || newExpert.image || "",
+            services: newExpert.services || [],
           });
           setIsChangeExpertOpen(false);
         }}

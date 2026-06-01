@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 import { apiClient } from "@/lib/apiClient";
 import Image from "next/image";
+import { offersApi } from "@/lib/offersApi";
+import OfferCard from "@/components/chat/OfferCard";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 const TOKEN_KEY = "client_access_token";
@@ -68,6 +70,7 @@ type Msg = {
   senderModel?: string;
   content: string;
   contentType?: "text" | "image" | "video" | "pdf" | "audio" | "offer";
+  payload?: any;
   createdAt: string;
   readBy: string[];
   status?: "sending" | "sent";
@@ -136,7 +139,26 @@ export default function RealChatPanel({
       const user = JSON.parse(localStorage.getItem(USER_KEY) || "null");
       console.log("[RealChatPanel] Current user from localStorage:", user);
       
-      // Fix: Use _id if available, fallback to email if id is empty
+      // If id is missing, empty, or not a UUID, try to extract the real database UUID from client_access_token JWT
+      const token = localStorage.getItem("client_access_token") || localStorage.getItem("access_token");
+      if (token) {
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          const tokenUserId = payload.sub || payload.userId;
+          if (tokenUserId) {
+            console.log("[RealChatPanel] Successfully extracted real user UUID from JWT:", tokenUserId);
+            if (user) {
+              user.id = tokenUserId;
+            } else {
+              return { id: tokenUserId };
+            }
+          }
+        } catch (jwtErr) {
+          console.error("[RealChatPanel] Failed to extract sub from JWT token:", jwtErr);
+        }
+      }
+      
+      // Fallback: Use _id if available, fallback to email if id is empty
       if (user && !user.id && user.email) {
         user.id = user.email; // Use email as fallback ID
         console.log("[RealChatPanel] Using email as user ID:", user.email);
@@ -396,17 +418,79 @@ export default function RealChatPanel({
   useEffect(() => {
     const s = socketRef.current;
     if (!s) return;
+
+    const handleOfferUpdated = (data: any) => {
+      console.log("🔥 [RealChatPanel] offer-updated received:", data);
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.contentType === 'offer' && msg.payload?.id === data.offerId
+            ? { ...msg, payload: { ...msg.payload, status: data.status } }
+            : msg
+        )
+      );
+    };
+
     s.on("new-message", handleNewMessage);
     s.on("message-sent", handleMessageSent);
     s.on("user-typing", handleTypingEvent);
     s.on("messages-read", handleMessagesRead);
+    s.on("offer-updated", handleOfferUpdated);
     return () => {
       s.off("new-message", handleNewMessage);
       s.off("message-sent", handleMessageSent);
       s.off("user-typing", handleTypingEvent);
       s.off("messages-read", handleMessagesRead);
+      s.off("offer-updated", handleOfferUpdated);
     };
   }, [handleNewMessage, handleMessageSent, handleTypingEvent, handleMessagesRead]);
+
+  const handleAcceptOffer = useCallback(async (offerId: string) => {
+    try {
+      const response = await offersApi.acceptOffer(offerId);
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.contentType === 'offer' && msg.payload?.id === offerId
+            ? { ...msg, payload: response.offer }
+            : msg
+        )
+      );
+    } catch (error) {
+      console.error('Error accepting offer:', error);
+    }
+  }, []);
+
+  const handleDeclineOffer = useCallback(async (offerId: string) => {
+    try {
+      const response = await offersApi.declineOffer(offerId);
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.contentType === 'offer' && msg.payload?.id === offerId
+            ? { ...msg, payload: response.offer }
+            : msg
+        )
+      );
+    } catch (error) {
+      console.error('Error declining offer:', error);
+    }
+  }, []);
+
+  const handlePayForOffer = useCallback(async (offerId: string) => {
+    try {
+      const response = await offersApi.payForOffer(offerId);
+      if (response.paymentUrl) {
+        window.open(response.paymentUrl, '_blank');
+      }
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.contentType === 'offer' && msg.payload?.id === offerId
+            ? { ...msg, payload: response.offer }
+            : msg
+        )
+      );
+    } catch (error) {
+      console.error('Error paying for offer:', error);
+    }
+  }, []);
 
   // ── send message ──────────────────────────────────────────────────────
 
@@ -605,6 +689,54 @@ export default function RealChatPanel({
                   (id: string) => id !== currentUser?.id
                 );
 
+                if (msg.contentType === "offer" && msg.payload) {
+                  return (
+                    <div
+                      key={msg._id}
+                      className={`flex w-full ${isFirst ? "mt-3" : "mt-1"}`}
+                    >
+                      <div
+                        className={`flex w-full ${
+                          isSender ? "justify-end" : "justify-start"
+                        }`}
+                      >
+                        {/* Avatar for received messages */}
+                        {!isSender && isFirst && (
+                          <div className="w-7 h-7 rounded-full overflow-hidden mr-2 mt-1 shrink-0 bg-gradient-to-br from-indigo-400 to-purple-500">
+                            {expertAvatar ? (
+                              <Image
+                                src={expertAvatar}
+                                alt={expertName}
+                                width={28}
+                                height={28}
+                                className="w-full h-full object-cover"
+                                unoptimized
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-white text-xs font-bold">
+                                {expertName[0]}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {!isSender && !isFirst && (
+                          <div className="w-7 mr-2 shrink-0" />
+                        )}
+                        
+                        <div className="w-[320px] max-w-full my-1">
+                          <OfferCard
+                            payload={msg.payload}
+                            isOwn={isSender}
+                            onAccept={handleAcceptOffer}
+                            onDecline={handleDeclineOffer}
+                            onPay={handlePayForOffer}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
                 return (
                   <div
                     key={msg._id}
@@ -800,7 +932,7 @@ export default function RealChatPanel({
                 value={newMessage}
                 onChange={handleTyping}
                 placeholder="Write a message…"
-                className="flex-1 bg-transparent border-none text-sm px-2 py-2 focus:outline-none placeholder:text-zinc-400"
+                className="flex-1 bg-transparent border-none text-sm px-2 py-2 focus:outline-none placeholder:text-zinc-400 text-zinc-900"
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();

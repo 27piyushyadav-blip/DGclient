@@ -26,12 +26,16 @@ type SpecificVenueClientWrapperProps = {
   venue: Venue;
   suggestions: Venue[];
   sliderVenues: Venue[];
+  horizontalBanners?: { imageUrl: string; title?: string; description?: string; clickThroughUrl?: string }[];
+  verticalBanners?: { imageUrl: string; title?: string; description?: string; clickThroughUrl?: string }[];
 };
 
 export default function SpecificVenueClientWrapper({
   venue,
   suggestions,
   sliderVenues,
+  horizontalBanners = [],
+  verticalBanners = [],
 }: SpecificVenueClientWrapperProps) {
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [selectedServiceForBooking, setSelectedServiceForBooking] =
@@ -134,7 +138,8 @@ export default function SpecificVenueClientWrapper({
             </aside>
 
             <section className="space-y-6">
-              <SpecificVenueCarousel sliderVenues={sliderVenues} />
+              <SpecificVenueCarousel sliderVenues={sliderVenues} horizontalBanners={horizontalBanners} verticalBanners={verticalBanners} />
+
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
@@ -267,21 +272,21 @@ export default function SpecificVenueClientWrapper({
                   <h2 className="text-3xl font-bold text-slate-900">Menu</h2>
                   <div className="space-y-4">
                     {venue.services.slice(0, 5).map((service) => (
-                      <div key={service.name} className="flex items-center justify-between gap-3 cursor-pointer" onClick={() => handleServiceBooking(service)}>
-                        <div className="flex items-center gap-3" >
-                          <div
-                            className="h-12 w-12 rounded-xl bg-cover bg-center"
-                            style={{
-                              backgroundImage: `url('${service.image}')`,
-                            }}
-                          />
+                      <div key={service.name} className="flex items-center gap-3 cursor-pointer" onClick={() => handleServiceBooking(service)}>
+                        <div
+                          className="h-12 w-12 shrink-0 rounded-xl bg-cover bg-center"
+                          style={{
+                            backgroundImage: `url('${service.image}')`,
+                          }}
+                        />
+                        <div className="flex flex-1 min-w-0 items-center justify-between gap-2">
+                          <span className="text-sm font-medium text-slate-700 line-clamp-2 leading-snug">
+                            {service.name}
+                          </span>
+                          <span className="shrink-0 text-sm font-bold text-blue-600 whitespace-nowrap">
+                            {service.price}
+                          </span>
                         </div>
-                        <span className="text-sm font-medium text-slate-700">
-                          {service.name}
-                        </span>
-                        <span className="text-2xl font-bold text-blue-600">
-                          {service.price}
-                        </span>
                       </div>
                     ))}
                   </div>
@@ -334,16 +339,15 @@ export default function SpecificVenueClientWrapper({
                   <h2 className="text-3xl font-bold text-slate-900">Products</h2>
                   <div className="space-y-4">
                     {venue.products.slice(0, 5).map((product) => (
-                      <div key={product.name} className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3" >
-                          <div
-                            className="h-12 w-12 rounded-xl bg-cover bg-center"
-                            style={{ backgroundImage: `url('${product.image}')` }}
-                          />
-
+                      <div key={product.name} className="flex items-center gap-3">
+                        <div
+                          className="h-12 w-12 shrink-0 rounded-xl bg-cover bg-center"
+                          style={{ backgroundImage: `url('${product.image}')` }}
+                        />
+                        <div className="flex flex-1 min-w-0 items-center justify-between gap-2">
+                          <span className="text-sm font-medium text-slate-700 line-clamp-2 leading-snug">{product.name}</span>
+                          <span className="shrink-0 text-sm font-bold text-blue-600 whitespace-nowrap">{product.price}</span>
                         </div>
-                        <span className="text-sm font-medium text-slate-700">{product.name}</span>
-                        <span className="text-2xl font-bold text-blue-600">{product.price}</span>
                       </div>
                     ))}
                   </div>
@@ -369,6 +373,7 @@ export default function SpecificVenueClientWrapper({
           selectedServiceForBooking ? 2 : selectedStaffForBooking ? 2 : 1
         }
         bookingFlow={selectedStaffForBooking ? "staff-first" : "service-first"}
+        verticalBannerUrl={verticalBanners[0]?.imageUrl}
       />
 
       {selectedStaffForMessage && (
@@ -378,6 +383,7 @@ export default function SpecificVenueClientWrapper({
           staff={selectedStaffForMessage}
           venueName={venue.name}
           allStaff={venue.staff}
+          services={venue.services}
         />
       )}
     </>

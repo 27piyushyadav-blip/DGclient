@@ -1,6 +1,8 @@
 export type VenueService = {
+  id?: string;
   name: string;
   price: string;
+  description?: string | null;
   image: string;
 };
 
@@ -9,6 +11,8 @@ export type VenueStaff = {
   name: string;
   role: string;
   image: string;
+  services?: any[];
+  experienceYears?: number;
 };
 
 export type VenueReview = {
@@ -264,8 +268,10 @@ export function mapOrgToVenue(org: any, index: number = 0): Venue {
   }
 
   const services = (org.services || []).map((s: any) => ({
+    id: s.id || s._id || s.name,
     name: s.name,
     price: `$${s.basePrice || 0}`,
+    description: s.description || null,
     image: s.imageUrl || "https://images.unsplash.com/photo-1515377905703-c4788e51af15?q=80&w=900&auto=format&fit=crop",
   }));
 
@@ -274,6 +280,8 @@ export function mapOrgToVenue(org: any, index: number = 0): Venue {
     name: e.name,
     role: e.specialization || "Wellness Professional",
     image: e.profilePicture || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=600&auto=format&fit=crop",
+    services: e.services || [],
+    experienceYears: e.experienceYears || 0,
   }));
 
   const reviews = (org.reviews && org.reviews.length > 0)
@@ -319,15 +327,9 @@ export function mapOrgToVenue(org: any, index: number = 0): Venue {
     bgImage: `url('${bgImageUrl}')`,
     tagline: org.tagline || (org.description ? org.description.slice(0, 40) + "..." : `${org.name} Wellness`),
     description: org.description || `Welcome to ${org.name}. Contact us to book our premium services.`,
-    services: services.length > 0 ? services : [
-      { name: "Swedish Massage", price: "$80", image: "https://images.unsplash.com/photo-1515377905703-c4788e51af15?q=80&w=900&auto=format&fit=crop" },
-      { name: "Deep Tissue Massage", price: "$120", image: "https://images.unsplash.com/photo-1519823551278-64ac92734fb1?q=80&w=900&auto=format&fit=crop" },
-    ],
+    services,
     products,
-    staff: staff.length > 0 ? staff : [
-      { name: "Sony", role: "Massage Therapist", image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=600&auto=format&fit=crop" },
-      { name: "Jessi", role: "Massage Therapist", image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=600&auto=format&fit=crop" },
-    ],
+    staff,
     reviews,
     features,
   };
