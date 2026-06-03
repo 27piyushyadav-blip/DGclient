@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode, useEffect } from "react";
+import { toast } from "sonner";
 import {
   CalendarDays,
   ChevronDown,
@@ -173,11 +174,39 @@ function VenueCard({
   onPlayVideo: () => void;
   onMessageNow: () => void;
 }) {
+  const handleShare = async (e: any) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const shareUrl = `${window.location.origin}/main/specific/${id}`;
+    const shareData = {
+      title: name,
+      text: tagline || `Check out ${name} on Mind Namo`,
+      url: shareUrl,
+    };
+
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          console.error('Error sharing:', err);
+        }
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        toast.success("Link copied to clipboard!");
+      } catch (err) {
+        toast.error("Failed to copy link.");
+      }
+    }
+  };
+
   return (
-    <Card className="overflow-hidden rounded-[28px] border-slate-200 shadow-[0_22px_60px_-36px_rgba(15,23,42,0.35)] lg:max-h-[25.5rem]">
-      <div className="grid lg:grid-cols-[minmax(0,1fr)_96px]">
+    <Card className="overflow-hidden rounded-[28px] border-slate-200 shadow-[0_22px_60px_-36px_rgba(15,23,42,0.35)] lg:h-[25.5rem] lg:max-h-[25.5rem] bg-white">
+      <div className="grid lg:grid-cols-[minmax(0,1fr)_96px] lg:h-[290px]">
         <div
-          className={`relative min-h-[250px] overflow-hidden bg-gradient-to-br ${accent} p-6 text-white`}
+          className={`relative h-[290px] lg:h-full overflow-hidden bg-gradient-to-br ${accent} p-6 text-white`}
         >
           {/* Background Image with Light Overlay */}
           <div
@@ -203,29 +232,37 @@ function VenueCard({
           {/* <div className="absolute bottom-5 right-3 h-14 w-14 rounded-full bg-white/90 blur-[2px]" /> */}
           <div className="relative flex h-full flex-col">
             <div className="flex items-start justify-between gap-4">
-              <div>
+              <div className="flex-1 min-w-0">
                 <h2 className="text-[1.8rem] font-bold leading-none">{name}</h2>
                 <p className="mt-2 text-lg italic text-white/90">
                   {tagline || "Relax & Rejuvenate"}
                 </p>
               </div>
 
-              <Share2 className="mr-1.5 h-5 w-5 cursor-pointer" />
+              <div className="flex items-center gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleShare}
+                  className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full hover:bg-white/10 transition-colors"
+                >
+                  <Share2 className="h-5 w-5 text-white" />
+                </button>
 
-              <Badge variant="default" className="bg-blue-600 text-white shadow-lg">
-                <Clock3 className="mr-1.5 h-3.5 w-3.5" />
-                {hours}
-              </Badge>
+                <Badge variant="default" className="bg-blue-600 text-white shadow-lg">
+                  <Clock3 className="mr-1.5 h-3.5 w-3.5" />
+                  {hours}
+                </Badge>
+              </div>
             </div>
 
-            <p className="mt-6 max-w-xs text-sm leading-6 text-white/88">
+            <p className="mt-4 max-w-xs text-sm leading-6 text-white/88 line-clamp-2">
               {description || "Experience premium care from our professional team."}
             </p>
 
-            <div className="mt-auto flex flex-col gap-4 pt-8">
+            <div className="mt-auto flex flex-col gap-4 pt-4">
               <div className="flex items-start gap-2 text-sm text-white/95">
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
-                <span>{address}</span>
+                <span className="line-clamp-1">{address}</span>
               </div>
               <Button
                 variant="secondary"
@@ -238,7 +275,7 @@ function VenueCard({
           </div>
         </div>
 
-        <div className="flex items-stretch border-t border-slate-200 bg-white lg:flex-col lg:border-l lg:border-t-0 p-[0.5rem]">
+        <div className="flex items-stretch border-t border-slate-200 bg-white lg:flex-col lg:border-l lg:border-t-0 p-[0.5rem] lg:h-full">
           {[
             { icon: Star, label: "View", action: "view" },
             { icon: Users, label: "Staff Select", action: "staff" },
@@ -279,8 +316,8 @@ function VenueCard({
         </div>
       </div>
 
-      <div className="flex justify-between items-center bg-white">
-        <CardContent className="grid gap-2 border-t border-slate-200 p-4 md:grid-cols-[minmax(0,1fr)_1px]">
+      <div className="flex justify-between items-center bg-white lg:h-[118px]">
+        <CardContent className="grid gap-2 border-t border-slate-200 p-4 md:grid-cols-[minmax(0,1fr)_1px] h-full items-center">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {services.slice(0, 3).map((service) => (
               <div
@@ -308,7 +345,7 @@ function VenueCard({
         <Button
           type="button"
           onClick={onBookNow}
-          className="h-full rounded-xl bg-blue-600  text-sm font-semibold text-white shadow-lg shadow-blue-600/25 hover:bg-blue-700 mr-1 text-[12px] py-3"
+          className="rounded-xl bg-blue-600 text-sm font-semibold text-white shadow-lg shadow-blue-600/25 hover:bg-blue-700 mr-5 text-[12px] py-3 px-6 whitespace-nowrap"
         >
           {/* <CalendarDays className="mr-2 h-4 w-4" /> */}
           Book Now
