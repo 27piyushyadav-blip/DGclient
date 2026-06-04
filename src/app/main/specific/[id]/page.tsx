@@ -23,7 +23,8 @@ export async function generateMetadata({ params }: SpecificPageProps): Promise<M
 
       const coverImage = orgData.coverImageUrl || "";
       const logoImage = orgData.logo || "";
-      const shareImage = logoImage || coverImage || "";
+      // Prioritize Cover Image (landscape) over Logo (square) to trigger the large image card on WhatsApp/Slack
+      const shareImage = coverImage || logoImage || "";
 
       const siteUrl = process.env.NEXTAUTH_URL || 'https://digitaloffices.com.au';
       return {
@@ -38,8 +39,8 @@ export async function generateMetadata({ params }: SpecificPageProps): Promise<M
           images: shareImage ? [
             {
               url: shareImage,
-              width: 800,
-              height: 600,
+              width: 1200,
+              height: 630,
               alt: venue.name,
             },
           ] : [],
