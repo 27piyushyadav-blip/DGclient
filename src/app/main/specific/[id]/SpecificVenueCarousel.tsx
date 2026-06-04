@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import type { Venue } from "@/app/main/data";
 import SpecificVenueBookingModal from "./SpecificVenueBookingModal";
 
@@ -39,6 +40,34 @@ export default function SpecificVenueCarousel({
 
   // Use the first venue for static content (name, tagline, address, etc.)
   const staticVenue = sliderVenues[0];
+
+  const handleShare = async (e: any) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const shareUrl = typeof window !== "undefined" ? window.location.href : "";
+    const shareData = {
+      title: staticVenue.name,
+      text: staticVenue.tagline || `Check out ${staticVenue.name} on Mind Namo`,
+      url: shareUrl,
+    };
+
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          console.error('Error sharing:', err);
+        }
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        toast.success("Link copied to clipboard!");
+      } catch (err) {
+        toast.error("Failed to copy link.");
+      }
+    }
+  };
 
   // Build the list of banner images to cycle through:
   // Priority: org horizontal banners → venue cover image → fallback Unsplash images
@@ -97,9 +126,14 @@ export default function SpecificVenueCarousel({
         <div className="absolute inset-0 bg-black/10" />
 
         {/* Share icon */}
-        <div className="absolute right-36 top-6 cursor-pointer z-20">
+        <button
+          type="button"
+          onClick={handleShare}
+          className="absolute right-36 top-6 cursor-pointer z-20 flex h-8 w-8 items-center justify-center rounded-full hover:bg-white/10 transition-colors"
+          aria-label="Share page"
+        >
           <Share2 className="h-5 w-5 text-white" />
-        </div>
+        </button>
 
         {/* Hours badge */}
         <Badge className="absolute right-6 top-6 bg-blue-600 text-white hover:bg-blue-600 z-20">
