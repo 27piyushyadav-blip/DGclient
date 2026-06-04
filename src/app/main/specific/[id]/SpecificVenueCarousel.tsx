@@ -141,10 +141,15 @@ export default function SpecificVenueCarousel({
           </div>
 
           <div className="mt-8 relative flex items-center justify-between gap-4 pl-8 pr-8">
-            <div className="flex items-center gap-2 text-sm font-medium text-white/90 z-10">
+            <button
+              onClick={() => {
+                window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(staticVenue.address)}`, "_blank");
+              }}
+              className="flex items-center gap-2 text-sm font-medium text-white/90 z-10 hover:text-blue-200 transition-colors cursor-pointer"
+            >
               <MapPin className="h-4 w-4 text-blue-400" />
               <span className="truncate max-w-[200px] sm:max-w-xs">{staticVenue.address}</span>
-            </div>
+            </button>
 
             {/* Pagination dots — centered horizontally */}
             {totalSlides > 1 && (

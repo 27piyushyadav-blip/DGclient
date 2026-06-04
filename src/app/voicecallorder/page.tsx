@@ -112,6 +112,11 @@ function VenueCard({
               <Button
                 variant="secondary"
                 className="w-fit rounded-full bg-white px-4 py-2 text-sm font-semibold text-blue-600 shadow-md hover:bg-blue-50"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(venue.address)}`, "_blank");
+                }}
               >
                 <MapPin className="mr-1.5 h-4 w-4" />
                 Direction

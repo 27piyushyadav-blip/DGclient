@@ -341,7 +341,16 @@ export default function ExpertProfileClient({ expert }: { expert: any }) {
                                        <h4 className="font-bold text-zinc-900 dark:text-white">{clinic.name}</h4>
                                        <p className="text-xs text-zinc-500 mt-1 line-clamp-2">{clinic.address}</p>
                                        <div className="flex items-center gap-2 mt-3 text-xs font-medium text-zinc-600 dark:text-zinc-400"><Clock className="w-3.5 h-3.5" /> {clinic.timings}</div>
-                                       <Button variant="outline" size="sm" className="w-full mt-4 h-8 text-xs">Get Directions</Button>
+                                       <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="w-full mt-4 h-8 text-xs"
+                                          onClick={() => {
+                                            window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(clinic.address)}`, "_blank");
+                                          }}
+                                        >
+                                          Get Directions
+                                        </Button>
                                     </div>
                                  </div>
                               ))}

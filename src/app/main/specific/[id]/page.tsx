@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { mapOrgToVenue } from "@/app/main/data";
 import { getOrganizationProfileByIdApi, getOrganizationsListApi } from "@/lib/directoryApi";
@@ -11,6 +12,54 @@ type SpecificPageProps = {
     id: string;
   }>;
 };
+
+export async function generateMetadata({ params }: SpecificPageProps): Promise<Metadata> {
+  const { id } = await params;
+  try {
+    const orgRes = await getOrganizationProfileByIdApi(id);
+    if (orgRes && (orgRes as any).status === 'success' && (orgRes as any).data) {
+      const orgData = (orgRes as any).data;
+      const venue = mapOrgToVenue(orgData, 0);
+
+      const coverImage = orgData.coverImageUrl || "";
+      const logoImage = orgData.logo || "";
+      const shareImage = logoImage || coverImage || "";
+
+      return {
+        title: venue.name,
+        description: venue.tagline || venue.description || `Check out ${venue.name} on Mind Namo!`,
+        openGraph: {
+          title: venue.name,
+          description: venue.tagline || venue.description || `Check out ${venue.name} on Mind Namo!`,
+          url: `/main/specific/${id}`,
+          siteName: 'Mind Namo',
+          images: shareImage ? [
+            {
+              url: shareImage,
+              width: 800,
+              height: 600,
+              alt: venue.name,
+            },
+          ] : [],
+          type: 'website',
+        },
+        twitter: {
+          card: 'summary_large_image',
+          title: venue.name,
+          description: venue.tagline || venue.description || `Check out ${venue.name} on Mind Namo!`,
+          images: shareImage ? [shareImage] : [],
+        },
+      };
+    }
+  } catch (error) {
+    console.error("Error generating metadata for venue page:", error);
+  }
+
+  return {
+    title: 'Organization Detail | Mind Namo',
+    description: 'View organization details and book services on Mind Namo.',
+  };
+}
 
 export default async function SpecificVenuePage({ params }: SpecificPageProps) {
   const { id } = await params;
