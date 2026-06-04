@@ -25,7 +25,9 @@ export async function generateMetadata({ params }: SpecificPageProps): Promise<M
       const logoImage = orgData.logo || "";
       const shareImage = logoImage || coverImage || "";
 
+      const siteUrl = process.env.NEXTAUTH_URL || 'https://digitaloffices.com.au';
       return {
+        metadataBase: new URL(siteUrl),
         title: venue.name,
         description: venue.tagline || venue.description || `Check out ${venue.name} on Mind Namo!`,
         openGraph: {
