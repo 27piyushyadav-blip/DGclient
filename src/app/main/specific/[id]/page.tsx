@@ -1,11 +1,19 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 import { notFound } from "next/navigation";
 import { mapOrgToVenue } from "@/app/main/data";
-import { getOrganizationProfileByIdApi, getOrganizationsListApi } from "@/lib/directoryApi";
+import { getOrganizationProfileByIdApi } from "@/lib/directoryApi";
 import SpecificVenueClientWrapper from "./SpecificVenueClientWrapper";
 
 // Always fetch fresh data so newly uploaded banners appear immediately
 export const dynamic = "force-dynamic";
+
+// React.cache() deduplicates this call within a single request:
+// generateMetadata and the page component share the same result, so the
+// backend is only hit once instead of twice.
+const getCachedOrgProfile = cache(async (id: string) => {
+  return getOrganizationProfileByIdApi(id);
+});
 
 type SpecificPageProps = {
   params: Promise<{
@@ -16,7 +24,7 @@ type SpecificPageProps = {
 export async function generateMetadata({ params }: SpecificPageProps): Promise<Metadata> {
   const { id } = await params;
   try {
-    const orgRes = await getOrganizationProfileByIdApi(id);
+    const orgRes = await getCachedOrgProfile(id);
     if (orgRes && (orgRes as any).status === 'success' && (orgRes as any).data) {
       const orgData = (orgRes as any).data;
       const venue = mapOrgToVenue(orgData, 0);
@@ -67,8 +75,8 @@ export async function generateMetadata({ params }: SpecificPageProps): Promise<M
 export default async function SpecificVenuePage({ params }: SpecificPageProps) {
   const { id } = await params;
 
-  // Fetch organization profile from backend API (no-store to always get fresh banners)
-  const orgRes = await getOrganizationProfileByIdApi(id);
+  // Uses the same cached result as generateMetadata — no duplicate network request
+  const orgRes = await getCachedOrgProfile(id);
 
   if (!orgRes || (orgRes as any).status !== 'success' || !(orgRes as any).data) {
     notFound();
@@ -85,27 +93,14 @@ export default async function SpecificVenuePage({ params }: SpecificPageProps) {
   const verticalBanners: { imageUrl: string; title?: string; description?: string; clickThroughUrl?: string }[] =
     (orgData.banners?.vertical || []).filter((b: any) => b.imageUrl);
 
-  // Fetch suggestions list from backend API
-  let suggestions: any[] = [];
-  try {
-    const listRes = await getOrganizationsListApi();
-    if (listRes && (listRes as any).status === 'success' && (listRes as any).data?.organizations) {
-      suggestions = (listRes as any).data.organizations
-        .filter((org: any) => org._id !== id)
-        .slice(0, 4)
-        .map((org: any, idx: number) => mapOrgToVenue(org, idx + 1));
-    }
-  } catch (error) {
-    console.error("Error loading suggestions for venue page:", error);
-  }
-
-  const sliderVenues = [venue, ...suggestions];
+  // Suggestions are NOT fetched here anymore — they are loaded lazily on the
+  // client side (useEffect inside SpecificVenueClientWrapper) so they never
+  // block the critical render of the page.
 
   return (
     <SpecificVenueClientWrapper
       venue={venue}
-      suggestions={suggestions}
-      sliderVenues={sliderVenues}
+      currentOrgId={id}
       horizontalBanners={horizontalBanners}
       verticalBanners={verticalBanners}
     />

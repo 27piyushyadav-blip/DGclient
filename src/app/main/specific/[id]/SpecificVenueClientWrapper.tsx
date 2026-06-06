@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   CalendarDays,
@@ -24,16 +24,14 @@ const infoIcons = [ShieldCheck, UserRoundCheck, CalendarDays, Star];
 
 type SpecificVenueClientWrapperProps = {
   venue: Venue;
-  suggestions: Venue[];
-  sliderVenues: Venue[];
+  currentOrgId: string;
   horizontalBanners?: { imageUrl: string; title?: string; description?: string; clickThroughUrl?: string }[];
   verticalBanners?: { imageUrl: string; title?: string; description?: string; clickThroughUrl?: string }[];
 };
 
 export default function SpecificVenueClientWrapper({
   venue,
-  suggestions,
-  sliderVenues,
+  currentOrgId,
   horizontalBanners = [],
   verticalBanners = [],
 }: SpecificVenueClientWrapperProps) {
@@ -45,6 +43,40 @@ export default function SpecificVenueClientWrapper({
     useState<any>(null);
   const [selectedStaffForBooking, setSelectedStaffForBooking] =
     useState<any>(null);
+
+  // Suggestions are loaded lazily after the page renders to avoid blocking
+  // the critical path — the user sees the main content immediately.
+  const [suggestions, setSuggestions] = useState<Venue[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadSuggestions() {
+      try {
+        const res = await fetch('/api/organizations');
+        if (cancelled) return;
+        if (res.ok) {
+          const json = await res.json();
+          if (json?.data?.organizations) {
+            const { mapOrgToVenue } = await import('@/app/main/data');
+            const mapped = json.data.organizations
+              .filter((org: any) => org._id !== currentOrgId)
+              .slice(0, 4)
+              .map((org: any, idx: number) => mapOrgToVenue(org, idx + 1));
+            if (!cancelled) setSuggestions(mapped);
+          }
+        }
+      } catch {
+        // silently ignore — suggestions are non-critical
+      } finally {
+        if (!cancelled) setSuggestionsLoading(false);
+      }
+    }
+    loadSuggestions();
+    return () => { cancelled = true; };
+  }, [currentOrgId]);
+
+  const sliderVenues = [venue, ...suggestions];
 
   const handleServiceBooking = (service: any) => {
     setSelectedServiceForBooking(service);
@@ -81,61 +113,74 @@ export default function SpecificVenueClientWrapper({
                 </Button>
               </div>
 
-              {suggestions.map((item) => (
-                <Link
-                  key={item.id}
-                  href={`/main/specific/${item.id}`}
-                  className="group block overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
-                >
+              {suggestionsLoading ? (
+                // Skeleton placeholders while suggestions load lazily
+                Array.from({ length: 3 }).map((_, i) => (
                   <div
-                    className={`relative min-h-[160px] bg-gradient-to-br ${item.accent} p-4 text-white`}
+                    key={i}
+                    className="overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-sm animate-pulse"
+                  >
+                    <div className="min-h-[160px] bg-slate-200" />
+                  </div>
+                ))
+              ) : suggestions.length > 0 ? (
+                suggestions.map((item) => (
+                  <Link
+                    key={item.id}
+                    href={`/main/specific/${item.id}`}
+                    className="group block overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
                   >
                     <div
-                      className="absolute inset-0 bg-cover bg-center opacity-40 mix-blend-screen"
-                      style={{ backgroundImage: item.bgImage }}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-transparent" />
-                    <Badge className="absolute right-3 top-3 bg-blue-600 text-white hover:bg-blue-600">
-                      {item.hours}
-                    </Badge>
-
-                    <div className="relative flex h-full flex-col justify-between mt-3">
-                      <div>
-                        <h3 className="text-xl font-semibold">{item.name}</h3>
-                        <p className="text-sm italic text-white/85">
-                          {item.tagline}
-                        </p>
-                      </div>
-                      <div className="flex items-end justify-between gap-3">
-                        <p className="max-w-[140px] text-sm text-white/90">
-                          {item.address}
-                        </p>
-                        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-blue-600">
-                          <ChevronRight className="h-5 w-5" />
-                        </span>
-                      </div>
-                    </div>
-
-                    <button
-                      className="absolute right-2 end-1 bg-blue-600 text-white hover:bg-blue-600 text-sm font-medium px-3 py-0.5 mt-2 rounded-full"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setBookingModalOpen(true);
-                        setSelectedServiceForBooking(null);
-                        setSelectedStaffForBooking(null);
-                      }}
+                      className={`relative min-h-[160px] bg-gradient-to-br ${item.accent} p-4 text-white`}
                     >
-                      Book Now
-                    </button>
-                  </div>
-                </Link>
-              ))}
+                      <div
+                        className="absolute inset-0 bg-cover bg-center opacity-40 mix-blend-screen"
+                        style={{ backgroundImage: item.bgImage }}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-transparent" />
+                      <Badge className="absolute right-3 top-3 bg-blue-600 text-white hover:bg-blue-600">
+                        {item.hours}
+                      </Badge>
+
+                      <div className="relative flex h-full flex-col justify-between mt-3">
+                        <div>
+                          <h3 className="text-xl font-semibold">{item.name}</h3>
+                          <p className="text-sm italic text-white/85">
+                            {item.tagline}
+                          </p>
+                        </div>
+                        <div className="flex items-end justify-between gap-3">
+                          <p className="max-w-[140px] text-sm text-white/90">
+                            {item.address}
+                          </p>
+                          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-blue-600">
+                            <ChevronRight className="h-5 w-5" />
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        className="absolute right-2 end-1 bg-blue-600 text-white hover:bg-blue-600 text-sm font-medium px-3 py-0.5 mt-2 rounded-full"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setBookingModalOpen(true);
+                          setSelectedServiceForBooking(null);
+                          setSelectedStaffForBooking(null);
+                        }}
+                      >
+                        Book Now
+                      </button>
+                    </div>
+                  </Link>
+                ))
+              ) : null}
 
               <Button variant="outline" className="w-full rounded-2xl border-slate-200 text-blue-600 bg-white text-black">
                 View More
               </Button>
             </aside>
+
 
             <section className="space-y-6">
               <SpecificVenueCarousel sliderVenues={sliderVenues} horizontalBanners={horizontalBanners} verticalBanners={verticalBanners} />
