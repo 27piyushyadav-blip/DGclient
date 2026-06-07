@@ -1,6 +1,6 @@
 import { apiClient } from "./apiClient";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 export async function getExpertsListApi() {
   return apiClient<any>(`${BASE_URL}/directory/experts`, {

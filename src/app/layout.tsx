@@ -4,10 +4,14 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import ThemeContextWrapper from "@/components/ThemeContextWrapper";
 import FooterWrapper from "@/components/FooterWrapper";
 import Header from "@/components/Header";
+import BottomNavbar from "@/components/BottomNavbar";
 import { Toaster } from "@/components/ui/sonner";
 import { Inter } from "next/font/google";
 
+const siteUrl = process.env.NEXTAUTH_URL || "https://digitaloffices.com.au";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: "Mind Namo - Your Safe Space for Mental Wellness",
   description:
     "Connecting you with certified experts for secure, private, and personalized therapy sessions.",
@@ -29,6 +33,7 @@ export default function RootLayout({
             <div className="flex min-h-screen flex-col">
               <Header />
               <main className="flex-1">{children}</main>
+              <BottomNavbar />
               <FooterWrapper />
             </div>
             <Toaster />

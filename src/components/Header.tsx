@@ -73,11 +73,11 @@ export default function Header() {
                 MN
               </span>
             </div>
-            <span className="hidden sm:inline">Mind Namo</span>
+            <span className="hidden lg:inline">Mind Namo</span>
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-6">
+          <nav className="hidden lg:flex items-center gap-6">
             <Link
               href="/"
               className={cn(
@@ -267,7 +267,7 @@ export default function Header() {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <div className="hidden md:flex items-center gap-2">
+              <div className="hidden lg:flex items-center gap-2">
                 <Button variant="ghost" asChild>
                   <Link href="/login">Login</Link>
                 </Button>
@@ -281,7 +281,7 @@ export default function Header() {
             <Button
               variant="ghost"
               size="icon"
-              className="md:hidden"
+              className="lg:hidden"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             >
               {isMobileMenuOpen ? (
@@ -295,7 +295,7 @@ export default function Header() {
 
         {/* Mobile Menu */}
         {isMobileMenuOpen && (
-          <div className="md:hidden border-t border-zinc-200 dark:border-zinc-800 py-4 space-y-2">
+          <div className="lg:hidden border-t border-zinc-200 dark:border-zinc-800 py-4 space-y-2">
             <Link
               href="/"
               className={cn(
