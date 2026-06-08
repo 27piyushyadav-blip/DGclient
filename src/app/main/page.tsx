@@ -233,7 +233,11 @@ function VenueCard({
           <div className="relative flex h-full flex-col">
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0">
-                <h2 className="text-[1.8rem] font-bold leading-none">{name}</h2>
+                <h2 className="text-[1.8rem] font-bold leading-none">
+                  <Link href={detailHref} className="hover:underline">
+                    {name}
+                  </Link>
+                </h2>
                 <p className="mt-2 text-lg italic text-white/90">
                   {tagline || "Relax & Rejuvenate"}
                 </p>

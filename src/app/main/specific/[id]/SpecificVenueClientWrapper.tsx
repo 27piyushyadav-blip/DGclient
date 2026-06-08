@@ -131,7 +131,7 @@ export default function SpecificVenueClientWrapper({
                     className="group block overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
                   >
                     <div
-                      className={`relative min-h-[160px] bg-gradient-to-br ${item.accent} p-4 text-white`}
+                      className={`relative min-h-[185px] bg-gradient-to-br ${item.accent} p-4 pb-14 text-white flex flex-col justify-between`}
                     >
                       <div
                         className="absolute inset-0 bg-cover bg-center opacity-40 mix-blend-screen"
@@ -142,25 +142,24 @@ export default function SpecificVenueClientWrapper({
                         {item.hours}
                       </Badge>
 
-                      <div className="relative flex h-full flex-col justify-between mt-3">
-                        <div>
-                          <h3 className="text-xl font-semibold">{item.name}</h3>
-                          <p className="text-sm italic text-white/85">
-                            {item.tagline}
-                          </p>
-                        </div>
-                        <div className="flex items-end justify-between gap-3">
-                          <p className="max-w-[140px] text-sm text-white/90">
-                            {item.address}
-                          </p>
-                          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-blue-600">
-                            <ChevronRight className="h-5 w-5" />
-                          </span>
-                        </div>
+                      <div className="relative mt-4">
+                        <h3 className="text-xl font-semibold leading-tight">{item.name}</h3>
+                        <p className="text-sm italic text-white/85 line-clamp-1 mt-0.5">
+                          {item.tagline}
+                        </p>
+                      </div>
+
+                      <div className="relative flex items-end justify-between gap-3 mt-4">
+                        <p className="max-w-[140px] text-sm text-white/90 line-clamp-2">
+                          {item.address}
+                        </p>
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-blue-600 shadow-sm transition-transform duration-200 group-hover:translate-x-1">
+                          <ChevronRight className="h-5 w-5" />
+                        </span>
                       </div>
 
                       <button
-                        className="absolute right-2 end-1 bg-blue-600 text-white hover:bg-blue-600 text-sm font-medium px-3 py-0.5 mt-2 rounded-full"
+                        className="absolute bottom-3 right-3 bg-blue-600 text-white hover:bg-blue-700 text-xs font-semibold px-4 py-1.5 rounded-full shadow-md transition-all duration-200 hover:scale-105 active:scale-95"
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
