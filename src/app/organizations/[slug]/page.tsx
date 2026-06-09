@@ -64,6 +64,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   }
 
   const org = data.organization;
+  const imageUrl = org.logoUrl || "/og-image.jpg";
 
   return {
     title: `${org.name} | Partner Wellness Program`,
@@ -71,7 +72,23 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     openGraph: {
       title: `${org.name} Wellness Program`,
       description: `Dedicated mental wellness support program by ${org.name}.`,
-      images: [org.logoUrl || "/og-image.jpg"],
+      url: `/organizations/${slug}`,
+      siteName: "Mind Namo",
+      images: [
+        {
+          url: imageUrl,
+          width: 1200,
+          height: 630,
+          alt: `${org.name} Logo`,
+        },
+      ],
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${org.name} Wellness Program`,
+      description: `Dedicated mental wellness support program by ${org.name}.`,
+      images: [imageUrl],
     },
   };
 }

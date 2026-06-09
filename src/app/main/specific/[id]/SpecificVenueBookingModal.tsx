@@ -50,6 +50,7 @@ type SpecificVenueBookingModalProps = {
   initialStep?: number;
   bookingFlow?: "service-first" | "staff-first";
   verticalBannerUrl?: string;
+  preselectedCategoryId?: string | null;
 };
 
 const whyChooseUs = [
@@ -99,6 +100,7 @@ export default function SpecificVenueBookingModal({
   initialStep = 1,
   bookingFlow = "service-first",
   verticalBannerUrl,
+  preselectedCategoryId,
 }: SpecificVenueBookingModalProps) {
   const services = venue.services;
   const staff = venue.staff;
@@ -144,10 +146,14 @@ export default function SpecificVenueBookingModal({
     });
   }, [staff, selectedService]);
 
-  // Filter services based on the selected staff
+  // Filter services based on the selected staff and preselected category
   const filteredServices = useMemo(() => {
-    if (!selectedStaff) return services;
-    return services.filter((service) => {
+    let result = services;
+    if (preselectedCategoryId) {
+      result = result.filter((service) => service.categoryId === preselectedCategoryId);
+    }
+    if (!selectedStaff) return result;
+    return result.filter((service) => {
       // If selectedStaff has services listed, check if one of them matches service.name
       if (selectedStaff.services && Array.isArray(selectedStaff.services) && selectedStaff.services.length > 0) {
         return selectedStaff.services.some(
@@ -156,7 +162,7 @@ export default function SpecificVenueBookingModal({
       }
       return true;
     });
-  }, [services, selectedStaff]);
+  }, [services, selectedStaff, preselectedCategoryId]);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const cardsToShow = 2;

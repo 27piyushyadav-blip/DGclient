@@ -2,25 +2,24 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
-  CalendarDays,
   ChevronRight,
   Clock3,
   MapPin,
   Menu,
-  ShieldCheck,
   Star,
-  UserRoundCheck,
+  X,
+  Tag,
+  Layers,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import SpecificVenueCarousel from "./SpecificVenueCarousel";
 import SpecificVenueBookingModal from "./SpecificVenueBookingModal";
-import type { Venue } from "@/app/main/data";
+import { type Venue, normalizeLayout, type LayoutSection } from "@/app/main/data";
 import MessageDialog from "./MessageDialog";
-
-const infoIcons = [ShieldCheck, UserRoundCheck, CalendarDays, Star];
 
 type SpecificVenueClientWrapperProps = {
   venue: Venue;
@@ -35,6 +34,8 @@ export default function SpecificVenueClientWrapper({
   horizontalBanners = [],
   verticalBanners = [],
 }: SpecificVenueClientWrapperProps) {
+  const layout = normalizeLayout(venue.defaultLayout);
+
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [selectedServiceForBooking, setSelectedServiceForBooking] =
     useState<any>(null);
@@ -43,6 +44,9 @@ export default function SpecificVenueClientWrapper({
     useState<any>(null);
   const [selectedStaffForBooking, setSelectedStaffForBooking] =
     useState<any>(null);
+
+  // Category services state (when showCategories = true)
+  const [selectedCategory, setSelectedCategory] = useState<{ id: string; name: string; imageUrl?: string | null; price?: string | null } | null>(null);
 
   // Suggestions are loaded lazily after the page renders to avoid blocking
   // the critical path — the user sees the main content immediately.
@@ -92,6 +96,315 @@ export default function SpecificVenueClientWrapper({
   const handleMessageStaff = (staff: any) => {
     setSelectedStaffForMessage(staff);
     setMessageDialogOpen(true);
+  };
+
+  const renderHorizontalSection = (section: LayoutSection) => {
+    switch (section.type) {
+      case 'services': {
+        const displayServices = (section.services || [])
+          .map(id => venue.services.find(s => s.id === id || s.name === id))
+          .filter((s): s is any => !!s);
+        const servicesList = displayServices.length > 0 ? displayServices : venue.services;
+        if (servicesList.length === 0) return null;
+        return (
+          <div className="space-y-3 font-sans" key={section.title}>
+            <div className="flex items-center justify-between">
+              <h2 className="text-3xl font-bold text-slate-900">{section.title}</h2>
+              <Button variant="link" asChild className="px-0 text-blue-600">
+                <span onClick={() => {
+                  setSelectedCategory(null);
+                  setSelectedServiceForBooking(null);
+                  setSelectedStaffForBooking(null);
+                  setBookingModalOpen(true);
+                }} className="cursor-pointer">View All</span>
+              </Button>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+              {servicesList.map((service) => (
+                <Card
+                  key={service.id || service.name}
+                  className="overflow-hidden rounded-[22px] border-slate-200 shadow-sm cursor-pointer transition hover:shadow-lg bg-white"
+                  onClick={() => handleServiceBooking(service)}
+                >
+                  <div
+                    className="h-32 bg-cover bg-center"
+                    style={{ backgroundImage: `url('${service.image}')` }}
+                  />
+                  <CardContent className="space-y-1 p-4 text-center">
+                    <h3 className="text-sm font-semibold text-slate-800">{service.name}</h3>
+                    <p className="text-xl font-bold text-blue-600">{service.price}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        );
+      }
+      case 'categories': {
+        if (venue.categories.length === 0) return null;
+        return (
+          <div className="space-y-3 font-sans" key={section.title}>
+            <div className="flex items-center justify-between">
+              <h2 className="text-3xl font-bold text-slate-900">{section.title}</h2>
+              <Button variant="link" asChild className="px-0 text-blue-600">
+                <span onClick={() => {
+                  setSelectedCategory(null);
+                  setSelectedServiceForBooking(null);
+                  setSelectedStaffForBooking(null);
+                  setBookingModalOpen(true);
+                }} className="cursor-pointer">View All</span>
+              </Button>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+              {venue.categories.map((cat) => (
+                <div
+                  key={cat.id}
+                  onClick={() => {
+                    setSelectedCategory(cat);
+                    setSelectedServiceForBooking(null);
+                    setSelectedStaffForBooking(null);
+                    setBookingModalOpen(true);
+                  }}
+                  className="overflow-hidden rounded-[22px] border border-slate-200 shadow-sm cursor-pointer transition hover:shadow-lg hover:-translate-y-0.5 bg-white group"
+                >
+                  <div className="h-32 bg-cover bg-center relative overflow-hidden"
+                    style={{ backgroundImage: cat.imageUrl ? `url('${cat.imageUrl}')` : undefined }}
+                  >
+                    {!cat.imageUrl && (
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+                        <Layers className="w-10 h-10 text-blue-400" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-colors" />
+                  </div>
+                  <div className="space-y-1 p-4 text-center">
+                    <h3 className="text-sm font-semibold text-slate-800">{cat.name}</h3>
+                    {cat.price && (
+                      <p className="text-xl font-bold text-blue-600">${cat.price}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      }
+      case 'staff': {
+        if (venue.staff.length === 0) return null;
+        return (
+          <div className="space-y-3 font-sans" key={section.title}>
+            <div className="flex items-center justify-between">
+              <h2 className="text-3xl font-bold text-slate-900">{section.title}</h2>
+              <Button
+                variant="link"
+                asChild
+                className="px-0 text-blue-600 cursor-pointer"
+                onClick={() => handleBookingWithStaff(venue.staff[0])}
+              >
+                <span>View All</span>
+              </Button>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {venue.staff.map((member) => (
+                <Card
+                  key={member.name}
+                  className="overflow-hidden rounded-[24px] border-slate-200 shadow-sm bg-white"
+                >
+                  <Link href={`/organizations/staff/detail?id=${member.id}`}>
+                    <div
+                      className="h-40 bg-cover bg-center cursor-pointer transition-transform duration-300 hover:scale-105"
+                      style={{ backgroundImage: `url('${member.image}')` }}
+                    />
+                  </Link>
+                  <CardContent className="space-y-4 p-4 text-center bg-white">
+                    <div>
+                      <h3 className="text-lg font-semibold text-slate-900 hover:text-blue-600 transition-colors">
+                        <Link href={`/organizations/staff/detail?id=${member.id}`}>
+                          {member.name}
+                        </Link>
+                      </h3>
+                      <p className="text-sm text-slate-500">{member.role}</p>
+                    </div>
+                    <div className="flex gap-3">
+                      <Button variant="outline" className="flex-1 rounded-xl border-slate-200 text-blue-600 bg-white text-black"
+                        onClick={() => handleBookingWithStaff(member)}>
+                        Book Service
+                      </Button>
+                      <Button
+                        className="flex-1 rounded-xl bg-blue-600 text-white hover:bg-blue-700"
+                        onClick={() => handleMessageStaff(member)}
+                      >
+                        Message
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        );
+      }
+      case 'products': {
+        if (venue.products.length === 0) return null;
+        return (
+          <div className="space-y-3 font-sans" key={section.title}>
+            <div className="flex items-center justify-between">
+              <h2 className="text-3xl font-bold text-slate-900">{section.title}</h2>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+              {venue.products.slice(0, 10).map((product) => (
+                <Card key={product.id || product.name} className="overflow-hidden rounded-[22px] border-slate-200 shadow-sm bg-white">
+                  <div
+                    className="h-32 bg-cover bg-center"
+                    style={{ backgroundImage: `url('${product.image}')` }}
+                  />
+                  <CardContent className="space-y-1 p-4 text-center">
+                    <h3 className="text-sm font-semibold text-slate-800">{product.name}</h3>
+                    <p className="text-xl font-bold text-blue-600">{product.price}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        );
+      }
+      default:
+        return null;
+    }
+  };
+
+  const renderVerticalSection = (section: LayoutSection) => {
+    switch (section.type) {
+      case 'services': {
+        const displayServices = (section.services || [])
+          .map(id => venue.services.find(s => s.id === id || s.name === id))
+          .filter((s): s is any => !!s);
+        const servicesList = displayServices.length > 0 ? displayServices : venue.services.slice(0, 5);
+        if (servicesList.length === 0) return null;
+        return (
+          <Card className="rounded-[28px] border-slate-200 shadow-sm bg-white" key={section.title}>
+            <CardContent className="space-y-5 p-5">
+              <h2 className="text-3xl font-bold text-slate-900">{section.title}</h2>
+              <div className="space-y-4">
+                {servicesList.map((service) => (
+                  <div key={service.id || service.name} className="flex items-center gap-3 cursor-pointer" onClick={() => handleServiceBooking(service)}>
+                    <div
+                      className="h-12 w-12 shrink-0 rounded-xl bg-cover bg-center"
+                      style={{ backgroundImage: `url('${service.image}')` }}
+                    />
+                    <div className="flex flex-1 min-w-0 items-center justify-between gap-2">
+                      <span className="text-sm font-medium text-slate-700 line-clamp-2 leading-snug">{service.name}</span>
+                      <span className="shrink-0 text-sm font-bold text-blue-600 whitespace-nowrap">{service.price}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <Button
+                className="w-full rounded-2xl bg-blue-600 py-6 text-base font-semibold text-white hover:bg-blue-700"
+                onClick={() => {
+                  setSelectedCategory(null);
+                  setSelectedServiceForBooking(null);
+                  setSelectedStaffForBooking(null);
+                  setBookingModalOpen(true);
+                }}
+              >
+                Select Service
+              </Button>
+            </CardContent>
+          </Card>
+        );
+      }
+      case 'categories': {
+        if (venue.categories.length === 0) return null;
+        return (
+          <Card className="rounded-[28px] border-slate-200 shadow-sm bg-white" key={section.title}>
+            <CardContent className="space-y-5 p-5">
+              <h2 className="text-3xl font-bold text-slate-900">{section.title}</h2>
+              <div className="space-y-4">
+                {venue.categories.map((cat) => (
+                  <div key={cat.id} className="flex items-center gap-3 cursor-pointer" onClick={() => {
+                    setSelectedCategory(cat);
+                    setSelectedServiceForBooking(null);
+                    setSelectedStaffForBooking(null);
+                    setBookingModalOpen(true);
+                  }}>
+                    {cat.imageUrl ? (
+                      <div
+                        className="h-12 w-12 shrink-0 rounded-xl bg-cover bg-center"
+                        style={{ backgroundImage: `url('${cat.imageUrl}')` }}
+                      />
+                    ) : (
+                      <div className="h-12 w-12 shrink-0 rounded-xl flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+                        <Layers className="w-6 h-6 text-blue-400" />
+                      </div>
+                    )}
+                    <div className="flex flex-1 min-w-0 items-center justify-between gap-2">
+                      <span className="text-sm font-medium text-slate-700 line-clamp-2 leading-snug">{cat.name}</span>
+                      {cat.price && (
+                        <span className="shrink-0 text-sm font-bold text-blue-600 whitespace-nowrap">${cat.price}</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        );
+      }
+      case 'staff': {
+        if (venue.staff.length === 0) return null;
+        return (
+          <Card className="rounded-[28px] border-slate-200 shadow-sm bg-white" key={section.title}>
+            <CardContent className="space-y-5 p-5">
+              <h2 className="text-3xl font-bold text-slate-900">{section.title}</h2>
+              <div className="space-y-4">
+                {venue.staff.map((member) => (
+                  <div key={member.name} className="flex items-center gap-3 cursor-pointer" onClick={() => handleBookingWithStaff(member)}>
+                    <div
+                      className="h-12 w-12 shrink-0 rounded-xl bg-cover bg-center"
+                      style={{ backgroundImage: `url('${member.image}')` }}
+                    />
+                    <div className="flex flex-1 min-w-0 items-start flex-col">
+                      <span className="text-sm font-medium text-slate-700 leading-tight">{member.name}</span>
+                      <span className="text-xs text-slate-500 leading-tight">{member.role}</span>
+                    </div>
+                    <Button variant="outline" size="sm" className="rounded-lg text-xs border-slate-200 text-blue-600 bg-white">
+                      Book
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        );
+      }
+      case 'products': {
+        if (venue.products.length === 0) return null;
+        return (
+          <Card className="rounded-[28px] border-slate-200 shadow-sm bg-white" key={section.title}>
+            <CardContent className="space-y-5 p-5">
+              <h2 className="text-3xl font-bold text-slate-900">{section.title}</h2>
+              <div className="space-y-4">
+                {venue.products.slice(0, 10).map((product) => (
+                  <div key={product.id || product.name} className="flex items-center gap-3">
+                    <div
+                      className="h-12 w-12 shrink-0 rounded-xl bg-cover bg-center"
+                      style={{ backgroundImage: `url('${product.image}')` }}
+                    />
+                    <div className="flex flex-1 min-w-0 items-center justify-between gap-2">
+                      <span className="text-sm font-medium text-slate-700 line-clamp-2 leading-snug">{product.name}</span>
+                      <span className="shrink-0 text-sm font-bold text-blue-600 whitespace-nowrap">{product.price}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        );
+      }
+      default:
+        return null;
+    }
   };
 
   return (
@@ -163,9 +476,10 @@ export default function SpecificVenueClientWrapper({
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          setBookingModalOpen(true);
+                          setSelectedCategory(null);
                           setSelectedServiceForBooking(null);
                           setSelectedStaffForBooking(null);
+                          setBookingModalOpen(true);
                         }}
                       >
                         Book Now
@@ -185,97 +499,13 @@ export default function SpecificVenueClientWrapper({
               <SpecificVenueCarousel sliderVenues={sliderVenues} horizontalBanners={horizontalBanners} verticalBanners={verticalBanners} />
 
 
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-3xl font-bold text-slate-900">
-                    Our Services
-                  </h2>
-                  <Button variant="link" asChild className="px-0 text-blue-600">
-                    <span onClick={() => {
-                      setBookingModalOpen(true); setSelectedServiceForBooking(null);
-                      setSelectedStaffForBooking(null);
-                    }} className="cursor-pointer">View All</span>
-                  </Button>
-                </div>
+              {renderHorizontalSection(layout.horizontal1)}
 
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                  {venue.services.map((service) => (
-                    <Card
-                      key={service.name}
-                      className="overflow-hidden rounded-[22px] border-slate-200 shadow-sm cursor-pointer transition hover:shadow-lg bg-white"
-                      onClick={() => handleServiceBooking(service)}
-                    >
-                      <div
-                        className="h-32 bg-cover bg-center"
-                        style={{ backgroundImage: `url('${service.image}')` }}
-                      />
-                      <CardContent className="space-y-1 p-4 text-center ">
-                        <h3 className="text-sm font-semibold text-slate-800">{service.name}</h3>
-                        <p className="text-xl font-bold text-blue-600">{service.price}</p>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-3xl font-bold text-slate-900">
-                    Our Staffs
-                  </h2>
-                  <Button
-                    variant="link"
-                    asChild
-                    className="px-0 text-blue-600 cursor-pointer"
-                    onClick={() => handleBookingWithStaff(venue.staff[0])}
-                  >
-                    <span>View All</span>
-                  </Button>
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 ">
-                  {venue.staff.map((member) => (
-                    <Card
-                      key={member.name}
-                      className="overflow-hidden rounded-[24px] border-slate-200 shadow-sm"
-                    >
-                      <div
-                        className="h-40 bg-cover bg-center "
-                        style={{ backgroundImage: `url('${member.image}')` }}
-                      />
-                      <CardContent className="space-y-4 p-4 text-center bg-white">
-                        <div>
-                          <h3 className="text-lg font-semibold text-slate-900">
-                            {member.name}
-                          </h3>
-                          <p className="text-sm text-slate-500">
-                            {member.role}
-                          </p>
-                        </div>
-                        <div className="flex gap-3">
-                          <Button variant="outline" className="flex-1 rounded-xl border-slate-200 text-blue-600 bg-white text-black"
-                            onClick={() => handleBookingWithStaff(member)}>
-                            Book Service
-                          </Button>
-                          <Button
-                            className="flex-1 rounded-xl bg-blue-600 text-white hover:bg-blue-700"
-                            onClick={() => handleMessageStaff(member)}
-                          >
-                            Message
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
+              {renderHorizontalSection(layout.horizontal2)}
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h2 className="text-3xl font-bold text-slate-900">What Our Clients Say</h2>
-                  {/* <Button variant="link" asChild className="px-0 text-blue-600">
-                    <Link href="/main">View All</Link>
-                  </Button> */}
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -311,97 +541,8 @@ export default function SpecificVenueClientWrapper({
             </section>
 
             <aside className="space-y-4">
-              <Card className="rounded-[28px] border-slate-200 shadow-sm bg-white">
-                <CardContent className="space-y-5 p-5">
-                  <h2 className="text-3xl font-bold text-slate-900">Menu</h2>
-                  <div className="space-y-4">
-                    {venue.services.slice(0, 5).map((service) => (
-                      <div key={service.name} className="flex items-center gap-3 cursor-pointer" onClick={() => handleServiceBooking(service)}>
-                        <div
-                          className="h-12 w-12 shrink-0 rounded-xl bg-cover bg-center"
-                          style={{
-                            backgroundImage: `url('${service.image}')`,
-                          }}
-                        />
-                        <div className="flex flex-1 min-w-0 items-center justify-between gap-2">
-                          <span className="text-sm font-medium text-slate-700 line-clamp-2 leading-snug">
-                            {service.name}
-                          </span>
-                          <span className="shrink-0 text-sm font-bold text-blue-600 whitespace-nowrap">
-                            {service.price}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <Button
-                    className="w-full rounded-2xl bg-blue-600 py-6 text-base font-semibold text-white hover:bg-blue-700"
-                    onClick={() => {
-                      setBookingModalOpen(true);
-                      setSelectedServiceForBooking(null);
-                      setSelectedStaffForBooking(null);
-                    }}
-                  >
-                    Select Service
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card className="rounded-[28px] border-slate-200 shadow-sm bg-white">
-                <CardContent className="space-y-5 p-5">
-                  <h3 className="text-xl font-bold text-slate-900 mb-2">Key Features</h3>
-                  <div className="space-y-4">
-                    {venue.features?.map((feature, index) => {
-                      const Icon = infoIcons[index % infoIcons.length];
-
-                      return (
-                        <div
-                          key={feature.title}
-                          className="flex items-start gap-3"
-                        >
-                          <div className="rounded-2xl bg-blue-50 p-3 text-blue-600">
-                            <Icon className="h-5 w-5" />
-                          </div>
-                          <div>
-                            <h4 className="font-semibold text-slate-900 text-sm">
-                              {feature.title}
-                            </h4>
-                            <p className="text-xs text-slate-500 mt-0.5">
-                              {feature.description}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="rounded-[28px] border-slate-200 shadow-sm bg-white">
-                <CardContent className="space-y-5 p-5">
-                  <h2 className="text-3xl font-bold text-slate-900">Products</h2>
-                  <div className="space-y-4">
-                    {venue.products.slice(0, 5).map((product) => (
-                      <div key={product.name} className="flex items-center gap-3">
-                        <div
-                          className="h-12 w-12 shrink-0 rounded-xl bg-cover bg-center"
-                          style={{ backgroundImage: `url('${product.image}')` }}
-                        />
-                        <div className="flex flex-1 min-w-0 items-center justify-between gap-2">
-                          <span className="text-sm font-medium text-slate-700 line-clamp-2 leading-snug">{product.name}</span>
-                          <span className="shrink-0 text-sm font-bold text-blue-600 whitespace-nowrap">{product.price}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <Button className="w-full rounded-2xl bg-blue-600 py-6 text-base font-semibold text-white hover:bg-blue-700"
-                  >
-                    Contact To Buy
-                  </Button>
-                </CardContent>
-              </Card>
+              {renderVerticalSection(layout.vertical1)}
+              {renderVerticalSection(layout.vertical2)}
             </aside>
           </div>
         </div>
@@ -413,6 +554,7 @@ export default function SpecificVenueClientWrapper({
         venue={venue}
         preselectedService={selectedServiceForBooking}
         preselectedStaff={selectedStaffForBooking}
+        preselectedCategoryId={selectedCategory?.id}
         initialStep={
           selectedServiceForBooking ? 2 : selectedStaffForBooking ? 2 : 1
         }
@@ -430,6 +572,7 @@ export default function SpecificVenueClientWrapper({
           services={venue.services}
         />
       )}
+
     </>
   );
 }

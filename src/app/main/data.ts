@@ -4,6 +4,101 @@ export type VenueService = {
   price: string;
   description?: string | null;
   image: string;
+  categoryId?: string | null;
+};
+
+export type LayoutSectionType = 'services' | 'categories' | 'staff' | 'products';
+
+export type LayoutSection = {
+  type: LayoutSectionType;
+  title: string;
+  services: string[];
+};
+
+export type VenueLayout = {
+  horizontal1?: LayoutSection;
+  horizontal2?: LayoutSection;
+  vertical1?: LayoutSection;
+  vertical2?: LayoutSection | string[];
+  horizontal?: string[];
+  vertical?: string[];
+  vertical2Name?: string;
+};
+
+export function normalizeLayout(rawLayout: any): {
+  horizontal1: LayoutSection;
+  horizontal2: LayoutSection;
+  vertical1: LayoutSection;
+  vertical2: LayoutSection;
+} {
+  const defaultSections = {
+    horizontal1: { type: 'services' as const, title: 'Featured Services', services: [] },
+    horizontal2: { type: 'staff' as const, title: 'Our Staffs', services: [] },
+    vertical1: { type: 'services' as const, title: 'Menu', services: [] },
+    vertical2: { type: 'products' as const, title: 'Products', services: [] },
+  };
+
+  if (!rawLayout || typeof rawLayout !== 'object') {
+    return defaultSections;
+  }
+
+  const getSection = (key: string, fallbackType: LayoutSectionType, fallbackTitle: string): LayoutSection => {
+    const rawSec = rawLayout[key];
+    if (rawSec && typeof rawSec === 'object') {
+      return {
+        type: rawSec.type || fallbackType,
+        title: rawSec.title || fallbackTitle,
+        services: Array.isArray(rawSec.services) ? rawSec.services : [],
+      };
+    }
+    return { type: fallbackType, title: fallbackTitle, services: [] };
+  };
+
+  const hasOldKeys = ('horizontal' in rawLayout && Array.isArray(rawLayout.horizontal)) ||
+                      ('vertical' in rawLayout && Array.isArray(rawLayout.vertical)) ||
+                      ('vertical2' in rawLayout && Array.isArray(rawLayout.vertical2));
+
+  const hasNewKeys = 'horizontal1' in rawLayout || 'horizontal2' in rawLayout || 'vertical1' in rawLayout || 'vertical2' in rawLayout;
+
+  if (hasOldKeys && !hasNewKeys) {
+    return {
+      horizontal1: {
+        type: 'services',
+        title: 'Featured Services',
+        services: Array.isArray(rawLayout.horizontal) ? rawLayout.horizontal : [],
+      },
+      horizontal2: {
+        type: 'staff',
+        title: 'Our Staffs',
+        services: [],
+      },
+      vertical1: {
+        type: 'services',
+        title: 'Menu',
+        services: Array.isArray(rawLayout.vertical) ? rawLayout.vertical : [],
+      },
+      vertical2: {
+        type: 'products',
+        title: rawLayout.vertical2Name || 'Products',
+        services: Array.isArray(rawLayout.vertical2) ? rawLayout.vertical2 : [],
+      },
+    };
+  }
+
+  return {
+    horizontal1: getSection('horizontal1', 'services', 'Featured Services'),
+    horizontal2: getSection('horizontal2', 'staff', 'Our Staffs'),
+    vertical1: getSection('vertical1', 'services', 'Menu'),
+    vertical2: getSection('vertical2', 'products', 'Products'),
+  };
+}
+
+export type VenueCategory = {
+  id: string;
+  name: string;
+  imageUrl?: string | null;
+  price?: string | null;
+  layout?: VenueLayout | null;
 };
 
 export type VenueStaff = {
@@ -38,11 +133,14 @@ export type Venue = {
   tagline: string;
   description: string;
   services: VenueService[];
+  categories: VenueCategory[];
+  showCategories: boolean;
   products: VenueService[];
   staff: VenueStaff[];
   reviews: VenueReview[];
   features: VenueFeature[];
   phone?: string;
+  defaultLayout?: VenueLayout | null;
 };
 
 export const filters = {
@@ -92,6 +190,8 @@ export const venues: Venue[] = [
       // { title: "Easy Booking", description: "Quick & hassle-free" },
       // { title: "Satisfaction Guaranteed", description: "We care about your wellbeing" },
     ],
+    categories: [],
+    showCategories: false,
   },
   {
     id: "tranquil-touch",
@@ -133,6 +233,8 @@ export const venues: Venue[] = [
       // { title: "Fast Booking", description: "Reserve your slot in minutes" },
       // { title: "Wellness Focused", description: "Personalized care in every session" },
     ],
+    categories: [],
+    showCategories: false,
   },
   {
     id: "blissful-escape",
@@ -174,6 +276,8 @@ export const venues: Venue[] = [
       // { title: "Easy Reschedule", description: "Flexible booking support" },
       // { title: "Client First", description: "Comfort-focused service approach" },
     ],
+    categories: [],
+    showCategories: false,
   },
   {
     id: "pure-relaxation",
@@ -216,6 +320,8 @@ export const venues: Venue[] = [
       // { title: "Smooth Booking", description: "Quick service confirmation" },
       // { title: "Trusted Care", description: "Comfort and hygiene prioritized" },
     ],
+    categories: [],
+    showCategories: false,
   },
 ];
 
@@ -273,16 +379,29 @@ export function mapOrgToVenue(org: any, index: number = 0): Venue {
     price: `$${s.basePrice || 0}`,
     description: s.description || null,
     image: s.imageUrl || "https://images.unsplash.com/photo-1515377905703-c4788e51af15?q=80&w=900&auto=format&fit=crop",
+    categoryId: s.categoryId || null,
   }));
 
-  const staff = (org.experts || []).map((e: any) => ({
-    id: e.id || e._id,
-    name: e.name,
-    role: e.specialization || "Wellness Professional",
-    image: e.profilePicture || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=600&auto=format&fit=crop",
-    services: e.services || [],
-    experienceYears: e.experienceYears || 0,
+  const categories: VenueCategory[] = (org.categories || []).map((c: any) => ({
+    id: c.id,
+    name: c.name,
+    imageUrl: c.imageUrl || null,
+    price: c.price || null,
+    layout: c.layout || null,
   }));
+
+  const staff = (org.experts || []).map((e: any) => {
+    const rawPic = e.profilePicture;
+    const hasValidPic = rawPic && typeof rawPic === 'string' && !rawPic.endsWith('/null') && !rawPic.endsWith('/undefined') && !rawPic.endsWith('/uploads/null');
+    return {
+      id: e.id || e._id,
+      name: e.name,
+      role: e.specialization || "Wellness Professional",
+      image: hasValidPic ? rawPic : "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=600&auto=format&fit=crop",
+      services: e.services || [],
+      experienceYears: e.experienceYears || 0,
+    };
+  });
 
   const reviews = (org.reviews && org.reviews.length > 0)
     ? org.reviews.map((r: any) => ({
@@ -305,6 +424,10 @@ export function mapOrgToVenue(org: any, index: number = 0): Venue {
     : [
         { name: "Lavender Massage Oil", price: "$25", image: "https://images.unsplash.com/photo-1507652313519-d4e9174996dd?q=80&w=900&auto=format&fit=crop" },
         { name: "Herbal Body Balm", price: "$32", image: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=80&w=900&auto=format&fit=crop" },
+        { name: "Aroma Candle Set", price: "$18", image: "https://images.unsplash.com/photo-1515377905703-c4788e51af15?q=80&w=900&auto=format&fit=crop" },
+        { name: "Relax Bath Salt", price: "$22", image: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=900&auto=format&fit=crop" },
+        { name: "Neck Heat Wrap", price: "$28", image: "https://images.unsplash.com/photo-1519823551278-64ac92734fb1?q=80&w=900&auto=format&fit=crop" },
+        { name: "Essential Oil Blend", price: "$30", image: "https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?q=80&w=900&auto=format&fit=crop" },
       ];
 
   // Use real features if the org has any, otherwise use fallback
@@ -328,9 +451,12 @@ export function mapOrgToVenue(org: any, index: number = 0): Venue {
     tagline: org.tagline || (org.description ? org.description.slice(0, 40) + "..." : `${org.name} Wellness`),
     description: org.description || `Welcome to ${org.name}. Contact us to book our premium services.`,
     services,
+    categories,
+    showCategories: org.showCategories || false,
     products,
     staff,
     reviews,
     features,
+    defaultLayout: org.defaultLayout || null,
   };
 }

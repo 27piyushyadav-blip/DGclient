@@ -1,7 +1,7 @@
 // FILE: app/staff/[id]/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { 
   Star, 
   ArrowLeft, 
@@ -24,10 +24,13 @@ import {
   Youtube,
   ChevronRight,
   Play,
-  X
+  X,
+  Loader2
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { getExpertProfileByIdApi } from "@/lib/directoryApi";
 
 // Types
 interface Review {
@@ -51,7 +54,7 @@ interface Hobby {
 }
 
 // Sample Data
-const staffData = {
+const demoStaffData = {
   id: "1",
   name: "Georgina Kate",
   role: "Certified Hairdresser",
@@ -107,7 +110,8 @@ const getYouTubeVideoId = (url: string): string | null => {
 
 // Video Modal Component
 const VideoModal = ({ isOpen, onClose, videoUrl, title }: { isOpen: boolean; onClose: () => void; videoUrl: string; title: string }) => {
-  const videoId = getYouTubeVideoId(videoUrl);
+  const isYouTube = videoUrl && (videoUrl.includes("youtube.com") || videoUrl.includes("youtu.be"));
+  const videoId = isYouTube ? getYouTubeVideoId(videoUrl) : null;
   
   if (!isOpen) return null;
 
@@ -127,7 +131,7 @@ const VideoModal = ({ isOpen, onClose, videoUrl, title }: { isOpen: boolean; onC
           <X className="w-6 h-6" />
         </button>
         
-        {videoId ? (
+        {isYouTube && videoId ? (
           <div className="aspect-video">
             <iframe
               src={`https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&rel=0&modestbranding=1`}
@@ -135,6 +139,15 @@ const VideoModal = ({ isOpen, onClose, videoUrl, title }: { isOpen: boolean; onC
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
               title={title}
+            />
+          </div>
+        ) : videoUrl ? (
+          <div className="aspect-video bg-black flex items-center justify-center">
+            <video
+              src={videoUrl}
+              controls
+              autoPlay
+              className="w-full h-full object-contain"
             />
           </div>
         ) : (
@@ -147,10 +160,86 @@ const VideoModal = ({ isOpen, onClose, videoUrl, title }: { isOpen: boolean; onC
   );
 };
 
-export default function StaffDetailPage() {
+function StaffDetailContent() {
+  const searchParams = useSearchParams();
+  const expertId = searchParams.get("id");
+
+  const [expert, setExpert] = useState<any>(null);
+  const [loading, setLoading] = useState(!!expertId);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [showAllReviews, setShowAllReviews] = useState(false);
+
+  useEffect(() => {
+    if (!expertId) return;
+    let active = true;
+    async function fetchExpert() {
+      try {
+        setLoading(true);
+        const response = await getExpertProfileByIdApi(expertId!);
+        if (active && response?.data) {
+          setExpert(response.data);
+        }
+      } catch (err) {
+        console.error("Error fetching expert profile:", err);
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+    fetchExpert();
+    return () => {
+      active = false;
+    };
+  }, [expertId]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 className="w-8 h-8 animate-spin text-[var(--primary-color)]" />
+          <p className="text-zinc-600 dark:text-zinc-400 font-medium text-sm">Loading expert details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const rawPic = expert?.profilePicture;
+  const hasValidPic = rawPic && typeof rawPic === 'string' && !rawPic.endsWith('/null') && !rawPic.endsWith('/undefined') && !rawPic.endsWith('/uploads/null');
+  const imageUrl = hasValidPic ? rawPic : "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=800&h=800";
+
+  const rawVideo = expert?.videoUrl;
+  const hasValidVideo = rawVideo && typeof rawVideo === 'string' && !rawVideo.endsWith('/null') && !rawVideo.endsWith('/undefined') && !rawVideo.endsWith('/uploads/null');
+  const videoUrl = hasValidVideo ? rawVideo : "";
+
+  const staffData = expert ? {
+    id: expert._id,
+    name: expert.name,
+    role: expert.specialization || "Wellness Professional",
+    rating: expert.rating || 4.8,
+    reviewsCount: expert.reviews?.length || expert.reviewCount || 12,
+    experience: expert.experienceYears ? `${expert.experienceYears} Years` : "N/A",
+    imageUrl: imageUrl,
+    videoUrl: videoUrl,
+    location: expert.location || "Online",
+    bio: expert.bio || "No bio available.",
+    tags: (expert.services || []).map((s: any) => s.name || s),
+    certifications: (expert.education || []).map((edu: any, index: number) => ({
+      id: edu.id || String(index),
+      name: `${edu.degree} in ${edu.fieldOfStudy}`,
+      issuer: edu.institution
+    })),
+    hobbies: (expert.interests || expert.languages || ["English"]).map((item: any, index: number) => ({
+      id: String(index),
+      name: item
+    })),
+    reviews: (expert.reviews || []).map((r: any, index: number) => ({
+      id: r.id || String(index),
+      name: r.reviewerName || "Anonymous",
+      rating: r.rating || 5,
+      comment: r.comment || "",
+      isVerified: true
+    }))
+  } : demoStaffData;
 
   const displayedReviews = showAllReviews ? staffData.reviews : staffData.reviews.slice(0, 2);
 
@@ -184,28 +273,28 @@ export default function StaffDetailPage() {
               {/* Image with Play Button Overlay */}
               <div className="relative aspect-square w-full max-h-[20rem] cursor-pointer group overflow-hidden">
                 {!imageError && staffData.imageUrl ? (
-                  <>
-                    <Image
-                      src={staffData.imageUrl}
-                      alt={staffData.name}
-                      fill
-                      className="object-cover transition-transform duration-500 group-hover:scale-110"
-                      onError={() => setImageError(true)}
-                    />
-                    {/* Play Button Overlay */}
-                    <button
-                      onClick={handlePlayVideo}
-                      className="absolute inset-0 flex items-center justify-center  transition-all duration-300 cursor-pointer"
-                    >
-                      <div className="bg-black/70 hover:bg-black/90 backdrop-blur-sm rounded-full p-4 transition-all duration-300 hover:scale-110 opacity-100">
-                        <Play className="w-8 h-8 fill-white text-white" />
-                      </div>
-                    </button>
-                  </>
+                  <img
+                    src={staffData.imageUrl}
+                    alt={staffData.name}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    onError={() => setImageError(true)}
+                  />
                 ) : (
                   <div className="w-full h-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
                     <User className="w-20 h-20 text-white" />
                   </div>
+                )}
+
+                {/* Play Button Overlay (always visible if videoUrl is present, regardless of imageError) */}
+                {staffData.videoUrl && (
+                  <button
+                    onClick={handlePlayVideo}
+                    className="absolute inset-0 flex items-center justify-center transition-all duration-300 cursor-pointer"
+                  >
+                    <div className="bg-black/70 hover:bg-black/90 backdrop-blur-sm rounded-full p-4 transition-all duration-300 hover:scale-110 opacity-100">
+                      <Play className="w-8 h-8 fill-white text-white" />
+                    </div>
+                  </button>
                 )}
               </div>
 
@@ -355,5 +444,20 @@ export default function StaffDetailPage() {
         title={`${staffData.name} - Introduction Video`}
       />
     </div>
+  );
+}
+
+export default function StaffDetailPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 className="w-8 h-8 animate-spin text-[var(--primary-color)]" />
+          <p className="text-zinc-600 dark:text-zinc-400 font-medium text-sm">Loading expert details...</p>
+        </div>
+      </div>
+    }>
+      <StaffDetailContent />
+    </Suspense>
   );
 }
