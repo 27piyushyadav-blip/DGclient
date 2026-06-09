@@ -2,11 +2,13 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, CalendarDays, Clock, PlayCircle, Share2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarDays, Clock, PlayCircle, Share2, MapPin } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { Venue } from "@/app/main/data";
 import VideoModal from "@/components/modals/VideoModal";
+import { Bad_Script } from "next/font/google";
+import { Badge } from "@/components/ui/badge";
 
 interface SmallVenueCardProps {
   venue: Venue;
@@ -23,65 +25,67 @@ function SmallVenueCard({ venue, onBookNow }: SmallVenueCardProps) {
       <div className="relative">
         {/* Small thumbnail image */}
         <div 
-          className="h-full w-full bg-cover bg-center bg-black"
+          className="h-15 w-full bg-cover bg-center bg-black"
           style={{ 
             backgroundImage: venue.bgImage 
               ? `url(${venue.bgImage.replace(/^url\(['"]?/, "").replace(/['"]?\)$/, "")})`
               : "url('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=2070&auto=format&fit=crop')"
           }}
         >
-           
-        
+           <div className="absolute inset-0 bg-black/40" /> 
+         {/* <div className="relative z-10"> */}
         {/* Status badge */}
         <div className="absolute top-2 left-2 flex">
-          <div className="flex items-center gap-1 bg-black/70 backdrop-blur-sm rounded-full px-2 py-0.5">
+          <div className="flex items-center gap-1  backdrop-blur-sm rounded-full px-2 py-0.5">
             <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-[10px] font-medium text-white">Open</span>
+            {/* <span className="text-[10px] font-medium text-white">Open</span> */}
           </div>
         </div>
-        <div className="absolute top-2 right-2 flex gap-2 justify-center items-center">
+        <div className="absolute top-0.5 right-2 flex gap-2 justify-center items-center">
+          <div className="absolute right-10 bg-blue-600 text-white hover:bg-blue-600 z-20 text-[5px] min-w-[47px] flex items-center justify-center rounded-full py-0.5 px-0.5">
+            {venue?.hours}
+          </div>
           <PlayCircle className="h-4 w-4 text-white" onClick={()=>setIsVideoModalOpen(true)} />
           <Share2 className="h-3 w-3 text-white" />
         </div>
       
 
-      <div className="p-2 ">
+      
+
+      {/* </div> */}
+
+      </div>
+      </div>
+
+
+      <div className="px-2 py-1">
         {/* Venue Name */}
-        <h3 className="text-xs font-bold text-white truncate leading-tight  mt-5">
+        <h3 className="text-[10px] font-bold text-black truncate leading-tight">
           {venue.name}
         </h3>
-        
-        {/* Venue Type/Category */}
-        <p className="text-[10px] text-white mt-0.5 truncate">
-          {venueCard.category || "Earbudshop"}
-        </p>
 
-        {/* Hours */}
-        <div className="flex items-center gap-1 mt-1.5">
-          <Clock className="h-2.5 w-2.5 text-white" />
-          <span className="text-[9px] text-white truncate">
-            {venue.hours || "RAM - 7PM"}
-          </span>
-        </div>
+        <h3 className="text-[5px] text-black truncate leading-tight flex items-center gap-1">
+          <MapPin className="h-2 w-2 text-blue-400" />
+          {venue.address}
+        </h3>
 
         {/* Book Now Button */}
-        <div className="mt-2 flex justify-between gap-1">
-        <Button
+        <div className=" flex justify-between gap-1">
+        <button
           onClick={() => onBookNow(venue)}
-          className="w-full mt-2 h-7 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-medium px-0"
+          className="w-full mt-2 h-4 rounded-sm bg-blue-600 hover:bg-blue-700 text-white text-[7px] font-medium px-0 flex items-center justify-center align-middle"
         >
-          Book Now
-        </Button>
+          <CalendarDays className="h-2 w-2 mr-1" />
+          <p className="mt-[1px]">Book Now</p>
+        </button>
 
         <Button
           onClick={() => router.push(`/main/mobile/specific/${venue.id}`)}
-          className="w-full mt-2 h-7 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-medium px-0"
+          className="w-full mt-2 h-4 rounded-sm bg-white hover:bg-blue-700 text-black text-[7px] font-medium px-0"
         >
           View
         </Button>
         </div>
-      </div>
-      </div>
       </div>
     </Card>
     {isVideoModalOpen && venueCard?.videoUrl && (
@@ -168,8 +172,72 @@ export default function BottomVenueSlider({ venues, onBookNow, isLoading = false
             <SmallVenueCardSkeleton />
           </div>
         ) : venues.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-200 bg-white px-4 py-6 text-center text-sm text-slate-500">
-            No venues found.
+          <div className="rounded-xl border border-dashed border-slate-200 bg-white text-center text-sm text-slate-500">
+          <Card className="overflow-hidden rounded-xl border border-slate-200 shadow-sm bg-white hover:shadow-md transition-shadow flex-shrink-0 w-[calc(50%-0.5rem)]">
+      <div className="relative">
+        {/* Small thumbnail image */}
+        <div 
+          className="h-15 w-full bg-cover bg-center bg-black"
+          style={{ 
+            backgroundImage:"url('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=2070&auto=format&fit=crop')"
+          }}
+        >
+           <div className="absolute inset-0 bg-black/40" /> 
+         {/* <div className="relative z-10"> */}
+        {/* Status badge */}
+        <div className="absolute top-2 left-2 flex">
+          <div className="flex items-center gap-1  backdrop-blur-sm rounded-full px-2 py-0.5">
+            <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+            {/* <span className="text-[10px] font-medium text-white">Open</span> */}
+          </div>
+        </div>
+        <div className="absolute top-0.5 right-2 flex gap-2 justify-center items-center">
+          <div className="absolute right-10 bg-blue-600 text-white hover:bg-blue-600 z-20 text-[5px] min-w-[47px] flex items-center justify-center rounded-full py-0.5 px-0.5">
+            {"9:00AM-10:00PM"}
+          </div>
+          <PlayCircle className="h-4 w-4 text-white" onClick={()=>setIsVideoModalOpen(true)} />
+          <Share2 className="h-3 w-3 text-white" />
+        </div>
+      
+
+      
+
+      {/* </div> */}
+
+      </div>
+      </div>
+
+
+      <div className="px-2 py-1">
+        {/* Venue Name */}
+        <h3 className="text-[10px] font-bold text-black leading-tight">
+          {"No venues found nearby"}
+        </h3>
+
+        <h3 className="text-[5px] text-black truncate leading-tight flex items-center gap-1">
+          <MapPin className="h-2 w-2 text-blue-400" />
+          {"No venues found nearby"}
+        </h3>
+
+        {/* Book Now Button */}
+        <div className=" flex justify-between gap-1">
+        <button
+          // onClick={() => onBookNow(venue)}
+          className="w-full mt-2 h-4 rounded-sm bg-blue-600 hover:bg-blue-700 text-white text-[7px] font-medium px-0 flex items-center justify-center align-middle"
+        >
+          <CalendarDays className="h-2 w-2 mr-1" />
+          <p className="mt-[1px]">Book Now</p>
+        </button>
+
+        <Button
+          // onClick={() => router.push(`/main/mobile/specific/${venue.id}`)}
+          className="w-full mt-2 h-4 rounded-sm bg-white hover:bg-blue-700 text-black text-[7px] font-medium px-0"
+        >
+          View
+        </Button>
+        </div>
+      </div>
+    </Card>
           </div>
         ) : (
           <div

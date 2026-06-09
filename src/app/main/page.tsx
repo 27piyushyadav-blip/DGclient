@@ -467,10 +467,9 @@ export default function MainPage() {
 
   return (
     <>
-      <main className="min-h-screen bg-[linear-gradient(180deg,#f8fbff_0%,#f6f8fc_100%)] px-4 py-6 md:px-6 lg:px-8">
-        <div className="mx-auto max-w-[1600px] items-center gap-4 lg:hidden mb-2">
+      <main className="min-h-screen bg-[linear-gradient(180deg,#f8fbff_0%,#f6f8fc_100%)] px-4 py-2 md:px-6 lg:px-8">
+        <div className="mx-auto max-w-[1600px] items-center gap-4 lg:hidden mb-1">
           <p className="text-sm text-blue-700">{greeting || " "}</p>
-          <h1 className="text-xl font-bold text-slate-900">Find & Book <br/>Top Local Services</h1>
           <div className="w-20" />
         </div>
 
@@ -480,19 +479,19 @@ export default function MainPage() {
           </aside>
 
           <div >
-            <div className="relative mb-5 mt-2">
+            <div className="relative mb-1">
               <div className="relative">
                 <input
                   type="text"
                   name="search"
                   placeholder="Search..."
-                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 pl-10 pr-12 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 pl-10 pr-12 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 h-7"
                 />
                 <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <Sheet>
                   <SheetTrigger asChild>
                     <button 
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 h-8 w-8 xl:hidden border-l border-slate-300"
+                      className="absolute right-2 top-3.5 -translate-y-1/2 p-1.5 h-6 w-8 xl:hidden border-slate-300"
                     >
                       <SlidersHorizontal className="h-4 w-4 text-blue-700" />
                     </button>
@@ -537,9 +536,9 @@ export default function MainPage() {
                   <Link 
                     key={index} 
                     href={item.href}
-                    className="flex flex-col items-center gap-2 group"
+                    className="flex flex-col items-center gap-1 group"
                   >
-                    <div className="md:w-[5rem] md:h-[5rem] sm:w-[2rem] sm:h-[2rem] w-[3rem] h-[3rem] 
+                    <div className="md:w-[5rem] md:h-[5rem] sm:w-[2rem] sm:h-[2rem] w-[2.2rem] h-[2.2rem] 
                                   rounded-full bg-blue-700/10 flex items-center justify-center 
                                   overflow-hidden transition-transform duration-200 group-hover:scale-105">
                                     { item.name === 'More' ? (
@@ -556,7 +555,7 @@ export default function MainPage() {
                                             />
                                     )}
                     </div>
-                    <p className="text-xs text-blue-700 font-semibold">{item.name}</p>
+                    <p className="text-[10px] text-blue-700 font-semibold">{item.name}</p>
                   </Link>
                 ))}
             </div>
@@ -570,7 +569,7 @@ export default function MainPage() {
                   />
                 </div>
 
-                <div className="grid lg:hidden px-2 py-3">
+                <div className="grid lg:hidden px-2 py-1">
                   <div className="flex items-center justify-between px-2">
                   <p className="text-sm font-semibold text-slate-900 mb-1">Trending Nearby</p>
                   <p className="text-xs font-semibold text-blue-600 mb-1 flex items-center">scroll & view more<ArrowRight className="h-4 w-4" /></p>
@@ -586,7 +585,7 @@ export default function MainPage() {
                   />
                 </div>
 
-                <div className="grid lg:hidden px-2 py-3">
+                <div className="grid lg:hidden px-2]">
                   <p className="text-xs font-semibold text-blue-600 flex justify-end px-2 mb-1">scroll & view more<ArrowRight className="h-4 w-4" /></p>
                   <BottomVenueSlider
                     venues={venueList}

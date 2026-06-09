@@ -41,7 +41,7 @@ const BottomNavbar = () => {
       <div className="h-16 md:h-20 xl:hidden" />
       
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 shadow-lg xl:hidden">
-        <div className="flex items-center justify-around h-16 md:h-20 px-4">
+        <div className="flex items-center justify-around h-10 md:h-20 px-4">
           {navItems.map((item) => {
             const isActive = pathname === item.href;
             const Icon = item.icon;
@@ -57,11 +57,11 @@ const BottomNavbar = () => {
                 }`}
               >
                 <Icon
-                  className={`w-5 h-5 md:w-6 md:h-6 ${
+                  className={`w-4 h-4 md:w-6 md:h-6 ${
                     isActive ? "stroke-2" : "stroke-[1.5]"
                   }`}
                 />
-                <span className="text-xs md:text-sm font-medium">
+                <span className="text-[10px] md:text-sm font-medium">
                   {item.name}
                 </span>
                 {isActive && (
