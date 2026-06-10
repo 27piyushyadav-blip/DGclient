@@ -12,6 +12,7 @@ import {
   Clock3,
   Filter,
   LayoutGrid,
+  LayoutGridIcon,
   Mail,
   MapPin,
   Menu,
@@ -92,7 +93,6 @@ import MessageDialog from "./specific/[id]/MessageDialog";
 import ExpertSelectionDialog from "./specific/[id]/ExpertSelectionDialog";
 import VideoModal from "@/components/modals/VideoModal";
 import HomeCarousel from "./mobile/homeCarousel";
-import SmallVenueCard from "./mobile/venueSlider";
 import VenueSlider from "./mobile/venueSlider";
 import BottomVenueSlider from "./mobile/bottomVenuesSlider";
 
@@ -467,11 +467,7 @@ export default function MainPage() {
 
   return (
     <>
-      <main className="min-h-screen bg-[linear-gradient(180deg,#f8fbff_0%,#f6f8fc_100%)] px-4 py-2 md:px-6 lg:px-8">
-        <div className="mx-auto max-w-[1600px] items-center gap-4 lg:hidden mb-1">
-          <p className="text-sm text-blue-700">{greeting || " "}</p>
-          <div className="w-20" />
-        </div>
+      <main className=" bg-[linear-gradient(180deg,#f8fbff_0%,#f6f8fc_100%)] px-1 py-2 md:px-6 lg:px-8">
 
         <div className="mx-auto grid max-w-[1600px] gap-6 xl:grid-cols-[290px_minmax(0,1fr)]">
           <aside className="hidden h-fit rounded-[30px] border border-slate-200 bg-white p-6 shadow-[0_20px_55px_-42px_rgba(15,23,42,0.45)] xl:block">
@@ -479,7 +475,7 @@ export default function MainPage() {
           </aside>
 
           <div >
-            <div className="relative mb-1">
+            <div className="relative mb-2.5">
               <div className="relative">
                 <input
                   type="text"
@@ -526,24 +522,29 @@ export default function MainPage() {
                   name: 'Tatoo', 
                   href: '', 
                   image: 'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?w=200&h=200&fit=crop' 
+                },{ 
+                  name: 'Spa', 
+                  href: '', 
+                  image: 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=200&h=200&fit=crop' 
                 },
                 { 
                   name: 'More', 
                   href: '', 
                   image: "https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?w=200&h=200&fit=crop"
+                  
                 }
               ].map((item, index) => (
                   <Link 
                     key={index} 
                     href={item.href}
-                    className="flex flex-col items-center gap-1 group"
+                    className="flex flex-col items-center gap- group"
                   >
-                    <div className="md:w-[5rem] md:h-[5rem] sm:w-[2rem] sm:h-[2rem] w-[2.2rem] h-[2.2rem] 
+                    <div className="md:w-[5rem] md:h-[5rem] sm:w-[2rem] sm:h-[2rem] w-[3rem] h-[3rem] 
                                   rounded-full bg-blue-700/10 flex items-center justify-center 
                                   overflow-hidden transition-transform duration-200 group-hover:scale-105">
                                     { item.name === 'More' ? (
                                       <div className="w-full h-full flex items-center justify-center text-2xl">
-                                      <Plus className="h-6 w-6 text-blue-700" />
+                                      <LayoutGridIcon className="h-6 w-6 text-slate-800" />
                                       </div>
                                     ) : (
                                             <Image
@@ -555,7 +556,7 @@ export default function MainPage() {
                                             />
                                     )}
                     </div>
-                    <p className="text-[10px] text-blue-700 font-semibold">{item.name}</p>
+                    <p className="text-[10px] text-slate-800 font-semibold">{item.name}</p>
                   </Link>
                 ))}
             </div>
@@ -569,10 +570,10 @@ export default function MainPage() {
                   />
                 </div>
 
-                <div className="grid lg:hidden px-2 py-1">
+                <div className="grid lg:hidden py-1">
                   <div className="flex items-center justify-between px-2">
-                  <p className="text-sm font-semibold text-slate-900 mb-1">Trending Nearby</p>
-                  <p className="text-xs font-semibold text-blue-600 mb-1 flex items-center">scroll & view more<ArrowRight className="h-4 w-4" /></p>
+                  <p className="text-xs font-semibold text-slate-900 mb-1">Trending Nearby</p>
+                  <p className="text-[9px] font-semibold text-blue-600 mb- flex items-center">scroll & view more<ArrowRight className="h-3 w-3" /></p>
                   </div>
                   <VenueSlider
                     venues={venueList}
@@ -585,8 +586,8 @@ export default function MainPage() {
                   />
                 </div>
 
-                <div className="grid lg:hidden px-2]">
-                  <p className="text-xs font-semibold text-blue-600 flex justify-end px-2 mb-1">scroll & view more<ArrowRight className="h-4 w-4" /></p>
+                <div className="grid lg:hidden">
+                  {/* <p className="text-xs font-semibold text-blue-600 flex justify-end px-2 mb-1">scroll & view more<ArrowRight className="h-4 w-4" /></p> */}
                   <BottomVenueSlider
                     venues={venueList}
                     isLoading={loading}

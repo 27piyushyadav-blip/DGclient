@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { ChevronLeft, ChevronRight, CalendarDays, Clock } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarDays, Clock, PlayCircle, Heart, Play } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { Venue } from "@/app/main/data";
+import VideoModal from "@/components/modals/VideoModal";
 
 interface SmallVenueCardProps {
   venue: Venue;
@@ -12,8 +13,9 @@ interface SmallVenueCardProps {
 }
 
 function SmallVenueCard({ venue, onBookNow }: SmallVenueCardProps) {
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   return (
-    <Card className="overflow-hidden rounded-xl border border-slate-200 shadow-sm bg-white hover:shadow-md transition-shadow flex-shrink-0 w-[calc(50%-3.2rem)]">
+    <Card className="overflow-hidden rounded-sm border border-slate-200 shadow-sm bg-white hover:shadow-md transition-shadow flex-shrink-0 w-[calc(50%-6.4rem)]">
       <div className="relative">
         {/* Small thumbnail image */}
         <div 
@@ -26,20 +28,30 @@ function SmallVenueCard({ venue, onBookNow }: SmallVenueCardProps) {
         />
         
         {/* Status badge */}
-        <div className="absolute top-2 left-2">
-          <div className="flex items-center gap-1 bg-black/70 backdrop-blur-sm rounded-full px-2 py-0.5">
+        <div className="absolute top-0.5 left-1">
+          {/* <div className="flex items-center gap-1 bg-black/70 backdrop-blur-sm rounded-full px-2 py-0.5"> */}
             <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-[6px] font-medium text-white">Open</span>
-          </div>
+            {/* <span className="text-[6px] font-medium text-white">Open</span> */}
+          {/* </div> */}
+        </div>
+
+
+        <div className="absolute top-0.5 right-1 flex gap-1">
+          
+            <Play onClick={()=>setIsVideoModalOpen(true)} className="h-4 w-4 text-white bg-black/70 backdrop-blur-sm rounded-full   p-1"/> 
+       
         </div>
       </div>
 
       <div className="p-1">
         {/* Venue Name */}
-        <h3 className="text-[8px] font-bold text-slate-900 leading-tight">
+        <h3 className="text-[8px] font-bold text-slate-900 leading-tight h-5">
           {venue.name}
         </h3>
       
+      <h3 className="text-[7px] font-semibold text-slate-500 leading-tight">
+          {venue?.industry || '--'}
+        </h3>
 
         {/* Hours */}
         <div className="flex items-center gap-1 mt-1.5">
@@ -58,6 +70,12 @@ function SmallVenueCard({ venue, onBookNow }: SmallVenueCardProps) {
           Book Now
         </button>
       </div>
+      {isVideoModalOpen && venue?.videoUrl && (
+                  <VideoModal
+                    videoUrl={venue.videoUrl}
+                    onClose={() => setIsVideoModalOpen(false)}
+                  />
+                )}
     </Card>
   );
 }
@@ -65,18 +83,18 @@ function SmallVenueCard({ venue, onBookNow }: SmallVenueCardProps) {
 function SmallVenueCardSkeleton() {
   return (
     <Card className="overflow-hidden rounded-xl border border-slate-200 shadow-sm bg-white flex-shrink-0 w-[calc(50%-0.5rem)] animate-pulse">
-      <div className="h-24 w-full bg-slate-200" />
+      <div className="h-15 w-full bg-slate-200" />
 
       <div className="p-2">
-        <div className="h-3 w-3/4 rounded bg-slate-200" />
+        <div className="h-1 w-3/4 rounded bg-slate-200" />
         <div className="mt-2 h-2.5 w-1/2 rounded bg-slate-100" />
 
-        <div className="mt-3 flex items-center gap-1">
-          <div className="h-2.5 w-2.5 rounded-full bg-slate-200" />
-          <div className="h-2.5 w-2/3 rounded bg-slate-100" />
-        </div>
+        {/* <div className="mt-3 flex items-center gap-1"> */}
+          {/* <div className="h-2.5 w-2.5 rounded-full bg-slate-200" />
+          <div className="h-2.5 w-2/3 rounded bg-slate-100" /> */}
+        {/* </div> */}
 
-        <div className="mt-2 h-7 w-full rounded-lg bg-slate-200" />
+        <div className="mt-2 h-3 w-full rounded-lg bg-slate-200" />
       </div>
     </Card>
   );
@@ -94,6 +112,7 @@ export default function VenueSlider({ venues, onBookNow, isLoading = false }: Ve
   const containerRef = useRef<HTMLDivElement>(null);
   const cardWidthRef = useRef<number>(0);
 
+  console.log(venues)
   // Calculate how many cards fit based on container width
   useEffect(() => {
     const calculateCardsPerView = () => {
@@ -123,7 +142,7 @@ export default function VenueSlider({ venues, onBookNow, isLoading = false }: Ve
   const showSkeleton = isLoading;
 
   return (
-    <div className="w-full  py-1 overflow-x-hidden">
+    <div className="w-full  py- overflow-x-hidden">
 
       {/* Slider Container */}
       <div className="relative overflow-x-scroll scroll-smooth scrollbar-hidden" ref={containerRef}>
@@ -191,6 +210,7 @@ export default function VenueSlider({ venues, onBookNow, isLoading = false }: Ve
           </div>
         )}
       </div>
+      
     </div>
   );
 }

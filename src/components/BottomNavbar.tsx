@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Calendar, MessageCircle, User, Heart, BadgeHelp, ShoppingBag } from "lucide-react";
+import { Home, Calendar, MessageCircle, User, Heart, BadgeHelp, ShoppingBag, LayoutGridIcon } from "lucide-react";
 
 const BottomNavbar = () => {
   const pathname = usePathname();
@@ -10,18 +10,18 @@ const BottomNavbar = () => {
   const navItems = [
     {
       name: "Home",
-      href: "/",
+      href: "/main",
       icon: Home,
     },
     {
-      name: "Appointments",
-      href: "/appointments",
-      icon: Calendar,
+      name: "Menu",
+      href: "/menu",
+      icon: LayoutGridIcon,
     },
     {
-      name: "Main",
-      href: "/main",
-      icon: ShoppingBag,
+      name: "Service",
+      href: "/service",
+      icon: ShoppingBag, // Replace with actual icon
     },
     {
       name: "Experts",

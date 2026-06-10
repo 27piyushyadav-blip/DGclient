@@ -9,6 +9,8 @@ import type { Venue } from "@/app/main/data";
 import VideoModal from "@/components/modals/VideoModal";
 import { Bad_Script } from "next/font/google";
 import { Badge } from "@/components/ui/badge";
+import Image from "next/image";
+import { toast } from "sonner";
 
 interface SmallVenueCardProps {
   venue: Venue;
@@ -19,6 +21,40 @@ function SmallVenueCard({ venue, onBookNow }: SmallVenueCardProps) {
     const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
     const router = useRouter();
     const venueCard = venue as Venue & { category?: string; videoUrl?: string };
+
+    // Fallback images used only when organization has no uploaded banners
+    const FALLBACK_IMAGES = [
+      "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=2070&auto=format&fit=crop",
+    ];
+
+    const handleShare = async (venue: Venue, e: any) => {
+    // e.preventDefault();
+    // e.stopPropagation();
+    const shareUrl = `${window.location.origin}/main/specific/${venue?.id}`;
+    const shareData = {
+      title: venue?.name,
+      text: venue?.tagline || `Check out ${venue?.name} on Mind Namo`,
+      url: shareUrl,
+    };
+
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          console.error('Error sharing:', err);
+        }
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        toast.success("Link copied to clipboard!");
+      } catch (err) {
+        toast.error("Failed to copy link.");
+      }
+    }
+  };
+
   return (
     <>
     <Card className="overflow-hidden rounded-xl border border-slate-200 shadow-sm bg-white hover:shadow-md transition-shadow flex-shrink-0 w-[calc(50%-0.5rem)]">
@@ -42,11 +78,11 @@ function SmallVenueCard({ venue, onBookNow }: SmallVenueCardProps) {
           </div>
         </div>
         <div className="absolute top-0.5 right-2 flex gap-2 justify-center items-center">
-          <div className="absolute right-10 bg-blue-600 text-white hover:bg-blue-600 z-20 text-[5px] min-w-[47px] flex items-center justify-center rounded-full py-0.5 px-0.5">
+          <div className="absolute right-10 bg-blue-600 text-white hover:bg-blue-600 z-20 text-[7px] min-w-[63px] flex items-center justify-center rounded-full py-[1px] px-[1px]">
             {venue?.hours}
           </div>
           <PlayCircle className="h-4 w-4 text-white" onClick={()=>setIsVideoModalOpen(true)} />
-          <Share2 className="h-3 w-3 text-white" />
+          <Share2 className="h-3 w-3 text-white" onClick={()=>handleShare(venue)}/>
         </div>
       
 
@@ -60,14 +96,25 @@ function SmallVenueCard({ venue, onBookNow }: SmallVenueCardProps) {
 
       <div className="px-2 py-1">
         {/* Venue Name */}
-        <h3 className="text-[10px] font-bold text-black truncate leading-tight">
+        <div className="flex">
+          <Image
+                            src={venue?.logo ?? FALLBACK_IMAGES[0]}
+                            alt="Venue Logo"
+                            width={40}
+                            height={40}
+                            className="rounded-sm object-cover"
+                          />
+                          <div>
+        <h3 className="text-[8px] font-bold text-black leading-tight ml-1">
           {venue.name}
         </h3>
 
-        <h3 className="text-[5px] text-black truncate leading-tight flex items-center gap-1">
+        <h3 className="text-[5px] text-black truncate leading-tight flex items-center gap-1 ml-1">
           <MapPin className="h-2 w-2 text-blue-400" />
           {venue.address}
         </h3>
+        </div>
+        </div>
 
         {/* Book Now Button */}
         <div className=" flex justify-between gap-1">
@@ -101,18 +148,18 @@ function SmallVenueCard({ venue, onBookNow }: SmallVenueCardProps) {
 function SmallVenueCardSkeleton() {
   return (
     <Card className="overflow-hidden rounded-xl border border-slate-200 shadow-sm bg-white flex-shrink-0 w-[calc(50%-0.5rem)] animate-pulse">
-      <div className="h-24 w-full bg-slate-200" />
+      <div className="h-15 w-full bg-slate-200" />
 
       <div className="p-2">
         <div className="h-3 w-3/4 rounded bg-slate-200" />
         <div className="mt-2 h-2.5 w-1/2 rounded bg-slate-100" />
 
-        <div className="mt-3 flex items-center gap-1">
+        {/* <div className="mt-3 flex items-center gap-1">
           <div className="h-2.5 w-2.5 rounded-full bg-slate-200" />
           <div className="h-2.5 w-2/3 rounded bg-slate-100" />
-        </div>
-
-        <div className="mt-2 h-7 w-full rounded-lg bg-slate-200" />
+        </div> */}
+{/* 
+        <div className="mt-2 h-2 w-full rounded-lg bg-slate-200" /> */}
       </div>
     </Card>
   );
@@ -149,13 +196,6 @@ export default function BottomVenueSlider({ venues, onBookNow, isLoading = false
   const totalCards = venues?.length;
   const maxIndex = Math.max(0, totalCards - cardsPerView);
 
-  const handlePrev = () => {
-    setScrollIndex((prev) => Math.max(0, prev - 1));
-  };
-
-  const handleNext = () => {
-    setScrollIndex((prev) => Math.min(maxIndex, prev + 1));
-  };
 
   const canScrollPrev = scrollIndex > 0;
   const canScrollNext = scrollIndex < maxIndex;
