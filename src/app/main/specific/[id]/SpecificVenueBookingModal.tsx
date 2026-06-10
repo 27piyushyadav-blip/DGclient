@@ -488,38 +488,45 @@ return (
                             type="button"
                             onClick={() => setSelectedService(service)}
                             className={cn(
-                              "rounded-[22px] border p-3 text-left transition",
+                              "group relative rounded-[22px] border p-3 text-left transition",
                               isSelected
                                 ? "border-blue-600 bg-blue-50/70 shadow-sm"
                                 : "border-slate-200 hover:border-blue-300",
                             )}
                           >
+                            <div
+                              className={cn(
+                                "absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full border bg-white shadow-sm z-10",
+                                isSelected
+                                  ? "border-blue-600 bg-blue-600 text-white"
+                                  : "border-slate-300 text-transparent",
+                              )}
+                            >
+                              <Check className="h-3.5 w-3.5" />
+                            </div>
+
                             <div className="flex gap-3">
-                              <div
-                                className="h-24 w-24 rounded-2xl bg-cover bg-center"
-                                style={{
-                                  backgroundImage: `url('${service.image}')`,
-                                }}
-                              />
+                              {service.image ? (
+                                <div
+                                  className="h-24 w-24 rounded-2xl bg-cover bg-center shrink-0 transition-transform duration-300 group-hover:scale-105"
+                                  style={{
+                                    backgroundImage: `url('${service.image}')`,
+                                  }}
+                                />
+                              ) : (
+                                <div className="h-24 w-24 rounded-2xl flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-100/60 transition-colors duration-300 group-hover:from-slate-100 group-hover:to-slate-200/50 shrink-0">
+                                  <Sparkles className="w-8 h-8 text-slate-300 transition-transform duration-300 group-hover:scale-110" />
+                                </div>
+                              )}
                               <div className="flex flex-1 flex-col">
-                                <div className="flex items-start justify-between gap-3">
+                                <div className="flex items-start justify-between gap-3 pr-6">
                                   <div>
-                                    <p className="font-semibold text-slate-900">
+                                    <p className="font-semibold text-slate-900 leading-snug">
                                       {service.name}
                                     </p>
                                     <p className="mt-1 text-xs text-slate-500">
                                       {duration} min
                                     </p>
-                                  </div>
-                                  <div
-                                    className={cn(
-                                      "flex h-5 w-5 items-center justify-center rounded-full border",
-                                      isSelected
-                                        ? "border-blue-600 bg-blue-600 text-white"
-                                        : "border-slate-300 text-transparent",
-                                    )}
-                                  >
-                                    <Check className="h-3.5 w-3.5" />
                                   </div>
                                 </div>
                                 <p className="mt-3 text-lg font-bold text-blue-600">
@@ -786,13 +793,19 @@ return (
                         Your Booking Details
                       </h3>
 
-                      <div className="mt-5  gap-4 rounded-[22px] border border-slate-100 p-4 ">
-                        <div
-                          className="h-24 w-30 rounded-2xl bg-cover bg-center"
-                          style={{
-                            backgroundImage: `url('${selectedService?.image}')`,
-                          }}
-                        />
+                      <div className="mt-5 flex items-center gap-4 rounded-[22px] border border-slate-100 p-4 ">
+                        {selectedService?.image ? (
+                          <div
+                            className="h-24 w-30 rounded-2xl bg-cover bg-center shrink-0"
+                            style={{
+                              backgroundImage: `url('${selectedService?.image}')`,
+                            }}
+                          />
+                        ) : (
+                          <div className="h-24 w-30 rounded-2xl flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-100 shrink-0">
+                            <Sparkles className="w-8 h-8 text-slate-300" />
+                          </div>
+                        )}
                         <div>
                           <p className="font-semibold text-slate-900">
                             {selectedService?.name}
@@ -1049,11 +1062,17 @@ return (
             <h3 className="text-base font-semibold text-slate-900">Your Booking</h3>
 
             {selectedService ? (
-              <div className="mt-3 flex gap-2 rounded-[20px] border border-slate-100 p-2">
-                <div
-                  className="h-14 w-14 rounded-xl bg-cover bg-center"
-                  style={{ backgroundImage: `url('${selectedService.image}')` }}
-                />
+              <div className="mt-3 flex gap-2 rounded-[20px] border border-slate-100 p-2 items-center">
+                {selectedService.image ? (
+                  <div
+                    className="h-14 w-14 rounded-xl bg-cover bg-center shrink-0"
+                    style={{ backgroundImage: `url('${selectedService.image}')` }}
+                  />
+                ) : (
+                  <div className="h-14 w-14 rounded-xl flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-100 shrink-0">
+                    <Sparkles className="w-5 h-5 text-slate-300" />
+                  </div>
+                )}
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold text-slate-900 text-sm">{selectedService.name}</p>
                   <p className="text-xs text-slate-500">60 min</p>

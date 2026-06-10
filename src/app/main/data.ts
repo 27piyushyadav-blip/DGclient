@@ -3,7 +3,7 @@ export type VenueService = {
   name: string;
   price: string;
   description?: string | null;
-  image: string;
+  image?: string | null;
   categoryId?: string | null;
 };
 
@@ -32,7 +32,7 @@ export function normalizeLayout(rawLayout: any): {
   vertical2: LayoutSection;
 } {
   const defaultSections = {
-    horizontal1: { type: 'services' as const, title: 'Featured Services', services: [] },
+    horizontal1: { type: 'services' as const, title: 'Our Services', services: [] },
     horizontal2: { type: 'staff' as const, title: 'Our Staffs', services: [] },
     vertical1: { type: 'services' as const, title: 'Menu', services: [] },
     vertical2: { type: 'products' as const, title: 'Products', services: [] },
@@ -64,7 +64,7 @@ export function normalizeLayout(rawLayout: any): {
     return {
       horizontal1: {
         type: 'services',
-        title: 'Featured Services',
+        title: 'Our Services',
         services: Array.isArray(rawLayout.horizontal) ? rawLayout.horizontal : [],
       },
       horizontal2: {
@@ -86,7 +86,7 @@ export function normalizeLayout(rawLayout: any): {
   }
 
   return {
-    horizontal1: getSection('horizontal1', 'services', 'Featured Services'),
+    horizontal1: getSection('horizontal1', 'services', 'Our Services'),
     horizontal2: getSection('horizontal2', 'staff', 'Our Staffs'),
     vertical1: getSection('vertical1', 'services', 'Menu'),
     vertical2: getSection('vertical2', 'products', 'Products'),
@@ -378,7 +378,7 @@ export function mapOrgToVenue(org: any, index: number = 0): Venue {
     name: s.name,
     price: `$${s.basePrice || 0}`,
     description: s.description || null,
-    image: s.imageUrl || "https://images.unsplash.com/photo-1515377905703-c4788e51af15?q=80&w=900&auto=format&fit=crop",
+    image: s.imageUrl || null,
     categoryId: s.categoryId || null,
   }));
 

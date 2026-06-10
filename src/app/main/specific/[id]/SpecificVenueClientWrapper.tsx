@@ -12,6 +12,7 @@ import {
   X,
   Tag,
   Layers,
+  Sparkles,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,7 @@ export default function SpecificVenueClientWrapper({
     useState<any>(null);
   const [selectedStaffForBooking, setSelectedStaffForBooking] =
     useState<any>(null);
+  const [bookingFlow, setBookingFlow] = useState<"service-first" | "staff-first">("service-first");
 
   // Category services state (when showCategories = true)
   const [selectedCategory, setSelectedCategory] = useState<{ id: string; name: string; imageUrl?: string | null; price?: string | null } | null>(null);
@@ -85,11 +87,14 @@ export default function SpecificVenueClientWrapper({
   const handleServiceBooking = (service: any) => {
     setSelectedServiceForBooking(service);
     setSelectedStaffForBooking(null);
+    setBookingFlow("service-first");
     setBookingModalOpen(true);
   };
 
   const handleBookingWithStaff = (staff: any) => {
     setSelectedStaffForBooking(staff);
+    setSelectedServiceForBooking(null);
+    setBookingFlow("staff-first");
     setBookingModalOpen(true);
   };
 
@@ -104,7 +109,7 @@ export default function SpecificVenueClientWrapper({
         const displayServices = (section.services || [])
           .map(id => venue.services.find(s => s.id === id || s.name === id))
           .filter((s): s is any => !!s);
-        const servicesList = displayServices.length > 0 ? displayServices : venue.services;
+        const servicesList = (displayServices.length > 0 ? displayServices : venue.services).slice(0, 5);
         if (servicesList.length === 0) return null;
         return (
           <div className="space-y-3 font-sans" key={section.title}>
@@ -115,6 +120,7 @@ export default function SpecificVenueClientWrapper({
                   setSelectedCategory(null);
                   setSelectedServiceForBooking(null);
                   setSelectedStaffForBooking(null);
+                  setBookingFlow("service-first");
                   setBookingModalOpen(true);
                 }} className="cursor-pointer">View All</span>
               </Button>
@@ -123,13 +129,19 @@ export default function SpecificVenueClientWrapper({
               {servicesList.map((service) => (
                 <Card
                   key={service.id || service.name}
-                  className="overflow-hidden rounded-[22px] border-slate-200 shadow-sm cursor-pointer transition hover:shadow-lg bg-white"
+                  className="group overflow-hidden rounded-[22px] border-slate-200 shadow-sm cursor-pointer transition hover:shadow-lg bg-white"
                   onClick={() => handleServiceBooking(service)}
                 >
-                  <div
-                    className="h-32 bg-cover bg-center"
-                    style={{ backgroundImage: `url('${service.image}')` }}
-                  />
+                  {service.image ? (
+                    <div
+                      className="h-32 bg-cover bg-center transition-transform duration-300 group-hover:scale-105"
+                      style={{ backgroundImage: `url('${service.image}')` }}
+                    />
+                  ) : (
+                    <div className="h-32 flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 border-b border-slate-100 transition-colors duration-300 group-hover:from-slate-100 group-hover:to-slate-200/50">
+                      <Sparkles className="w-10 h-10 text-slate-300 transition-transform duration-300 group-hover:scale-110" />
+                    </div>
+                  )}
                   <CardContent className="space-y-1 p-4 text-center">
                     <h3 className="text-sm font-semibold text-slate-800">{service.name}</h3>
                     <p className="text-xl font-bold text-blue-600">{service.price}</p>
@@ -142,6 +154,11 @@ export default function SpecificVenueClientWrapper({
       }
       case 'categories': {
         if (venue.categories.length === 0) return null;
+        const displayCategories = (section.services || [])
+          .map(id => venue.categories.find(c => c.id === id))
+          .filter((c): c is any => !!c);
+        const categoriesList = (displayCategories.length > 0 ? displayCategories : venue.categories).slice(0, 5);
+        if (categoriesList.length === 0) return null;
         return (
           <div className="space-y-3 font-sans" key={section.title}>
             <div className="flex items-center justify-between">
@@ -151,18 +168,20 @@ export default function SpecificVenueClientWrapper({
                   setSelectedCategory(null);
                   setSelectedServiceForBooking(null);
                   setSelectedStaffForBooking(null);
+                  setBookingFlow("service-first");
                   setBookingModalOpen(true);
                 }} className="cursor-pointer">View All</span>
               </Button>
             </div>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-              {venue.categories.map((cat) => (
+              {categoriesList.map((cat) => (
                 <div
                   key={cat.id}
                   onClick={() => {
                     setSelectedCategory(cat);
                     setSelectedServiceForBooking(null);
                     setSelectedStaffForBooking(null);
+                    setBookingFlow("service-first");
                     setBookingModalOpen(true);
                   }}
                   className="overflow-hidden rounded-[22px] border border-slate-200 shadow-sm cursor-pointer transition hover:shadow-lg hover:-translate-y-0.5 bg-white group"
@@ -191,6 +210,11 @@ export default function SpecificVenueClientWrapper({
       }
       case 'staff': {
         if (venue.staff.length === 0) return null;
+        const displayStaff = (section.services || [])
+          .map(id => venue.staff.find(member => member.id === id || member.name === id))
+          .filter((member): member is any => !!member);
+        const staffList = (displayStaff.length > 0 ? displayStaff : venue.staff).slice(0, 5);
+        if (staffList.length === 0) return null;
         return (
           <div className="space-y-3 font-sans" key={section.title}>
             <div className="flex items-center justify-between">
@@ -199,13 +223,19 @@ export default function SpecificVenueClientWrapper({
                 variant="link"
                 asChild
                 className="px-0 text-blue-600 cursor-pointer"
-                onClick={() => handleBookingWithStaff(venue.staff[0])}
+                onClick={() => {
+                  setSelectedCategory(null);
+                  setSelectedServiceForBooking(null);
+                  setSelectedStaffForBooking(null);
+                  setBookingFlow("staff-first");
+                  setBookingModalOpen(true);
+                }}
               >
                 <span>View All</span>
               </Button>
             </div>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {venue.staff.map((member) => (
+              {staffList.map((member) => (
                 <Card
                   key={member.name}
                   className="overflow-hidden rounded-[24px] border-slate-200 shadow-sm bg-white"
@@ -246,13 +276,18 @@ export default function SpecificVenueClientWrapper({
       }
       case 'products': {
         if (venue.products.length === 0) return null;
+        const displayProducts = (section.services || [])
+          .map(id => venue.products.find(product => product.id === id || product.name === id))
+          .filter((product): product is any => !!product);
+        const productsList = (displayProducts.length > 0 ? displayProducts : venue.products).slice(0, 5);
+        if (productsList.length === 0) return null;
         return (
           <div className="space-y-3 font-sans" key={section.title}>
             <div className="flex items-center justify-between">
               <h2 className="text-3xl font-bold text-slate-900">{section.title}</h2>
             </div>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-              {venue.products.slice(0, 10).map((product) => (
+              {productsList.map((product) => (
                 <Card key={product.id || product.name} className="overflow-hidden rounded-[22px] border-slate-200 shadow-sm bg-white">
                   <div
                     className="h-32 bg-cover bg-center"
@@ -287,11 +322,17 @@ export default function SpecificVenueClientWrapper({
               <h2 className="text-3xl font-bold text-slate-900">{section.title}</h2>
               <div className="space-y-4">
                 {servicesList.map((service) => (
-                  <div key={service.id || service.name} className="flex items-center gap-3 cursor-pointer" onClick={() => handleServiceBooking(service)}>
-                    <div
-                      className="h-12 w-12 shrink-0 rounded-xl bg-cover bg-center"
-                      style={{ backgroundImage: `url('${service.image}')` }}
-                    />
+                  <div key={service.id || service.name} className="group flex items-center gap-3 cursor-pointer" onClick={() => handleServiceBooking(service)}>
+                    {service.image ? (
+                      <div
+                        className="h-12 w-12 shrink-0 rounded-xl bg-cover bg-center transition-transform duration-300 group-hover:scale-105"
+                        style={{ backgroundImage: `url('${service.image}')` }}
+                      />
+                    ) : (
+                      <div className="h-12 w-12 shrink-0 rounded-xl flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-100/60 transition-colors duration-300 group-hover:from-slate-100 group-hover:to-slate-200/50">
+                        <Sparkles className="w-5 h-5 text-slate-300 transition-transform duration-300 group-hover:scale-110" />
+                      </div>
+                    )}
                     <div className="flex flex-1 min-w-0 items-center justify-between gap-2">
                       <span className="text-sm font-medium text-slate-700 line-clamp-2 leading-snug">{service.name}</span>
                       <span className="shrink-0 text-sm font-bold text-blue-600 whitespace-nowrap">{service.price}</span>
@@ -305,6 +346,7 @@ export default function SpecificVenueClientWrapper({
                   setSelectedCategory(null);
                   setSelectedServiceForBooking(null);
                   setSelectedStaffForBooking(null);
+                  setBookingFlow("service-first");
                   setBookingModalOpen(true);
                 }}
               >
@@ -316,16 +358,22 @@ export default function SpecificVenueClientWrapper({
       }
       case 'categories': {
         if (venue.categories.length === 0) return null;
+        const displayCategories = (section.services || [])
+          .map(id => venue.categories.find(c => c.id === id))
+          .filter((c): c is any => !!c);
+        const categoriesList = (displayCategories.length > 0 ? displayCategories : venue.categories).slice(0, 5);
+        if (categoriesList.length === 0) return null;
         return (
           <Card className="rounded-[28px] border-slate-200 shadow-sm bg-white" key={section.title}>
             <CardContent className="space-y-5 p-5">
               <h2 className="text-3xl font-bold text-slate-900">{section.title}</h2>
               <div className="space-y-4">
-                {venue.categories.map((cat) => (
+                {categoriesList.map((cat) => (
                   <div key={cat.id} className="flex items-center gap-3 cursor-pointer" onClick={() => {
                     setSelectedCategory(cat);
                     setSelectedServiceForBooking(null);
                     setSelectedStaffForBooking(null);
+                    setBookingFlow("service-first");
                     setBookingModalOpen(true);
                   }}>
                     {cat.imageUrl ? (
@@ -353,12 +401,17 @@ export default function SpecificVenueClientWrapper({
       }
       case 'staff': {
         if (venue.staff.length === 0) return null;
+        const displayStaff = (section.services || [])
+          .map(id => venue.staff.find(member => member.id === id || member.name === id))
+          .filter((member): member is any => !!member);
+        const staffList = (displayStaff.length > 0 ? displayStaff : venue.staff).slice(0, 5);
+        if (staffList.length === 0) return null;
         return (
           <Card className="rounded-[28px] border-slate-200 shadow-sm bg-white" key={section.title}>
             <CardContent className="space-y-5 p-5">
               <h2 className="text-3xl font-bold text-slate-900">{section.title}</h2>
               <div className="space-y-4">
-                {venue.staff.map((member) => (
+                {staffList.map((member) => (
                   <div key={member.name} className="flex items-center gap-3 cursor-pointer" onClick={() => handleBookingWithStaff(member)}>
                     <div
                       className="h-12 w-12 shrink-0 rounded-xl bg-cover bg-center"
@@ -380,12 +433,17 @@ export default function SpecificVenueClientWrapper({
       }
       case 'products': {
         if (venue.products.length === 0) return null;
+        const displayProducts = (section.services || [])
+          .map(id => venue.products.find(product => product.id === id || product.name === id))
+          .filter((product): product is any => !!product);
+        const productsList = (displayProducts.length > 0 ? displayProducts : venue.products).slice(0, 5);
+        if (productsList.length === 0) return null;
         return (
           <Card className="rounded-[28px] border-slate-200 shadow-sm bg-white" key={section.title}>
             <CardContent className="space-y-5 p-5">
               <h2 className="text-3xl font-bold text-slate-900">{section.title}</h2>
               <div className="space-y-4">
-                {venue.products.slice(0, 10).map((product) => (
+                {productsList.map((product) => (
                   <div key={product.id || product.name} className="flex items-center gap-3">
                     <div
                       className="h-12 w-12 shrink-0 rounded-xl bg-cover bg-center"
@@ -479,6 +537,7 @@ export default function SpecificVenueClientWrapper({
                           setSelectedCategory(null);
                           setSelectedServiceForBooking(null);
                           setSelectedStaffForBooking(null);
+                          setBookingFlow("service-first");
                           setBookingModalOpen(true);
                         }}
                       >
@@ -558,7 +617,7 @@ export default function SpecificVenueClientWrapper({
         initialStep={
           selectedServiceForBooking ? 2 : selectedStaffForBooking ? 2 : 1
         }
-        bookingFlow={selectedStaffForBooking ? "staff-first" : "service-first"}
+        bookingFlow={bookingFlow}
         verticalBannerUrl={verticalBanners[0]?.imageUrl}
       />
 
