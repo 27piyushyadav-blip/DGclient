@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import type { Venue } from "@/app/main/data";
+import type { Venue, VenueService } from "@/app/main/data";
 import { venues, mapOrgToVenue } from "@/app/main/data";
 import { getOrganizationsListApi } from "@/lib/directoryApi";
 import SpecificVenueBookingModal from "@/app/main/specific/[id]/SpecificVenueBookingModal";
@@ -26,7 +26,7 @@ function ServiceDrawer({
   venueName,
   onBookNow,
 }: {
-  services: { name: string; price: string; image: string }[];
+  services: VenueService[];
   venueName: string;
   onBookNow: () => void;
 }) {
@@ -133,7 +133,7 @@ function VenueCard({
                 className=" border-slate-100 w-[6rem] flex flex-col items-center justify-center gap-2 h-[6rem] mt-[-0.5rem]"
               >
                 <img
-                  src={service.image}
+                  src={service.image || undefined}
                   alt={service.name}
                   className="h-8 w-8 rounded-lg object-cover"
                 />
@@ -158,7 +158,7 @@ function VenueCard({
                 className="border-r border-slate-100 w-[6rem] flex flex-col items-center justify-center gap-2 h-[6rem] mt-[-0.5rem]"
               >
                 <img
-                  src={service.image}
+                  src={service.image || undefined}
                   alt={service.name}
                   className="h-8 w-8 rounded-lg object-cover"
                 />

@@ -77,7 +77,7 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer";
 import Link from "next/link";
-import { venues, type Venue, mapOrgToVenue } from "./data";
+import { venues, type Venue, type VenueService, mapOrgToVenue } from "./data";
 import { getOrganizationsListApi } from "@/lib/directoryApi";
 import SpecificVenueBookingModal from "./specific/[id]/SpecificVenueBookingModal";
 import MessageDialog from "./specific/[id]/MessageDialog";
@@ -131,7 +131,7 @@ function ServiceDrawer({
   venueName,
   onBookNow,
 }: {
-  services: { name: string; price: string }[];
+  services: VenueService[];
   venueName: string;
   onBookNow: () => void;
 }) {
@@ -334,7 +334,7 @@ function VenueCard({
                 className="border-r border-slate-100   w-[6rem] flex flex-col items-center justify-center gap-2 h-[6rem] mt-[-0.5rem]"
               >
                 <img
-                  src={service.image}
+                  src={service.image || undefined}
                   alt={service.name}
                   className="h-8 w-8 rounded-lg object-cover"
                 />
