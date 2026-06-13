@@ -1,12 +1,18 @@
 "use client";
 
-import { useState, type ReactNode, useEffect } from "react";
+import { useState, type ReactNode, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
+  ArrowBigRight,
+  ArrowRight,
   CalendarDays,
   ChevronDown,
   Circle,
   Clock3,
+  Filter,
+  LayoutGrid,
+  LayoutGridIcon,
   Mail,
   MapPin,
   Menu,
@@ -14,6 +20,7 @@ import {
   Plus,
   SearchIcon,
   Share2,
+  SlidersHorizontal,
   Star,
   Users,
 } from "lucide-react";
@@ -76,13 +83,18 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer";
+import Image from "next/image";
 import Link from "next/link";
 import { venues, type Venue, type VenueService, mapOrgToVenue } from "./data";
 import { getOrganizationsListApi } from "@/lib/directoryApi";
+import { buildMobileBookingHref } from "./mobile/bookingRoute";
 import SpecificVenueBookingModal from "./specific/[id]/SpecificVenueBookingModal";
 import MessageDialog from "./specific/[id]/MessageDialog";
 import ExpertSelectionDialog from "./specific/[id]/ExpertSelectionDialog";
 import VideoModal from "@/components/modals/VideoModal";
+import HomeCarousel from "./mobile/homeCarousel";
+import VenueSlider from "./mobile/venueSlider";
+import BottomVenueSlider from "./mobile/bottomVenuesSlider";
 
 const filters = {
   suburbs: ["Ascotvale", "Brunswick", "Docklands"],
@@ -96,6 +108,9 @@ type MainVenue = Venue & {
 };
 
 const fallbackVideoUrl = "https://youtu.be/sRWcJrMTtMI?si=hbh0v0HYOocQsXrE";
+
+const stripCssUrl = (value: string) =>
+  value.replace(/^url\(['"]?/, "").replace(/['"]?\)$/, "");
 
 const defaultVenueCards: MainVenue[] = venues.map((venue) => ({
   ...venue,
@@ -151,6 +166,7 @@ function ServiceDrawer({
     </div>
   );
 }
+
 
 function VenueCard({
   id,
@@ -210,12 +226,12 @@ function VenueCard({
         >
           {/* Background Image with Light Overlay */}
           <div
-            className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-30 mix-blend-overlay"
+            className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-100 mix-blend-overlay"
             style={{ backgroundImage: bgImage }}
           />
 
           {/* Dark Gradient Overlay */}
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-black/60 via-black/40 to-transparent" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-black/30 via-black/40 to-transparent" />
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.22),transparent_32%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.18),transparent_24%)]" />
           <div
             className={`absolute bottom-0 right-0 h-40 w-40 rounded-full bg-gradient-to-br ${glow} blur-2xl`}
@@ -346,7 +362,6 @@ function VenueCard({
                 </div>
               </div>
             ))}
-
             <ServiceDrawer services={services} venueName={name} onBookNow={onBookNow} />
           </div>
 
@@ -365,17 +380,43 @@ function VenueCard({
 }
 
 export default function MainPage() {
+  const router = useRouter();
   const [venueList, setVenueList] = useState<MainVenue[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedVenue, setSelectedVenue] = useState<MainVenue | null>(null);
-  const [messageVenue, setMessageVenue] = useState<MainVenue | null>(null);
+  const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
+  const [messageVenue, setMessageVenue] = useState<Venue | null>(null);
   const [selectedExpert, setSelectedExpert] = useState<any>(null);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false);
   const [isExpertSelectionOpen, setIsExpertSelectionOpen] = useState(false);
   const [bookingFlow, setBookingFlow] = useState<"service-first" | "staff-first">("service-first");
   const [activeVideoUrl, setActiveVideoUrl] = useState<string | null>(null);
+  const [greeting, setGreeting] = useState("");
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const carouselVenues = (venueList.length > 0 ? venueList : defaultVenueCards).slice(0, 6);
+  const horizontalBanners = carouselVenues.map((venue) => ({
+    imageUrl: stripCssUrl(venue.bgImage),
+    title: venue.tagline,
+    description: venue.description,
+    clickThroughUrl: venue.detailHref,
+  }));
+  const verticalBanners = carouselVenues.slice(0, 1).map((venue) => ({
+    imageUrl: stripCssUrl(venue.bgImage),
+    title: venue.tagline,
+    description: venue.description,
+    clickThroughUrl: venue.detailHref,
+  }));
+
+  useEffect(() => {
+    const updateViewport = () => {
+      setIsMobileViewport(window.innerWidth < 1024);
+    };
+
+    updateViewport();
+    window.addEventListener("resize", updateViewport);
+    return () => window.removeEventListener("resize", updateViewport);
+  }, []);
 
   useEffect(() => {
     async function loadOrganizations() {
@@ -401,23 +442,49 @@ export default function MainPage() {
     loadOrganizations();
   }, []);
 
-  const handleBookNow = (venue: MainVenue) => {
+  useEffect(() => {
+    const hour = new Date().getHours();
+
+    if (hour < 12) {
+      setGreeting("Good Morning 👋");
+    } else if (hour < 17) {
+      setGreeting("Good Afternoon 👋");
+    } else if (hour < 20) {
+      setGreeting("Good Evening 👋");
+    } else {
+      setGreeting("We're Available 24/7 🌙");
+    }
+  }, []);
+
+  const handleBookNow = (venue: Venue) => {
+    if (isMobileViewport) {
+      router.push(buildMobileBookingHref(venue.id, {
+        flow: "service-first",
+      }));
+      return;
+    }
     setSelectedVenue(venue);
     setBookingFlow("service-first");
     setIsBookingModalOpen(true);
   };
 
-  const handleStaffSelect = (venue: MainVenue) => {
+  const handleStaffSelect = (venue: Venue) => {
+    if (isMobileViewport) {
+      router.push(buildMobileBookingHref(venue.id, {
+        flow: "staff-first",
+      }));
+      return;
+    }
     setSelectedVenue(venue);
     setBookingFlow("staff-first");
     setIsBookingModalOpen(true);
   };
 
-  const handlePlayVideo = (venue: MainVenue) => {
-    setActiveVideoUrl(venue.videoUrl || fallbackVideoUrl);
+  const handlePlayVideo = (venue: Venue) => {
+    setActiveVideoUrl((venue as MainVenue).videoUrl || fallbackVideoUrl);
   };
 
-  const handleMessageNow = (venue: MainVenue) => {
+  const handleMessageNow = (venue: Venue) => {
     if (!venue.staff.length) return;
 
     setMessageVenue(venue);
@@ -431,23 +498,7 @@ export default function MainPage() {
 
   return (
     <>
-      <main className="min-h-screen bg-[linear-gradient(180deg,#f8fbff_0%,#f6f8fc_100%)] px-4 py-6 md:px-6 lg:px-8">
-        <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4 xl:hidden mb-5">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="outline" className="border-slate-200 bg-white shadow-sm">
-                <Menu className="m-1 h-4 w-4 text-black" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-[320px] p-0 sm:w-[380px]">
-              <div className="h-full overflow-y-auto p-6 bg-white">
-                <FilterSidebarContent />
-              </div>
-            </SheetContent>
-          </Sheet>
-          <h1 className="text-xl font-bold text-slate-900">Venues</h1>
-          <div className="w-20" />
-        </div>
+      <main className=" bg-[linear-gradient(180deg,#f8fbff_0%,#f6f8fc_100%)] px-1 py-2 md:px-6 lg:px-8">
 
         <div className="mx-auto grid max-w-[1600px] gap-6 xl:grid-cols-[290px_minmax(0,1fr)]">
           <aside className="hidden h-fit rounded-[30px] border border-slate-200 bg-white p-6 shadow-[0_20px_55px_-42px_rgba(15,23,42,0.45)] xl:block">
@@ -455,16 +506,139 @@ export default function MainPage() {
           </aside>
 
           <div >
-            <div className="relative mb-5 mt-2 ">
-              <input
-                type="text"
-                name="search"
-                placeholder="Search..."
-                className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 pl-10 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-              <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <div className="relative mb-2.5">
+              <div className="relative">
+                <input
+                  type="text"
+                  name="search"
+                  placeholder="Search..."
+                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 pl-10 pr-12 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 h-7"
+                />
+                <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Sheet>
+                  <SheetTrigger asChild>
+                    <button 
+                      className="absolute right-2 top-3.5 -translate-y-1/2 p-1.5 h-6 w-8 xl:hidden border-slate-300"
+                    >
+                      <SlidersHorizontal className="h-4 w-4 text-blue-700" />
+                    </button>
+                  </SheetTrigger>
+                  <SheetContent side="left" className="w-[320px] p-0 sm:w-[380px]">
+                    <div className="h-full overflow-y-auto p-6 bg-white">
+                      <FilterSidebarContent />
+                    </div>
+                  </SheetContent>
+                </Sheet>
+              </div>
             </div>
-            <section className="grid gap-6 lg:grid-cols-2">
+
+            <div className="mx-auto items-center gap-y-4 lg:hidden mb-2 flex justify-between px-4">
+                {[
+                { 
+                  name: 'Barber', 
+                  href: '', 
+                  image: 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=200&h=200&fit=crop' 
+                },
+                { 
+                  name: 'Salon', 
+                  href: '', 
+                  image: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=200&h=200&fit=crop' 
+                },
+                { 
+                  name: 'Spa', 
+                  href: '', 
+                  image: 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=200&h=200&fit=crop' 
+                },
+                { 
+                  name: 'Tatoo', 
+                  href: '', 
+                  image: 'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?w=200&h=200&fit=crop' 
+                },{ 
+                  name: 'Spa', 
+                  href: '', 
+                  image: 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=200&h=200&fit=crop' 
+                },
+                { 
+                  name: 'More', 
+                  href: '', 
+                  image: "https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?w=200&h=200&fit=crop"
+                  
+                }
+              ].map((item, index) => (
+                  <Link 
+                    key={index} 
+                    href={item.href}
+                    className="flex flex-col items-center gap- group"
+                  >
+                    <div className="md:w-[5rem] md:h-[5rem] sm:w-[2rem] sm:h-[2rem] w-[3rem] h-[3rem] 
+                                  rounded-full bg-blue-700/10 flex items-center justify-center 
+                                  overflow-hidden transition-transform duration-200 group-hover:scale-105">
+                                    { item.name === 'More' ? (
+                                      <div className="w-full h-full flex items-center justify-center text-2xl">
+                                      <LayoutGridIcon className="h-6 w-6 text-slate-800" />
+                                      </div>
+                                    ) : (
+                                            <Image
+                                              src={item.image}
+                                              alt={item.name}
+                                              width={80}
+                                              height={80}
+                                              className="w-full h-full object-cover"
+                                            />
+                                    )}
+                    </div>
+                    <p className="text-[10px] text-slate-800 font-semibold">{item.name}</p>
+                  </Link>
+                ))}
+            </div>
+
+                <div className="block lg:hidden">
+                  <HomeCarousel
+                    sliderVenues={carouselVenues}
+                    horizontalBanners={horizontalBanners}
+                    verticalBanners={verticalBanners}
+                    isLoading={loading} 
+                  />
+                </div>
+
+                <div className="grid lg:hidden py-1">
+                  <div className="flex items-center justify-between px-2">
+                  <p className="text-xs font-semibold text-slate-900 mb-1">Trending Nearby</p>
+                  <p className="text-[9px] font-semibold text-blue-600 mb- flex items-center">scroll & view more<ArrowRight className="h-3 w-3" /></p>
+                  </div>
+                  <VenueSlider
+                    venues={venueList}
+                    isLoading={loading}
+                    onBookNow={(venue) => {
+                      if (!isExpertSelectionOpen) {
+                        handleBookNow(venue);
+                      }
+                    }}
+                  />
+                </div>
+
+                <div className="grid lg:hidden">
+                  {/* <p className="text-xs font-semibold text-blue-600 flex justify-end px-2 mb-1">scroll & view more<ArrowRight className="h-4 w-4" /></p> */}
+                  <BottomVenueSlider
+                    venues={venueList}
+                    isLoading={loading}
+                    onBookNow={(venue) => {
+                      if (!isExpertSelectionOpen) {
+                        handleBookNow(venue);
+                      }
+                    }}
+                  />
+                </div>
+
+                {/* <div className="w-full">
+                  <SmallVenueCarousel
+                    venues={venueList}
+                    onBookNow={(venue) => handleBookNow(venue)}
+                    title="Trending Nearby"
+                  />
+                </div> */}
+
+            <section className="grid gap-6 lg:grid-cols-2 hidden lg:grid">
               {loading ? (
                 Array.from({ length: 4 }).map((_, index) => (
                   <Card key={index} className="overflow-hidden rounded-[28px] border-slate-200 shadow-md animate-pulse">

@@ -8,12 +8,8 @@ import RefundPayment from './component/RefundPayment';
 import { getClientBookingsApi } from '@/lib/bookingsApi';
 import { getOrganizationProfileByIdApi } from '@/lib/directoryApi';
 
-interface SubHeaderProps {
-  initialActiveSection?: 'exchange' | 'refund' | null;
-}
-
-const SubHeader: React.FC<SubHeaderProps> = ({ initialActiveSection = "refund" }) => {
-  const [activeSection, setActiveSection] = useState<'exchange' | 'refund' | null>(initialActiveSection);
+const SubHeader: React.FC = () => {
+  const [activeSection, setActiveSection] = useState<'exchange' | 'refund' | null>("refund");
   const [bookings, setBookings] = useState<any[]>([]);
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);

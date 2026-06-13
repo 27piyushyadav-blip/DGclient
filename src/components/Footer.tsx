@@ -50,7 +50,7 @@ function NewsletterForm() {
 
 export default function Footer() {
   return (
-    <footer className="bg-zinc-950 text-white border-t border-zinc-900">
+    <footer className="bg-zinc-950 text-white border-t border-zinc-900 hidden lg:block">
       <div className="container mx-auto max-w-6xl px-4 md:px-8 pt-16 pb-10">
         
         {/* --- Top Section: Brand & Newsletter --- */}

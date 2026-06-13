@@ -23,16 +23,18 @@ import {
   X,
   LifeBuoy,
   MessageCircle,
+  Bell,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-export default function Header() {
+export default function MobileHeader() {
   const { user, logout, isAuthenticated } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [greeting, setGreeting] = useState("");
 
   useEffect(() => {
     const handleScroll = () => {
@@ -40,6 +42,20 @@ export default function Header() {
     };
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
+    const hour = new Date().getHours();
+
+    if (hour < 12) {
+      setGreeting("Good Morning 👋");
+    } else if (hour < 17) {
+      setGreeting("Good Afternoon 👋");
+    } else if (hour < 20) {
+      setGreeting("Good Evening 👋");
+    } else {
+      setGreeting("We're Available 24/7 🌙");
+    }
   }, []);
 
   const handleLogout = async () => {
@@ -57,7 +73,7 @@ export default function Header() {
   return (
     <header
       className={cn(
-        "sticky top-0 z-50 w-full border-b bg-white/80 dark:bg-zinc-950/80 backdrop-blur-sm transition-all",
+        "sticky top-0 z-50 w-full  bg-[linear-gradient(180deg,#f8fbff_0%,#f6f8fc_100%)]",
         isScrolled && "shadow-sm",
       )}
     >
@@ -66,112 +82,27 @@ export default function Header() {
           {/* Logo */}
           <Link
             href="/"
-            className="flex items-center gap-2 text-xl font-bold text-zinc-900 dark:text-white"
+            className="items-center text-xl text-zinc-900 dark:text-white"
           >
-            <div className="p-1.5 bg-zinc-900 dark:bg-white rounded-lg">
+            {/* <div className="p-1.5 bg-zinc-900 dark:bg-white rounded-lg">
               <span className="text-white dark:text-zinc-900 text-sm font-extrabold">
                 MN
               </span>
-            </div>
-            <span className="hidden lg:inline">Mind Namo</span>
+            </div> */}
+            <div className="mx-auto max-w-[1600px] items-center lg:hidden">
+          <p className="text-xs text-blue-700">{greeting || " "}</p>
+          <div className="w-20" />
+        </div>
+            <span className="text-lg font-bold tracking-wider">VELVETBOOK</span>
           </Link>
-
-          {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center gap-6">
-            <Link
-              href="/"
-              className={cn(
-                "text-sm font-medium transition-colors hover:text-zinc-900 dark:hover:text-white",
-                isActive("/")
-                  ? "text-zinc-900 dark:text-white"
-                  : "text-zinc-600 dark:text-zinc-400",
-              )}
-            >
-              Home
-            </Link>
-            <Link
-              href="/experts"
-              className={cn(
-                "text-sm font-medium transition-colors hover:text-zinc-900 dark:hover:text-white",
-                isActive("/experts")
-                  ? "text-zinc-900 dark:text-white"
-                  : "text-zinc-600 dark:text-zinc-400",
-              )}
-            >
-              Experts
-            </Link>
-            <Link
-              href="/organizations"
-              className={cn(
-                "text-sm font-medium transition-colors hover:text-zinc-900 dark:hover:text-white",
-                isActive("/organizations")
-                  ? "text-zinc-900 dark:text-white"
-                  : "text-zinc-600 dark:text-zinc-400",
-              )}
-            >
-              Organizations
-            </Link>
-            <Link
-              href="/appointments"
-              className={cn(
-                "text-sm font-medium transition-colors hover:text-zinc-900 dark:hover:text-white",
-                isActive("/appointments")
-                  ? "text-zinc-900 dark:text-white"
-                  : "text-zinc-600 dark:text-zinc-400",
-              )}
-            >
-              My Appointments
-            </Link>
-            <Link
-              href="/main"
-              className={cn(
-                "text-sm font-medium transition-colors hover:text-zinc-900 dark:hover:text-white",
-                isActive("/main")
-                  ? "text-zinc-900 dark:text-white"
-                  : "text-zinc-600 dark:text-zinc-400",
-              )}
-            >
-              Main
-            </Link>
-            {isAuthenticated && (
-              <Link
-                href="/chat"
-                className={cn(
-                  "flex items-center gap-1.5 text-sm font-medium transition-colors hover:text-zinc-900 dark:hover:text-white relative",
-                  isActive("/chat")
-                    ? "text-zinc-900 dark:text-white"
-                    : "text-zinc-600 dark:text-zinc-400",
-                )}
-              >
-                <MessageCircle className="h-4 w-4" />
-                Messages
-              </Link>
-            )}
-            <Link
-              href="/order"
-              className={cn(
-                "text-sm font-medium transition-colors hover:text-zinc-900 dark:hover:text-white",
-                isActive("/order") ? "text-zinc-900 dark:text-white" : "text-zinc-600 dark:text-zinc-400"
-              )}
-            >
-              Help
-            </Link>
-            <Link
-              href="/voicecallorder"
-              className={cn(
-                "text-sm font-medium transition-colors hover:text-zinc-900 dark:hover:text-white",
-                isActive("/voicecallorder")
-                  ? "text-zinc-900 dark:text-white"
-                  : "text-zinc-600 dark:text-zinc-400",
-              )}
-            >
-              Order On Voice Call
-            </Link>
-          </nav>
 
           {/* Right Side Actions */}
           <div className="flex items-center gap-3">
-            <DarkModeToggle className={undefined} />
+            {/* <DarkModeToggle className={undefined} /> */}
+           <div className="relative">
+            <div className="absolute top-0.5 right-1 h-1 w-1 rounded-full bg-red-800"></div>
+            <Bell className="h-5 w-5 bg-white shadow-lg p-1 rounded-xs" />
+            </div>
 
             {isAuthenticated && user ? (
               <DropdownMenu>
@@ -287,7 +218,7 @@ export default function Header() {
               {isMobileMenuOpen ? (
                 <X className="h-5 w-5" />
               ) : (
-                <Menu className="h-5 w-5" />
+                <Menu className="h-5 w-5 bg-white shadow-2xs p-0.5 rounded-xs" />
               )}
             </Button>
           </div>

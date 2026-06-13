@@ -2,10 +2,6 @@
 const nextConfig = {
   reactCompiler: true,
   output: 'standalone',
-
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   typescript: {
     ignoreBuildErrors: true,
   },

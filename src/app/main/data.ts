@@ -122,6 +122,8 @@ export type VenueFeature = {
 };
 
 export type Venue = {
+  videoUrl?: string;
+  industry?: string;
   id: string;
   userId?: string; // This is the organisation.id from the organisation table
   name: string;
@@ -141,6 +143,7 @@ export type Venue = {
   features: VenueFeature[];
   phone?: string;
   defaultLayout?: VenueLayout | null;
+  logo?: string;
 };
 
 export const filters = {
@@ -458,5 +461,6 @@ export function mapOrgToVenue(org: any, index: number = 0): Venue {
     reviews,
     features,
     defaultLayout: org.defaultLayout || null,
+    industry: org.industry,
   };
 }

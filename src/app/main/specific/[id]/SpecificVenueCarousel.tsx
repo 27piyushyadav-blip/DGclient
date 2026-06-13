@@ -39,7 +39,11 @@ export default function SpecificVenueCarousel({
   const [isAnimating, setIsAnimating] = useState(false);
 
   // Use the first venue for static content (name, tagline, address, etc.)
-  const staticVenue = sliderVenues[0];
+  const staticVenue = sliderVenues?.[0];
+
+  if (!staticVenue) {
+    return null;
+  }
 
   const handleShare = async (e: any) => {
     e.preventDefault();
