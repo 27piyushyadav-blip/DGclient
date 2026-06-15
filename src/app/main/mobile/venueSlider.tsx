@@ -15,7 +15,7 @@ interface SmallVenueCardProps {
 function SmallVenueCard({ venue, onBookNow }: SmallVenueCardProps) {
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   return (
-    <Card className="overflow-hidden rounded-sm border border-slate-200 shadow-sm bg-white hover:shadow-md transition-shadow flex-shrink-0 w-[calc(50%-6.4rem)]">
+    <Card className="overflow-hidden rounded-sm border border-slate-200 shadow-sm bg-white hover:shadow-md transition-shadow flex-shrink-0 w-[calc(50%-4.5rem)]">
       <div className="relative">
         {/* Small thumbnail image */}
         <div 
@@ -45,7 +45,7 @@ function SmallVenueCard({ venue, onBookNow }: SmallVenueCardProps) {
 
       <div className="p-1">
         {/* Venue Name */}
-        <h3 className="text-[8px] font-bold text-slate-900 leading-tight h-5">
+        <h3 className="text-[11px] font-bold text-slate-900 leading-tight h-7">
           {venue.name}
         </h3>
       

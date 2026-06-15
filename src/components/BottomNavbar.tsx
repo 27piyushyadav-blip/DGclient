@@ -15,7 +15,7 @@ const BottomNavbar = () => {
     },
     {
       name: "Menu",
-      href: "/menu",
+      href: "/mobile/menu",
       icon: LayoutGridIcon,
     },
     {
@@ -37,11 +37,9 @@ const BottomNavbar = () => {
 
   return (
     <>
-      {/* Spacer to prevent content from hiding behind navbar */}
-      <div className="h-16 md:h-20 xl:hidden" />
       
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 shadow-lg xl:hidden">
-        <div className="flex items-center justify-around h-10 md:h-20 px-4">
+        <div className="flex items-center justify-around h-11 md:h-20 px-4">
           {navItems.map((item) => {
             const isActive = pathname === item.href;
             const Icon = item.icon;

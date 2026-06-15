@@ -498,7 +498,7 @@ export default function MainPage() {
 
   return (
     <>
-      <main className=" bg-[linear-gradient(180deg,#f8fbff_0%,#f6f8fc_100%)] px-1 py-2 md:px-6 lg:px-8">
+      <main className=" bg-[linear-gradient(180deg,#f8fbff_0%,#f6f8fc_100%)] min-h-screen pb-[3rem] px-1 py-2 md:px-6 lg:px-8">
 
         <div className="mx-auto grid max-w-[1600px] gap-6 xl:grid-cols-[290px_minmax(0,1fr)]">
           <aside className="hidden h-fit rounded-[30px] border border-slate-200 bg-white p-6 shadow-[0_20px_55px_-42px_rgba(15,23,42,0.45)] xl:block">
@@ -506,7 +506,7 @@ export default function MainPage() {
           </aside>
 
           <div >
-            <div className="relative mb-2.5">
+            <div className="relative mb-2.5 hidden md:block">
               <div className="relative">
                 <input
                   type="text"
@@ -525,6 +525,38 @@ export default function MainPage() {
                   </SheetTrigger>
                   <SheetContent side="left" className="w-[320px] p-0 sm:w-[380px]">
                     <div className="h-full overflow-y-auto p-6 bg-white">
+                      <FilterSidebarContent />
+                    </div>
+                  </SheetContent>
+                </Sheet>
+              </div>
+            </div>
+
+            <div className="mb-2.5 block md:hidden">
+              <div className="flex items-center gap-2 px-2">
+                
+                {/* Search Input */}
+                <div className="relative flex-1">
+                  <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
+                  <input
+                    type="text"
+                    name="search"
+                    placeholder="Search..."
+                    className="h-9 w-full rounded-xl border border-slate-300 bg-white pl-10 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* Filter Button */}
+                <Sheet>
+                  <SheetTrigger asChild>
+                    <button className="flex h-9 w-9 items-center justify-center">
+                      <SlidersHorizontal className="h-5 w-5 text-blue-700" />
+                    </button>
+                  </SheetTrigger>
+
+                  <SheetContent side="left" className="w-[320px] p-0 sm:w-[380px]">
+                    <div className="h-full overflow-y-auto bg-white p-6">
                       <FilterSidebarContent />
                     </div>
                   </SheetContent>
