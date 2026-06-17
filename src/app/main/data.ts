@@ -458,6 +458,8 @@ export function mapOrgToVenue(org: any, index: number = 0): Venue {
     id: org._id,
     userId: org.userId, // This is the organisation.id from the organisation table
     name: org.name,
+    logo: org.logo || org.logoUrl ,
+    videoUrl: org.introVideo || undefined,
     hours,
     address: [org.location, org.city, org.state].filter(Boolean).join(", ") || "Online",
     phone: org.phone || org.phoneNumber || "+1 (555) 019-2834",

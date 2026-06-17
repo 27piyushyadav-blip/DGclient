@@ -29,10 +29,12 @@ interface homeCarouselProps {
 
 
 // Fallback images used only when organization has no uploaded banners
+const FALLBACK_VIDEO_URL = "https://youtu.be/sRWcJrMTtMI?si=hbh0v0HYOocQsXrE";
+
 const FALLBACK_IMAGES = [
   "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=2070&auto=format&fit=crop",
   "https://images.unsplash.com/photo-1540553016722-983e48a2cd10?q=80&w=2070&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1571902943202-507ec2618e8f?q=80&w=2075&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1  571902943202-507ec2618e8f?q=80&w=2075&auto=format&fit=crop",
   "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=2070&auto=format&fit=crop",
 ];
 
@@ -253,7 +255,7 @@ export default function homeCarousel({
               <div className="flex items-center gap-2 ml-4">
                 <Image
                   src={activeVenue?.logo ?? FALLBACK_IMAGES[currentIndex % FALLBACK_IMAGES.length]}
-                  alt="Venue Logo"
+                  alt="Venue"
                   width={45}
                   height={45}
                   className="rounded-sm object-cover"
@@ -324,12 +326,12 @@ export default function homeCarousel({
           </div>
       </Card>
 
-      {isVideoModalOpen && activeVenue?.videoUrl && (
+      {isVideoModalOpen ? (
         <VideoModal
-          videoUrl={activeVenue.videoUrl || "https://www.youtube.com/watch?v=dQw4w9WgXcQ"}
+          videoUrl={activeVenue?.videoUrl || FALLBACK_VIDEO_URL}
           onClose={() => setIsVideoModalOpen(false)}
         />
-      )}
+      ) : null}
     </>
   );
 }
