@@ -39,3 +39,18 @@ export async function getOrganizationProfileByIdApi(id: string) {
     throw error;
   }
 }
+
+export async function getOrganizationsCategoriesApi() {
+  return apiClient<any>(`${BASE_URL}/directory/categories`, {
+    method: "GET",
+    skipAuth: true
+  });
+}
+
+export async function getServicesByCategoryApi(category: string) {
+  return apiClient<any>(`${BASE_URL}/directory/services/category/${category}`, {
+    method: "GET",
+    skipAuth: true
+  });
+}
+
