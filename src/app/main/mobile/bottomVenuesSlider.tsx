@@ -99,7 +99,7 @@ function SmallVenueCard({ venue, onBookNow }: SmallVenueCardProps) {
         <div className="flex">
           <Image
                             src={venue?.logo ?? FALLBACK_IMAGES[0]}
-                            alt="Venue Logo"
+                            alt="Venue"
                             width={40}
                             height={40}
                             className="rounded-sm object-cover"

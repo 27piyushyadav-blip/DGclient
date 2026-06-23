@@ -1,5 +1,5 @@
 "use client";
-import { ChevronLeft, ChevronRight, CalendarDays, MapPin, Share2, PlayCircle, ShoppingBag, CornerUpRightIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarDays, MapPin, Share2, PlayCircle, ShoppingBag, CornerUpRightIcon, Phone } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -24,14 +24,17 @@ interface homeCarouselProps {
   horizontalBanners?: HorizontalBanner[];
   verticalBanners?: HorizontalBanner[];
   isLoading?: boolean;
+  Isphone?: boolean;
 }
 
 
 // Fallback images used only when organization has no uploaded banners
+const FALLBACK_VIDEO_URL = "https://youtu.be/sRWcJrMTtMI?si=hbh0v0HYOocQsXrE";
+
 const FALLBACK_IMAGES = [
   "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=2070&auto=format&fit=crop",
   "https://images.unsplash.com/photo-1540553016722-983e48a2cd10?q=80&w=2070&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1571902943202-507ec2618e8f?q=80&w=2075&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1  571902943202-507ec2618e8f?q=80&w=2075&auto=format&fit=crop",
   "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=2070&auto=format&fit=crop",
 ];
 
@@ -104,6 +107,7 @@ export default function homeCarousel({
   horizontalBanners = [],
   verticalBanners = [],
   isLoading = false,
+  Isphone = false,
 }: homeCarouselProps) {
   const router = useRouter();
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -195,7 +199,7 @@ export default function homeCarousel({
     <>
       <Card className="overflow-hidden rounded-none border-1 shadow-none rounded-lg bg-white">
       <div className="bg-white rounded-md">
-        <div className="rounded-md relative flex flex-col min-h-[105px] bg-slate-900 text-white">
+        <div className="rounded-md relative flex flex-col min-h-[120px] bg-slate-900 text-white">
           <div
             key={currentIndex}
             className="absolute inset-0 bg-cover bg-center transition-all duration-700 ease-in-out"
@@ -208,7 +212,7 @@ export default function homeCarousel({
             {activeVenue?.hours}
           </Badge>
 
-          <div className="absolute right-4 top-26 cursor-pointer z-20"
+          <div className="absolute right-4 top-30 cursor-pointer z-20"
           onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -228,14 +232,14 @@ export default function homeCarousel({
             <>
               <button
                 onClick={goPrev}
-                className="absolute left-0.5 top-26 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-md transition hover:bg-white/40 z-20"
+                className="absolute left-0.5 top-30 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-md transition hover:bg-white/40 z-20"
                 aria-label="Previous banner"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
               <button
                 onClick={goNext}
-                className="absolute right-0.5 top-26 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-md transition hover:bg-white/40 z-20"
+                className="absolute right-0.5 top-30 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-md transition hover:bg-white/40 z-20"
                 aria-label="Next banner"
               >
                 <ChevronRight className="h-4 w-4" />
@@ -251,7 +255,7 @@ export default function homeCarousel({
               <div className="flex items-center gap-2 ml-4">
                 <Image
                   src={activeVenue?.logo ?? FALLBACK_IMAGES[currentIndex % FALLBACK_IMAGES.length]}
-                  alt="Venue Logo"
+                  alt="Venue"
                   width={45}
                   height={45}
                   className="rounded-sm object-cover"
@@ -267,21 +271,32 @@ export default function homeCarousel({
               </div>
               </div>
               <div className="flex justify-between gap-1.5 mb-0 z-20 px-3">
-
+              {!Isphone ? 
                 <button className="flex items-center gap-1 text-[10px] font-medium text-black mt-2 z-10 border px-2 py-1.5 rounded-md  w-max cursor-pointer hover:bg-black/50 transition"
               onClick={() => router.push(`/main/mobile/specific/${activeVenue?.id}`)}>
                 <ShoppingBag className="h-3 w-3 text-black/90" />
                 <p>View Store</p>
               </button>
-
+              :
+              <button className="flex items-center gap-1 text-[10px] font-medium text-black mt-2 z-10 border px-2 py-1.5 rounded-md  w-max cursor-pointer hover:bg-black/50 transition"
+              onClick={() => {
+                if (activeVenue?.phone) {
+                  window.location.assign(`tel:${activeVenue.phone}`);
+                }
+              }}>
+                <Phone className="h-3 w-3 text-black/90" />
+                <p>Call Now</p>
+              </button>
+              }
                 <button
                 onClick={() => setIsVideoModalOpen(true)}
                 className="flex items-center gap-1 text-[10px] font-medium text-black mt-2 z-10 border px-2 py-1.5 rounded-md  w-max cursor-pointer hover:bg-black/50 transition"
               >
                 <PlayCircle className="h-3 w-3 text-black/90" />
-                <p >Store Tour</p>
+                <p >Watch Video</p>
               
               </button>
+
                 <button
                 onClick={() => router.push(buildMobileBookingHref(activeVenue?.id || sliderVenues[0].id))}
                 className=" flex items-center gap-1 text-[10px] font-medium text-white/90 mt-2 z-10 border px-2 py-1.5 rounded-md bg-blue-600 w-max cursor-pointer hover:bg-black/50 transition"
@@ -311,12 +326,12 @@ export default function homeCarousel({
           </div>
       </Card>
 
-      {isVideoModalOpen && activeVenue?.videoUrl && (
+      {isVideoModalOpen ? (
         <VideoModal
-          videoUrl={activeVenue.videoUrl}
+          videoUrl={activeVenue?.videoUrl || FALLBACK_VIDEO_URL}
           onClose={() => setIsVideoModalOpen(false)}
         />
-      )}
+      ) : null}
     </>
   );
 }

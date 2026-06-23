@@ -99,6 +99,8 @@ export type VenueCategory = {
   imageUrl?: string | null;
   price?: string | null;
   layout?: VenueLayout | null;
+  image: string;
+  durationMinutes?: number;
 };
 
 export type VenueStaff = {
@@ -108,6 +110,7 @@ export type VenueStaff = {
   image: string;
   services?: any[];
   experienceYears?: number;
+  rating?: any;
 };
 
 export type VenueReview = {
@@ -393,18 +396,28 @@ export function mapOrgToVenue(org: any, index: number = 0): Venue {
     layout: c.layout || null,
   }));
 
-  const staff = (org.experts || []).map((e: any) => {
-    const rawPic = e.profilePicture;
-    const hasValidPic = rawPic && typeof rawPic === 'string' && !rawPic.endsWith('/null') && !rawPic.endsWith('/undefined') && !rawPic.endsWith('/uploads/null');
-    return {
-      id: e.id || e._id,
-      name: e.name,
-      role: e.specialization || "Wellness Professional",
-      image: hasValidPic ? rawPic : "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=600&auto=format&fit=crop",
-      services: e.services || [],
-      experienceYears: e.experienceYears || 0,
-    };
-  });
+  const staff = (org.experts || []).map((e: any) => ({
+    id: e.id || e._id,
+    name: e.name,
+    role: e.specialization || "Wellness Professional",
+    image: e.profilePicture || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=600&auto=format&fit=crop",
+    services: e.services || [],
+    experienceYears: e.experienceYears || 0,
+    rating: e.rating || 0,
+  }));
+
+  // const staff = (org.experts || []).map((e: any) => {
+  //   const rawPic = e.profilePicture;
+  //   const hasValidPic = rawPic && typeof rawPic === 'string' && !rawPic.endsWith('/null') && !rawPic.endsWith('/undefined') && !rawPic.endsWith('/uploads/null');
+  //   return {
+  //     id: e.id || e._id,
+  //     name: e.name,
+  //     role: e.specialization || "Wellness Professional",
+  //     image: hasValidPic ? rawPic : "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=600&auto=format&fit=crop",
+  //     services: e.services || [],
+  //     experienceYears: e.experienceYears || 0,
+  //   };
+  // });
 
   const reviews = (org.reviews && org.reviews.length > 0)
     ? org.reviews.map((r: any) => ({
@@ -445,6 +458,8 @@ export function mapOrgToVenue(org: any, index: number = 0): Venue {
     id: org._id,
     userId: org.userId, // This is the organisation.id from the organisation table
     name: org.name,
+    logo: org.logo || org.logoUrl ,
+    videoUrl: org.introVideo || undefined,
     hours,
     address: [org.location, org.city, org.state].filter(Boolean).join(", ") || "Online",
     phone: org.phone || org.phoneNumber || "+1 (555) 019-2834",

@@ -17,6 +17,8 @@ import {
   UserRound,
   MoreHorizontal,
   SearchIcon,
+  Sheet,
+  SlidersHorizontal,
 } from "lucide-react";
 
 import type { Venue } from "@/app/main/data";
@@ -26,6 +28,7 @@ import VideoModal from "@/components/modals/VideoModal";
 import MessageDialog from "@/app/main/specific/[id]/MessageDialog";
 import SpecificVenueBookingModal from "@/app/main/specific/[id]/SpecificVenueBookingModal";
 import VideoControls from "@/components/video/VideoControls";
+import HomeCarousel from "../../homeCarousel";
 
 type VenueBanner = {
   imageUrl: string;
@@ -160,8 +163,8 @@ export default function MobileSpecificVenueClient({
 console.log(venue)
   return (
     <>
-      <main className="min-h-dvh bg-[#f7f8fc]">
-        <div className="relative mb-0.5">
+      <main className="min-h-dvh  mb-[2rem]">
+        {/* <div className="relative mb-0.5">
               <div className="relative px-1">
                 <input
                   type="text"
@@ -171,10 +174,36 @@ console.log(venue)
                 />
                 <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               </div>
+            </div> */}
+
+<div className="mb-2.5 block md:hidden">
+              <div className="flex items-center gap-2 px-2">
+                
+                {/* Search Input */}
+                <div className="relative flex-1">
+                  <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
+                  <input
+                    type="text"
+                    name="search"
+                    placeholder="Search..."
+                    className="h-9 w-full rounded-xl border border-slate-300 bg-white pl-10 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* Filter Button */}
+           
+        
+                    <button className="flex h-9 w-9 items-center justify-center">
+                      <SlidersHorizontal className="h-5 w-5 text-blue-700" />
+                    </button>
+              
+
+              </div>
             </div>
         <div className="mx-auto flex max-w-3xl flex-col gap-1 px-1 pt-1">
           <section className="overflow-hidden rounded-lg bg-slate-900 text-white shadow-[0_28px_80px_-50px_rgba(15,23,42,0.55)]">
-            <div
+            {/* <div
               className="relative min-h-[150px] bg-cover bg-center"
               style={{
                 backgroundImage: `url('${currentHeroImage || extractCssUrl(venue.bgImage) || "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1200&auto=format&fit=crop"}')`,
@@ -240,7 +269,8 @@ console.log(venue)
                   </div>
                 </div>
               </div>
-            </div>
+            </div> */}
+            <HomeCarousel sliderVenues={sliderVenues} Isphone={true}/>
           </section>
 
           <section className="rounded-[28px] px-1  ring-slate-200/70">
@@ -317,45 +347,7 @@ console.log(venue)
             </div>
           </section>
 
-          {/* <section className="rounded-[28px] bg-white p-4 shadow-sm ring-1 ring-slate-200/70">
-            <MobileHorizontalTitle title="Amenities" />
-            <div className="flex flex-wrap gap-2">
-              {venue.features?.length ? (
-                venue.features.map((feature) => (
-                  <div
-                    key={feature.title}
-                    className="rounded-full bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700"
-                  >
-                    {feature.title}
-                  </div>
-                ))
-              ) : (
-                <div className="text-sm text-slate-500">No amenities listed.</div>
-              )}
-            </div>
-          </section> */}
-
-          {/* <section className="rounded-[28px] bg-white p-4 shadow-sm ring-1 ring-slate-200/70">
-            <MobileHorizontalTitle title="Availability" />
-            <div className="space-y-3">
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                  <Clock3 className="h-4 w-4 text-blue-600" />
-                  Opening hours
-                </div>
-                <p className="mt-2 text-sm text-slate-600">{venue.hours}</p>
-              </div>
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                  <MapPin className="h-4 w-4 text-blue-600" />
-                  Location
-                </div>
-                <p className="mt-2 text-sm text-slate-600">{venue.address}</p>
-              </div>
-            </div>
-          </section> */}
-
-          <section className="rounded-[28px] bg-white px-4">
+          <section className="rounded-[28px] bg-white px-1">
             <MobileHorizontalTitle title="Reviews" actionLabel="View All" />
             <div className="rounded-[24px] bg-slate-50 p-1">
               <div className="flex items-center gap-1">

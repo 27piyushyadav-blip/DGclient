@@ -43,7 +43,6 @@ export async function loadSpecificVenuePageData(id: string): Promise<SpecificVen
     if (listRes && (listRes as any).status === "success" && (listRes as any).data?.organizations) {
       suggestions = (listRes as any).data.organizations
         .filter((org: any) => org._id !== id)
-        .slice(0, 4)
         .map((org: any, idx: number) => mapOrgToVenue(org, idx + 1));
     }
   } catch (error) {

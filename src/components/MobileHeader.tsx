@@ -90,21 +90,16 @@ export default function MobileHeader() {
               </span>
             </div> */}
             <div className="mx-auto max-w-[1600px] items-center lg:hidden">
-          <p className="text-xs text-blue-700">{greeting || " "}</p>
+          {/* <p className="text-xs text-blue-700">{greeting || " "}</p> */}
           <div className="w-20" />
         </div>
-            <span className="text-lg font-bold tracking-wider">VELVETBOOK</span>
+            <span className="text-2xl font-bold tracking-wider">VELVETBOOK</span>
           </Link>
 
           {/* Right Side Actions */}
           <div className="flex items-center gap-3">
-            {/* <DarkModeToggle className={undefined} /> */}
-           <div className="relative">
-            <div className="absolute top-0.5 right-1 h-1 w-1 rounded-full bg-red-800"></div>
-            <Bell className="h-5 w-5 bg-white shadow-lg p-1 rounded-xs" />
-            </div>
 
-            {isAuthenticated && user ? (
+          {isAuthenticated && user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="h-9 w-9 rounded-full p-0">
@@ -208,19 +203,36 @@ export default function MobileHeader() {
               </div>
             )}
 
+            
+            {/* <DarkModeToggle className={undefined} /> */}
+           <div className="relative">
+            <div className="absolute top-0.5 right-1.5 h-1 w-1 rounded-full bg-red-800"></div>
+            <Bell className="h-[1.7rem] w-[1.7rem] bg-white shadow-lg p-1 rounded-xs" />
+            </div>
+
+            
+
             {/* Mobile Menu Button */}
-            <Button
+
+            <div className="relative" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+            {isMobileMenuOpen ? (
+                <X className="h-[1.7rem] w-[1.7rem]" />
+              ) : (
+                <Menu className="h-[1.7rem] w-[1.7rem] bg-white shadow-2xs p-0.5 rounded-xs" />
+              )}
+            </div>
+            {/* <Button
               variant="ghost"
               size="icon"
               className="lg:hidden"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             >
               {isMobileMenuOpen ? (
-                <X className="h-5 w-5" />
+                <X className="h-[2rem] w-[2rem]" />
               ) : (
-                <Menu className="h-5 w-5 bg-white shadow-2xs p-0.5 rounded-xs" />
+                <Menu className="h-[2rem] w-[2rem] bg-white shadow-2xs p-0.5 rounded-xs" />
               )}
-            </Button>
+            </Button> */}
           </div>
         </div>
 
