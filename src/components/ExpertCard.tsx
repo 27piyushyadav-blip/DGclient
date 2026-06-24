@@ -177,7 +177,7 @@ export default function ExpertCard({ expert }) {
         <div className="flex flex-col">
           <span className="text-[10px] font-bold uppercase text-zinc-400">Starts From</span>
           <div className="flex items-baseline gap-1">
-            <span className="text-lg font-bold text-zinc-900 dark:text-white">₹{expert.startingPrice || 0}</span>
+            <span className="text-lg font-bold text-zinc-900 dark:text-white">${expert.startingPrice || 0}</span>
             <span className="text-[10px] text-zinc-500">/ session</span>
           </div>
         </div>

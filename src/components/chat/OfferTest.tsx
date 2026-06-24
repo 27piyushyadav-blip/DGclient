@@ -11,7 +11,7 @@ import OfferCard from "./OfferCard";
 const mockOfferPayload = {
   id: "test-offer-123",
   status: "sent" as const,
-  currency: "INR",
+  currency: 'AUD',
   items: [
     {
       id: "item-1",

@@ -340,7 +340,7 @@ export default function BookingModal({ expert, offer, onClose }: { expert: any; 
                         </div>
                         <div className="text-right">
                           <p className="font-bold text-zinc-900 dark:text-white">
-                            From ₹{Math.min(s.videoPrice ?? Infinity, s.clinicPrice ?? Infinity)}
+                            From ${Math.min(s.videoPrice ?? Infinity, s.clinicPrice ?? Infinity)}
                           </p>
                         </div>
                       </div>
@@ -366,7 +366,7 @@ export default function BookingModal({ expert, offer, onClose }: { expert: any; 
                         <Video className="w-6 h-6" />
                         <div className="text-center">
                           <p className="font-bold text-sm">Video Call</p>
-                          {selectedService.videoPrice != null && <p className="text-xs opacity-80">₹{selectedService.videoPrice}</p>}
+                          {selectedService.videoPrice != null && <p className="text-xs opacity-80">${selectedService.videoPrice}</p>}
                         </div>
                       </button>
 
@@ -384,7 +384,7 @@ export default function BookingModal({ expert, offer, onClose }: { expert: any; 
                         <Building2 className="w-6 h-6" />
                         <div className="text-center">
                           <p className="font-bold text-sm">Clinic Visit</p>
-                          {selectedService.clinicPrice != null && <p className="text-xs opacity-80">₹{selectedService.clinicPrice}</p>}
+                          {selectedService.clinicPrice != null && <p className="text-xs opacity-80">${selectedService.clinicPrice}</p>}
                         </div>
                       </button>
                     </div>
@@ -502,7 +502,7 @@ export default function BookingModal({ expert, offer, onClose }: { expert: any; 
                       <h3 className="font-bold text-lg mb-4 border-b border-zinc-100 dark:border-zinc-800 pb-4">Payment Summary</h3>
                       <div className="flex justify-between items-center mb-6 text-sm">
                          <span className="text-zinc-500">{selectedService.name}</span>
-                         <span className="font-medium">₹{appointmentType === "Video Call" ? selectedService.videoPrice : selectedService.clinicPrice}</span>
+                         <span className="font-medium">${appointmentType === "Video Call" ? selectedService.videoPrice : selectedService.clinicPrice}</span>
                       </div>
                       
                       {/* PLATFORM FEE REMOVED */}
@@ -510,7 +510,7 @@ export default function BookingModal({ expert, offer, onClose }: { expert: any; 
                       <div className="flex justify-between items-center pt-4 border-t border-zinc-100 dark:border-zinc-800">
                          <span className="font-bold text-lg">Total</span>
                          <span className="font-bold text-2xl text-zinc-900 dark:text-white">
-                           ₹{appointmentType === "Video Call" ? selectedService.videoPrice : selectedService.clinicPrice}
+                           ${appointmentType === "Video Call" ? selectedService.videoPrice : selectedService.clinicPrice}
                          </span>
                       </div>
                    </div>

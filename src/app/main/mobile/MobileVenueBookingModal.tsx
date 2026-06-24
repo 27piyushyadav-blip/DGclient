@@ -228,7 +228,7 @@ const [tempSelectedDate, setTempSelectedDate] = useState<Date | null>(null);
         service: selectedService.name,
         consultationType: "offline",
         scheduledDate: scheduledDateTime.toISOString(),
-        duration: selectedService.durationMinutes || 30,
+        duration: (selectedService as any).durationMinutes || 30,
         amount: parsePrice(selectedService.price),
         notes: `Booking for ${selectedService.name} at ${venue.name}`,
       });
@@ -548,7 +548,7 @@ const [tempSelectedDate, setTempSelectedDate] = useState<Date | null>(null);
               <span className="text-sm text-slate-500">•</span>
               <span className="flex items-center gap-1">
               <span className="text-sm text-slate-500"><Clock4 className="w-4 h-4 text-slate-500" /></span>
-              <span className="text-sm text-slate-500">{selectedService?.durationMinutes || "30"} min</span>
+              <span className="text-sm text-slate-500">{(selectedService as any)?.durationMinutes || "30"} min</span>
               </span>
             </div>
           </div>

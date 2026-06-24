@@ -70,3 +70,17 @@ export async function createEditServiceRequestApi(editData: {
     body: JSON.stringify(editData),
   });
 }
+
+export async function getPublicBookingDetailsApi(bookingId: string) {
+  return apiClient<any>(`${BASE_URL}/bookings/public/${bookingId}`, {
+    method: 'GET',
+    skipAuth: true,
+  });
+}
+
+export async function payPublicBookingApi(bookingId: string) {
+  return apiClient<any>(`${BASE_URL}/bookings/public/${bookingId}/pay`, {
+    method: 'POST',
+    skipAuth: true,
+  });
+}

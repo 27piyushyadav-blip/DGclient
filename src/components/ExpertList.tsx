@@ -149,7 +149,7 @@ export default function ExpertList({ expert }) {
            <div className="text-left md:text-center">
               <p className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider mb-1">Starts From</p>
               <div className="flex items-baseline md:justify-center gap-1">
-                 <span className="text-2xl font-bold text-zinc-900 dark:text-white">₹{displayPrice}</span>
+                 <span className="text-2xl font-bold text-zinc-900 dark:text-white">${displayPrice}</span>
                  <span className="text-xs text-zinc-500 font-medium">/ session</span>
               </div>
            </div>

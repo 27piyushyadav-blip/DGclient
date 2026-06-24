@@ -72,7 +72,7 @@ export default function ExpertProfileClient({ expert }: { expert: any }) {
     if (!expert.services?.length) return 0;
     return expert.services.reduce((min: number, s: any) => Math.min(min, Math.min(s.videoPrice ?? Infinity, s.clinicPrice ?? Infinity)), Infinity);
   }, [expert.services]);
-  const displayPrice = startingPrice === Infinity ? "N/A" : `₹${startingPrice}`;
+  const displayPrice = startingPrice === Infinity ? "N/A" : `${startingPrice}`;
 
   // Check if URL has a video param to auto-open it
   useEffect(() => {

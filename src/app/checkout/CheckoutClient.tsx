@@ -1,16 +1,11 @@
-/*
- * File: src/app/checkout/CheckoutClient.js
- * SR-DEV: Client-Side Checkout Logic
- * ACTION: REMOVED Platform Fee display (140) and simplified price summary.
- */
-
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import ProfileImage from "@/components/ProfileImage";
+import { getPublicBookingDetailsApi, payPublicBookingApi } from "@/lib/bookingsApi";
 
 // --- Icons ---
 import { 
@@ -31,9 +26,42 @@ export default function CheckoutClient() {
   
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [dbBooking, setDbBooking] = useState<any>(null);
+
+  const bookingId = searchParams?.get("bookingId");
+
+  useEffect(() => {
+    if (!bookingId) return;
+    async function loadBooking() {
+      setLoading(true);
+      setError("");
+      try {
+        const details = await getPublicBookingDetailsApi(bookingId as string);
+        setDbBooking(details);
+      } catch (err: any) {
+        console.error("Failed to load booking details:", err);
+        setError(err.message || "Failed to load booking details.");
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadBooking();
+  }, [bookingId]);
 
   // 1. Parse Data
-  const bookingData = {
+  const bookingData = dbBooking ? {
+    expertId: dbBooking.expert?.id || dbBooking.booking?.expertId,
+    expertName: dbBooking.expert?.name || "Specialist",
+    expertImage: dbBooking.expert?.avatar || dbBooking.expert?.image || "",
+    serviceName: dbBooking.booking?.service || "Consultation",
+    type: dbBooking.booking?.consultationType === "online" ? "Video Call" : "Offline Session",
+    date: dbBooking.booking?.scheduledDate ? new Date(dbBooking.booking.scheduledDate).toISOString().split('T')[0] : "",
+    time: dbBooking.booking?.scheduledDate ? new Date(dbBooking.booking.scheduledDate).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : "",
+    duration: dbBooking.booking?.duration || 30,
+    price: dbBooking.booking?.amount || "0",
+    timezone: "UTC",
+  } : {
     expertId: searchParams?.get("expertId"),
     expertName: searchParams?.get("expertName"),
     expertImage: searchParams?.get("expertImage"),
@@ -43,7 +71,7 @@ export default function CheckoutClient() {
     time: searchParams?.get("time"),
     duration: searchParams?.get("duration"),
     price: searchParams?.get("price"),
-    timezone: searchParams?.get("timezone"),
+    timezone: searchParams?.get("timezone") || "UTC",
   };
   
   // 2. Format Date (Uses date string from URL for display consistency)
@@ -58,12 +86,36 @@ export default function CheckoutClient() {
   const handleConfirmAndPay = () => {
     setError("");
     startTransition(async () => {
-      setError("Checkout is currently unavailable.");
+      if (bookingId) {
+        try {
+          await payPublicBookingApi(bookingId);
+          router.push(`/booking-success/${bookingId}`);
+        } catch (err: any) {
+          setError(err.message || "Failed to process payment.");
+        }
+      } else {
+        setError("Checkout is currently unavailable.");
+      }
     });
   };
 
   // Loading State (Auth or Missing Data)
-  if (!bookingData.expertId) {
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+
+  if (error && !bookingData.expertId) {
+    return (
+      <div className="container mx-auto max-w-md px-4 py-24 text-center space-y-4">
+        <p className="text-red-500 font-semibold">{error}</p>
+        <Button variant="outline" className="w-full text-black bg-white" onClick={() => router.push('/')}>
+          Back to Home
+        </Button>
+      </div>
+    );
+  }
+
+  if (!bookingData.expertId && !bookingId) {
     return <LoadingSpinner />;
   }
   
@@ -149,18 +201,18 @@ export default function CheckoutClient() {
               <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-lg overflow-hidden">
                  <div className="p-6 bg-zinc-900 text-white dark:bg-zinc-800">
                     <p className="text-xs font-medium opacity-80 uppercase tracking-wider mb-1">Total Payable</p>
-                    <p className="text-3xl font-bold">₹{bookingData.price}</p>
+                    <p className="text-3xl font-bold">${bookingData.price}</p>
                  </div>
 
                  <div className="p-6 space-y-4">
                     <div className="flex justify-between text-sm">
                        <span className="text-zinc-500">Consultation Fee</span>
-                       <span className="font-medium">₹{bookingData.price}</span>
+                       <span className="font-medium">${bookingData.price}</span>
                     </div>
                     {/* PLATFORM FEE REMOVED (140) */}
                     <div className="flex justify-between text-sm">
                        <span className="text-zinc-500">Platform Fee</span>
-                       <span className="font-medium text-green-600">₹0</span>
+                       <span className="font-medium text-green-600">$0</span>
                     </div>
 
                     <div className="h-px w-full bg-zinc-100 dark:bg-zinc-800 my-2" />

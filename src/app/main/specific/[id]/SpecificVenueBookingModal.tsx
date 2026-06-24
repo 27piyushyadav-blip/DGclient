@@ -480,7 +480,7 @@ return (
                       {filteredServices.map((service, index) => {
                         const isSelected =
                           selectedService?.name === service.name;
-                        const duration = 60 + index * 15;
+                        const duration = (service as any).durationMinutes || 60;
 
                         return (
                           <button
@@ -534,10 +534,11 @@ return (
                                 </p>
                               </div>
                             </div>
-                            <p className="mt-auto pt-2 text-xs leading-5 text-slate-500">
-                              Therapeutic care tailored for relaxation,
-                              recovery and full-body comfort.
-                            </p>
+                            {service.description && (
+                              <p className="mt-auto pt-2 text-xs leading-5 text-slate-500">
+                                {service.description}
+                              </p>
+                            )}
                           </button>
                         );
                       })}

@@ -32,15 +32,19 @@ export default function RootLayout({
         <ThemeContextWrapper>
           <AuthProvider>
             <div className="flex min-h-screen flex-col">
-              <div className="sticky top-0 z-50  hidden md:block">
-              <Header />
+              <div className="sticky top-0 z-50 hidden md:block print:hidden">
+                <Header />
               </div>
-              <div className="block md:hidden">
-              <MobileHeader/>
+              <div className="block md:hidden print:hidden">
+                <MobileHeader />
               </div>
               <main className="flex-1">{children}</main>
-              <BottomNavbar />
-              <FooterWrapper />
+              <div className="print:hidden">
+                <BottomNavbar />
+              </div>
+              <div className="print:hidden">
+                <FooterWrapper />
+              </div>
             </div>
             <Toaster />
           </AuthProvider>
