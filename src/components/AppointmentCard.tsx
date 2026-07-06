@@ -356,6 +356,18 @@ export default function AppointmentCard({ appointment, onCancelClick }) {
               </Button>
             </Link>
           )}
+
+          {/* REQUEST REFUND */}
+          {appointment.paymentStatus === 'paid' && !appointment.refundRequest && (
+            <Link href={`/appointments/${appointment._id}/refund`}>
+              <Button
+                variant="outline"
+                className="w-full border-rose-200 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-600 dark:text-rose-400 font-semibold"
+              >
+                Request Refund
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
 

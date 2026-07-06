@@ -1,6 +1,6 @@
 import { apiClient } from "./apiClient";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export async function createBookingApi(bookingData: {
   expertId: string;

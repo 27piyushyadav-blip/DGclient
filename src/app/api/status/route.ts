@@ -14,7 +14,12 @@ export async function GET() {
     }
   }
   
-  backendUrl = backendUrl || "http://localhost:3000";
+  if (!backendUrl) {
+    return NextResponse.json(
+      { status: "Error", message: "NEXT_PUBLIC_API_URL environment variable is not defined" },
+      { status: 503 }
+    );
+  }
 
   try {
     const res = await fetch(`${backendUrl}/live`, {

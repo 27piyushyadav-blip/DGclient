@@ -29,7 +29,7 @@ import { cn } from "@/lib/utils";
 import TimezoneSelect from "@/components/TimezoneSelect";
 import { apiClient } from "@/lib/apiClient";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
 // --- ICONS ---
 import { 

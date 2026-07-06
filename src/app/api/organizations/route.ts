@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL;
 
 // Proxy the organizations list to the backend.
 // The client-side suggestions fetch hits this endpoint so it can use browser

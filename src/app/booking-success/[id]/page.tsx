@@ -282,7 +282,7 @@ export default function BookingSuccessPage() {
     setReceiptLoading(true);
     try {
       const apiBase =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+        process.env.NEXT_PUBLIC_API_URL;
       const res = await fetch(
         `${apiBase}/bookings/public/${id}/receipt`
       );

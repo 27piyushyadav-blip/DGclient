@@ -50,7 +50,7 @@ export default function RegisterForm() {
 
   const handleGoogleSignIn = () => {
     startGoogleTransition(() => {
-      router.push(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/auth/expert'}/google`);
+      router.push(`${process.env.NEXT_PUBLIC_API_BASE_URL || ''}/google`);
     });
   };
 

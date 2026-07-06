@@ -24,7 +24,7 @@ import Image from "next/image";
 import { offersApi } from "@/lib/offersApi";
 import OfferCard from "@/components/chat/OfferCard";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 const TOKEN_KEY = "client_access_token";
 const USER_KEY = "client_user";
 

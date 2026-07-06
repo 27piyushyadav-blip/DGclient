@@ -52,7 +52,7 @@ export default function ExpertCard({ expert }) {
     e.preventDefault(); // Prevent navigating to profile page
     startChatTransition(async () => {
       try {
-        const url = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/chat/expert/start`;
+        const url = `${process.env.NEXT_PUBLIC_API_URL}/chat/expert/start`;
         console.log("Final URL to fetch:", url);
 
         const conversation = await apiClient<any>(url, {

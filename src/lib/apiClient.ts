@@ -33,7 +33,8 @@ async function refreshToken() {
   const rt = localStorage.getItem(REFRESH_TOKEN_KEY);
   if (!rt) throw new Error("No refresh token");
 
-  const response = await fetch(`http://localhost:3000/auth/client/refresh`, {
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL;
+  const response = await fetch(`${baseUrl}/auth/client/refresh`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${rt}`,

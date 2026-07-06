@@ -94,6 +94,7 @@ export default function AppointmentsClientGate() {
             organizationId: booking.organizationId,
             editRequest: item.editRequest || null,
             refundRequest: item.refundRequest || null,
+            paymentStatus: booking.paymentStatus || 'unpaid',
           };
         });
         
