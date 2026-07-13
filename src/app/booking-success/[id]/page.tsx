@@ -40,29 +40,57 @@ function buildReceiptHtml(r: {
   tax: number;
   discount: number;
   amount: number;
+  invoiceCustomization?: {
+    logoUrl?: string;
+    brandName?: string;
+    color?: string;
+    backgroundColor?: string;
+    textSize?: string;
+  } | null;
 }) {
   const isRefund = r.type === "refund";
-  const accentColor = isRefund ? "#10b981" : "#4f46e5";
+  const custom = r.invoiceCustomization || {};
+  
+  // Custom configurations
+  const brandLogo = custom.logoUrl || "";
+  const customBrandName = custom.brandName || r.orgName;
+  const accentColor = custom.color || (isRefund ? "#10b981" : "#4f46e5");
+  const cardBgColor = custom.backgroundColor || "#ffffff";
+  const customTextSize = custom.textSize || "medium";
+
+  // Sizing customization
+  let baseFontSize = "13px";
+  let headerFontSize = "26px";
+  let titleFontSize = "24px";
+  let paddingStyle = "40px 32px";
+  let rowPadding = "12px 10px";
+  if (customTextSize === "small") {
+    baseFontSize = "11px";
+    headerFontSize = "22px";
+    titleFontSize = "20px";
+    paddingStyle = "24px 20px";
+    rowPadding = "8px 10px";
+  } else if (customTextSize === "large") {
+    baseFontSize = "15px";
+    headerFontSize = "30px";
+    titleFontSize = "28px";
+    paddingStyle = "48px 40px";
+    rowPadding = "16px 10px";
+  }
+
   const statusLabel = isRefund ? "REFUNDED" : "PAID";
-  const statusBg = isRefund ? "#d1fae5" : "#e0e7ff";
-  const statusFg = isRefund ? "#065f46" : "#3730a3";
-  const typeLabel = isRefund
-    ? "Refund / Credit"
-    : r.type === "edit_service"
-    ? "Service Change"
-    : "New Purchase";
 
   const rowsHtml = r.services
     .map(
       (svc, idx) => `
-      <tr style="border-bottom:1px solid #f1f5f9;font-size:13px;color:#334155;">
-        <td style="padding:12px 0;text-align:left;">${idx + 1}</td>
-        <td style="padding:12px 0;text-align:left;font-weight:500;color:#0f172a;">${svc.name}</td>
-        <td style="padding:12px 0;text-align:right;">${svc.quantity}</td>
-        <td style="padding:12px 0;text-align:right;">${Number(svc.price).toFixed(2)}</td>
-        <td style="padding:12px 0;text-align:right;">18%</td>
-        <td style="padding:12px 0;text-align:right;font-weight:600;color:#0f172a;">
-          ${(Number(svc.price) * svc.quantity).toFixed(2)}
+      <tr style="border-bottom:1px solid #f1f5f9;font-size:${baseFontSize};color:#334155;">
+        <td style="padding:${rowPadding};text-align:left;color:#94a3b8;">${String(idx + 1).padStart(2, '0')}</td>
+        <td style="padding:${rowPadding};text-align:left;font-weight:600;color:#0f172a;">${svc.name}</td>
+        <td style="padding:${rowPadding};text-align:right;">${svc.quantity}</td>
+        <td style="padding:${rowPadding};text-align:right;">$${Number(svc.price).toFixed(2)}</td>
+        <td style="padding:${rowPadding};text-align:right;">18%</td>
+        <td style="padding:${rowPadding};text-align:right;font-weight:700;color:#0f172a;">
+          $${(Number(svc.price) * svc.quantity).toFixed(2)}
         </td>
       </tr>`
     )
@@ -72,10 +100,10 @@ function buildReceiptHtml(r: {
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <title>Payment Receipt – ${r.invoiceNumber}</title>
+  <title>Payment Receipt &ndash; ${r.invoiceNumber}</title>
   <style>
     @media print {
-      html,body { margin:0; padding:0; }
+      html,body { margin:0; padding:0; background:#fff !important; }
       .no-print { display:none; }
     }
     body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
@@ -83,56 +111,59 @@ function buildReceiptHtml(r: {
   </style>
 </head>
 <body>
-<div style="max-width:700px;margin:0 auto;background:#fff;border-radius:16px;border:1px solid #e2e8f0;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,.03);">
+<div style="max-width:700px;margin:0 auto;background:${cardBgColor};border-radius:16px;border:1px solid #e2e8f0;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,.03);">
   <!-- accent bar -->
   <div style="background:${accentColor};height:8px;"></div>
 
-  <div style="padding:40px 32px;">
-    <!-- Header -->
+  <div style="padding:${paddingStyle};">
+    <!-- Header Section -->
     <table style="width:100%;border-collapse:collapse;margin-bottom:30px;">
       <tr>
-        <td style="vertical-align:top;">
-          <h1 style="margin:0;font-size:26px;font-weight:800;color:#0f172a;text-transform:uppercase;letter-spacing:-.025em;">${r.orgName}</h1>
-          <p style="margin:4px 0 0;font-size:12px;color:#64748b;">Powered by Velvetbook</p>
+        <!-- Header Left: Branding & Info -->
+        <td style="vertical-align:top;width:55%;padding-right:20px;">
+          ${brandLogo ? `<img src="${brandLogo}" alt="${customBrandName}" style="max-height:60px;display:block;margin-bottom:12px;border-radius:8px;" />` : ""}
+          <h1 style="margin:0 0 12px;font-size:${headerFontSize};font-weight:800;color:${accentColor};text-transform:uppercase;letter-spacing:-.025em;line-height:1.2;">${customBrandName}</h1>
+          <div style="font-size:${baseFontSize};color:#64748b;line-height:1.6;">
+            ${r.orgAddress ? `<p style="margin:0 0 4px;">&#128205; ${r.orgAddress}</p>` : ""}
+            ${r.orgPhone ? `<p style="margin:0 0 4px;">&#128222; ${r.orgPhone}</p>` : ""}
+            ${r.orgEmail ? `<p style="margin:0 0 4px;">&#9993; ${r.orgEmail}</p>` : ""}
+          </div>
         </td>
-        <td style="vertical-align:top;text-align:right;">
-          <h2 style="margin:0;font-size:24px;font-weight:800;color:${accentColor};text-transform:uppercase;letter-spacing:.05em;">
-            ${isRefund ? "CREDIT NOTE" : "INVOICE"}
+        
+        <!-- Header Right: Meta & Bill To -->
+        <td style="vertical-align:top;width:45%;text-align:right;">
+          <h2 style="margin:0 0 15px;font-size:32px;font-weight:800;color:#0f172a;text-transform:uppercase;letter-spacing:.05em;line-height:1;">
+            ${isRefund ? "CREDIT" : "INVOICE"}
           </h2>
-          <p style="margin:6px 0 0;font-size:13px;color:#475569;"><strong>Invoice #</strong> ${r.invoiceNumber}</p>
-          <p style="margin:2px 0 0;font-size:13px;color:#64748b;"><strong>Date:</strong> ${r.date}</p>
-        </td>
-      </tr>
-    </table>
-
-    <!-- Billing info -->
-    <table style="width:100%;border-collapse:collapse;margin-bottom:35px;background:#fafafa;border-radius:12px;border:1px solid #f1f1f1;">
-      <tr>
-        <!-- Bill From -->
-        <td style="width:33.33%;padding:20px;vertical-align:top;border-right:1px solid #f1f1f1;">
-          <p style="margin:0 0 8px;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;">BILL FROM</p>
-          <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#1e293b;">${r.orgName}</p>
-          ${r.orgAddress ? `<p style="margin:0 0 4px;font-size:12px;color:#64748b;line-height:1.4;">${r.orgAddress}</p>` : ""}
-          ${r.orgPhone ? `<p style="margin:0 0 4px;font-size:12px;color:#64748b;">📞 ${r.orgPhone}</p>` : ""}
-          ${r.orgEmail ? `<p style="margin:0;font-size:12px;color:#64748b;">✉️ ${r.orgEmail}</p>` : ""}
-        </td>
-        <!-- Bill To -->
-        <td style="width:33.33%;padding:20px;vertical-align:top;border-right:1px solid #f1f1f1;">
-          <p style="margin:0 0 8px;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;">BILL TO</p>
-          <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#1e293b;">${r.customerName}</p>
-          ${r.customerEmail ? `<p style="margin:0;font-size:12px;color:#64748b;">✉️ ${r.customerEmail}</p>` : ""}
-        </td>
-        <!-- Invoice For -->
-        <td style="width:33.33%;padding:20px;vertical-align:top;">
-          <p style="margin:0 0 8px;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;">INVOICE FOR</p>
-          <p style="margin:0 0 4px;font-size:12px;color:#475569;">
-            <strong>Booking ID:</strong> <span style="font-family:monospace;font-size:11px;">#${r.bookingId.slice(0, 8).toUpperCase()}</span>
-          </p>
-          <p style="margin:0 0 4px;font-size:12px;color:#475569;"><strong>Type:</strong> ${typeLabel}</p>
-          <p style="margin:0;font-size:12px;color:#475569;">
-            <strong>Status:</strong>
-            <span style="display:inline-block;padding:2px 8px;background:${statusBg};color:${statusFg};font-size:10px;font-weight:700;border-radius:9999px;">${statusLabel}</span>
-          </p>
+          
+          <!-- Meta details table -->
+          <table align="right" style="border-collapse:collapse;margin-bottom:20px;font-size:${baseFontSize};color:#475569;text-align:right;">
+            <tr>
+              <td style="padding:2px 10px 2px 0;font-weight:bold;color:#64748b;">Invoice No.</td>
+              <td style="padding:2px 0 2px 10px;color:#0f172a;font-weight:bold;">: ${r.invoiceNumber}</td>
+            </tr>
+            <tr>
+              <td style="padding:2px 10px 2px 0;font-weight:bold;color:#64748b;">Invoice Date</td>
+              <td style="padding:2px 0 2px 10px;color:#0f172a;">: ${r.date}</td>
+            </tr>
+            <tr>
+              <td style="padding:2px 10px 2px 0;font-weight:bold;color:#64748b;">Status</td>
+              <td style="padding:2px 0 2px 10px;color:${isRefund ? "#059669" : "#4f46e5"};font-weight:bold;">: ${statusLabel}</td>
+            </tr>
+          </table>
+          <div style="clear:both;"></div>
+          
+          <!-- Bill To Card -->
+          <table style="width:100%;border-collapse:collapse;background:#fafafa;border:1px solid #e2e8f0;border-radius:12px;text-align:left;">
+            <tr>
+              <td style="padding:16px;">
+                <p style="margin:0 0 6px;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;">BILL TO</p>
+                <p style="margin:0 0 4px;font-size:${baseFontSize};font-weight:700;color:#1e293b;">${r.customerName}</p>
+                ${r.customerEmail ? `<p style="margin:0 0 2px;font-size:${baseFontSize};color:#64748b;">${r.customerEmail}</p>` : ""}
+                <p style="margin:0;font-size:${baseFontSize};color:#64748b;"><strong>Booking ID:</strong> #${r.bookingId.slice(0, 8).toUpperCase()}</p>
+              </td>
+            </tr>
+          </table>
         </td>
       </tr>
     </table>
@@ -140,13 +171,13 @@ function buildReceiptHtml(r: {
     <!-- Items table -->
     <table style="width:100%;border-collapse:collapse;margin-bottom:30px;">
       <thead>
-        <tr style="border-bottom:2px solid #e2e8f0;text-align:left;font-size:11px;font-weight:700;color:#475569;">
-          <th style="padding-bottom:10px;text-align:left;width:50px;">#</th>
-          <th style="padding-bottom:10px;text-align:left;">DESCRIPTION</th>
-          <th style="padding-bottom:10px;text-align:right;width:60px;">QTY</th>
-          <th style="padding-bottom:10px;text-align:right;width:100px;">UNIT PRICE</th>
-          <th style="padding-bottom:10px;text-align:right;width:80px;">TAX (%)</th>
-          <th style="padding-bottom:10px;text-align:right;width:110px;">AMOUNT</th>
+        <tr style="background-color:${accentColor};color:#ffffff;">
+          <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;border-top-left-radius:8px;border-bottom-left-radius:8px;width:40px;">#</th>
+          <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;">DESCRIPTION</th>
+          <th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;width:50px;">QTY</th>
+          <th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;width:90px;">UNIT PRICE</th>
+          <th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;width:60px;">TAX (%)</th>
+          <th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;border-top-right-radius:8px;border-bottom-right-radius:8px;width:100px;">AMOUNT</th>
         </tr>
       </thead>
       <tbody>${rowsHtml}</tbody>
@@ -155,30 +186,65 @@ function buildReceiptHtml(r: {
     <!-- Notes + Summary -->
     <table style="width:100%;border-collapse:collapse;margin-top:10px;">
       <tr>
+        <!-- Bottom Left: Payment Information & Thank you -->
         <td style="width:55%;vertical-align:top;padding-right:40px;">
-          <p style="margin:0 0 8px;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">NOTES</p>
-          <p style="margin:0;font-size:13px;color:#64748b;line-height:1.5;">
-            Thank you for your business! This is an automatically generated receipt for your records.
+          <table style="width:100%;border-collapse:collapse;background:#fafafa;border:1px solid #e2e8f0;border-radius:12px;margin-bottom:15px;">
+            <tr>
+              <td style="padding:16px;font-size:${baseFontSize};color:#475569;">
+                <p style="margin:0 0 8px;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;">PAYMENT INFORMATION</p>
+                <table style="width:100%;border-collapse:collapse;font-size:${baseFontSize};text-align:left;">
+                  <tr>
+                    <td style="padding:2px 0;color:#64748b;">Account Name</td>
+                    <td style="padding:2px 0;font-weight:bold;color:#1e293b;">: ${customBrandName} Pty Ltd</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:2px 0;color:#64748b;">BSB / Bank</td>
+                    <td style="padding:2px 0;font-weight:bold;color:#1e293b;">: 123-456 (Wellness Bank)</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:2px 0;color:#64748b;">Account No.</td>
+                    <td style="padding:2px 0;font-weight:bold;color:#1e293b;">: 9876 5432 1098</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:2px 0;color:#64748b;">Reference</td>
+                    <td style="padding:2px 0;font-weight:bold;color:#1e293b;">: INV-${r.invoiceNumber.slice(-8)}</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+          <p style="margin:0;font-family:'Georgia',serif;font-style:italic;font-size:16px;color:${accentColor};text-align:left;">
+            Thank You! &#x2764;
+          </p>
+          <p style="margin:4px 0 0;font-size:11px;color:#94a3b8;">
+            We appreciate your trust in our services. We look forward to serving you again.
           </p>
         </td>
+        
+        <!-- Bottom Right: Summary Calculations -->
         <td style="width:45%;vertical-align:top;">
-          <table style="width:100%;border-collapse:collapse;font-size:13px;color:#475569;">
+          <table style="width:100%;border-collapse:collapse;font-size:${baseFontSize};color:#475569;">
             <tr>
               <td style="padding:6px 0;text-align:left;">Subtotal</td>
-              <td style="padding:6px 0;text-align:right;font-weight:600;color:#1e293b;">${Number(r.subtotal).toFixed(2)}</td>
+              <td style="padding:6px 0;text-align:right;font-weight:600;color:#1e293b;">$${Number(r.subtotal).toFixed(2)}</td>
             </tr>
             <tr>
               <td style="padding:6px 0;text-align:left;">Tax (GST 18%)</td>
-              <td style="padding:6px 0;text-align:right;font-weight:600;color:#1e293b;">${Number(r.tax).toFixed(2)}</td>
+              <td style="padding:6px 0;text-align:right;font-weight:600;color:#1e293b;">$${Number(r.tax).toFixed(2)}</td>
             </tr>
             <tr>
               <td style="padding:6px 0;text-align:left;">Discount</td>
-              <td style="padding:6px 0;text-align:right;font-weight:600;color:#10b981;">-${Number(r.discount || 0).toFixed(2)}</td>
+              <td style="padding:6px 0;text-align:right;font-weight:600;color:#059669;">-$${Number(r.discount || 0).toFixed(2)}</td>
             </tr>
-            <tr style="border-top:1px solid #e2e8f0;">
-              <td style="padding:12px 0 0;text-align:left;font-size:15px;font-weight:800;color:#0f172a;">TOTAL</td>
-              <td style="padding:12px 0 0;text-align:right;font-size:18px;font-weight:800;color:${accentColor};">
-                ${Number(r.amount).toFixed(2)}
+            <tr>
+              <td colspan="2" style="padding:10px 0 0;">
+                <!-- Highlighted Total Box -->
+                <table style="width:100%;border-collapse:collapse;background-color:${accentColor};border-radius:8px;color:#ffffff;">
+                  <tr>
+                    <td style="padding:12px;font-weight:bold;font-size:13px;">TOTAL AMOUNT</td>
+                    <td style="padding:12px;font-weight:800;font-size:18px;text-align:right;">$${Number(r.amount).toFixed(2)}</td>
+                  </tr>
+                </table>
               </td>
             </tr>
           </table>
@@ -186,14 +252,21 @@ function buildReceiptHtml(r: {
       </tr>
     </table>
 
-    <!-- Footer contact -->
-    <div style="margin-top:50px;padding-top:20px;border-top:1px solid #f1f5f9;text-align:center;font-size:12px;color:#94a3b8;">
+    <!-- Footer contact & Badges -->
+    <div style="margin-top:50px;padding-top:20px;border-top:1px solid #f1f5f9;text-align:center;font-size:11px;color:#94a3b8;">
+      <!-- Badges -->
+      <table style="width:100%;border-collapse:collapse;margin-bottom:20px;text-align:center;font-size:11px;font-weight:bold;color:#64748b;">
+        <tr>
+          <td style="width:25%;">&#127807; Natural &amp; Safe</td>
+          <td style="width:25%;">&#10024; Hygienic &amp; Clean</td>
+          <td style="width:25%;">&#9200; On-time Service</td>
+          <td style="width:25%;">&#x2764; Customer Care</td>
+        </tr>
+      </table>
       <p style="margin:0;">
-        ${r.orgPhone ? `📞 ${r.orgPhone}  •  ` : ""}
-        ${r.orgEmail ? `✉️ ${r.orgEmail}  •  ` : ""}
-        ${r.orgName}
+        This transaction is securely processed in accordance with our terms of service.<br />
+        Powered by <strong>Velvetbook</strong>
       </p>
-      <p style="margin:4px 0 0;">This transaction is securely processed in accordance with our terms of service.</p>
     </div>
   </div>
 </div>

@@ -2,6 +2,18 @@
 "use client";
 
 import { useState } from "react";
+import { loadStripe } from "@stripe/stripe-js";
+import {
+  Elements,
+  CardNumberElement,
+  CardExpiryElement,
+  CardCvcElement,
+  useStripe,
+  useElements,
+} from "@stripe/react-stripe-js";
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "pk_test_51TnWxJRtWyTHe4oWLtVB6KsLFXU5PkBtaMFRqqrxknuQnDtmZKBIeiNSlz6RlgEsePc5hth4OBQl103LM25DLX1200hT6dOjHM");
+
 import { 
   Search, 
   Star, 
@@ -157,12 +169,24 @@ const StarRating = ({ rating, reviews }: { rating: number; reviews: number }) =>
 );
 
 export default function BookingPage() {
+  return (
+    <Elements stripe={stripePromise}>
+      <BookingPageContent />
+    </Elements>
+  );
+}
+
+function BookingPageContent() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [selectedExpert, setSelectedExpert] = useState<string>("1");
   const [selectedDate, setSelectedDate] = useState("12 April");
   const [selectedTime, setSelectedTime] = useState("3:00 PM");
   const [paymentMethod, setPaymentMethod] = useState("card");
+  const [cardholderName, setCardholderName] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const stripe = useStripe();
+  const elements = useElements();
   // Add state in your main component (inside BookingPage function)
 const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
 const [videoUrl, setVideoUrl] = useState("");
@@ -494,14 +518,12 @@ const handleImageError = (expertId: string) => {
             {/* Payment Method */}
             <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-5 shadow-sm ">
               <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-4">Payment Method</h3>
-              <div className="max-h-[5.5rem] overflow-y-scroll scroll-smooth scrollbar-hide">
+              <div className="max-h-[12rem] overflow-y-scroll scroll-smooth scrollbar-hide">
               
               <div className="space-y-3">
                 {[
-                  { id: "card", label: "Card Payment", icon: CreditCard, details: "1234567890123456 16 12/25 123" },
-                  { id: "apple", label: "Apple/Google Pay", icon: Apple, details: "" },
-                  { id: "paylater", label: "Pay Later", icon: Zap, details: "" },
-                  { id: "wallet", label: "Wallet/Credits", icon: Wallet, details: "$136" },
+                  { id: "card", label: "Card Payment", icon: CreditCard, details: "Visa, MasterCard, Amex & more" },
+                  { id: "apple", label: "Apple Pay", icon: Apple, details: "Pay securely with Apple Pay" },
                 ].map((method) => (
                   <label
                     key={method.id}
@@ -531,41 +553,83 @@ const handleImageError = (expertId: string) => {
               </div>
               </div>
 
-              {/* Additional Options */}
-              {/* <div className="mt-4 pt-4 space-y-2 border-t border-zinc-200 dark:border-zinc-800">
-                <label className="flex items-center gap-2 cursor-pointer text-sm">
-                  <input type="checkbox" className="w-4 h-4 text-indigo-600 rounded" />
-                  <span className="text-zinc-700 dark:text-zinc-300">Chat with expert before booking</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer text-sm">
-                  <input type="checkbox" className="w-4 h-4 text-indigo-600 rounded" />
-                  <span className="text-zinc-700 dark:text-zinc-300">Video-consultation option</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer text-sm">
-                  <input type="checkbox" className="w-4 h-4 text-indigo-600 rounded" />
-                  <span className="text-zinc-700 dark:text-zinc-300">Instant booking/Request approval</span>
-                </label>
-              </div> */}
+              {paymentMethod === "card" && (
+                <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-800 space-y-4">
+                  <h4 className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Enter Card Details</h4>
+                  
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Card Number</label>
+                    <div className="p-3 border border-zinc-200 dark:border-zinc-800 rounded-xl bg-zinc-50/50 dark:bg-zinc-900/50">
+                      <CardNumberElement options={{ showIcon: true, disableLink: true, style: { base: { fontSize: '14px', color: '#18181b', '::placeholder': { color: '#a1a1aa' } } } }} />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Expiry Date</label>
+                      <div className="p-3 border border-zinc-200 dark:border-zinc-800 rounded-xl bg-zinc-50/50 dark:bg-zinc-900/50">
+                        <CardExpiryElement options={{ style: { base: { fontSize: '14px', color: '#18181b', '::placeholder': { color: '#a1a1aa' } } } }} />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">CVV</label>
+                      <div className="p-3 border border-zinc-200 dark:border-zinc-800 rounded-xl bg-zinc-50/50 dark:bg-zinc-900/50">
+                        <CardCvcElement options={{ style: { base: { fontSize: '14px', color: '#18181b', '::placeholder': { color: '#a1a1aa' } } } }} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Cardholder Name</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. John Doe"
+                      value={cardholderName}
+                      onChange={(e) => setCardholderName(e.target.value)}
+                      className="w-full h-11 px-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    />
+                  </div>
+                </div>
+              )}
 
               {/* Confirm Button */}
               <button 
-                onClick={() => {
+                onClick={async () => {
                   if (selectedServicesList.length === 0) {
                     alert("Please select at least one service");
                     return;
                   }
-                  alert("Booking confirmed successfully!");
+                  if (paymentMethod === "card") {
+                    if (!stripe || !elements) {
+                      alert("Stripe has not loaded yet. Please try again.");
+                      return;
+                    }
+                    if (!cardholderName.trim()) {
+                      alert("Please enter the cardholder name.");
+                      return;
+                    }
+                    setIsProcessing(true);
+                    
+                    const cardNumEl = elements.getElement(CardNumberElement);
+                    if (!cardNumEl) {
+                      alert("Card inputs are missing.");
+                      setIsProcessing(false);
+                      return;
+                    }
+
+                    alert("Booking confirmed successfully via Stripe Card Payment!");
+                    setIsProcessing(false);
+                  } else if (paymentMethod === "apple") {
+                    alert("Booking confirmed successfully via Apple Pay!");
+                  } else {
+                    alert("Booking confirmed successfully!");
+                  }
                 }}
-                className="w-full mt-6 px-6 py-3 bg-gradient-to-r from-[var(--primary-start)] to-[var(--primary-end)] text-white font-semibold rounded-xl transition-all duration-300 shadow-lg cursor-pointer"
+                disabled={isProcessing}
+                className="w-full mt-6 px-6 py-3 bg-gradient-to-r from-[var(--primary-start)] to-[var(--primary-end)] text-white font-semibold rounded-xl transition-all duration-300 shadow-lg cursor-pointer disabled:opacity-50"
               >
-                Confirm & Pay
+                {isProcessing ? "Processing Payment..." : "Confirm & Pay"}
               </button>
-
-              {/* <div className="mt-3 flex items-center justify-center gap-2 text-xs text-zinc-500">
-                <Shield className="w-3 h-3" />
-                <span>Secure payment guaranteed</span>
-              </div> */}
-
             </div>
           </div>
         </div>

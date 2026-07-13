@@ -78,9 +78,26 @@ export async function getPublicBookingDetailsApi(bookingId: string) {
   });
 }
 
-export async function payPublicBookingApi(bookingId: string) {
+export async function payPublicBookingApi(bookingId: string, paymentIntentId?: string) {
   return apiClient<any>(`${BASE_URL}/bookings/public/${bookingId}/pay`, {
+    method: 'POST',
+    body: JSON.stringify({ paymentIntentId }),
+    skipAuth: true,
+  });
+}
+
+export async function getPublicBookingPaymentIntentApi(bookingId: string) {
+  return apiClient<any>(`${BASE_URL}/bookings/public/${bookingId}/payment-intent`, {
     method: 'POST',
     skipAuth: true,
   });
 }
+
+export async function createPaymentIntentApi(paymentData: { amount: number; bookingId?: string }) {
+  return apiClient<any>(`${BASE_URL}/payments/create`, {
+    method: 'POST',
+    body: JSON.stringify(paymentData),
+  });
+}
+
+

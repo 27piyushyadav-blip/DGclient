@@ -5,7 +5,21 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import ProfileImage from "@/components/ProfileImage";
-import { getPublicBookingDetailsApi, payPublicBookingApi } from "@/lib/bookingsApi";
+import { loadStripe } from "@stripe/stripe-js";
+import {
+  Elements,
+  CardNumberElement,
+  CardExpiryElement,
+  CardCvcElement,
+  useStripe,
+  useElements,
+} from "@stripe/react-stripe-js";
+import {
+  getPublicBookingDetailsApi,
+  payPublicBookingApi,
+  getPublicBookingPaymentIntentApi,
+} from "@/lib/bookingsApi";
+
 import {
   Loader2,
   Lock,
@@ -23,7 +37,17 @@ import {
   FileText
 } from "lucide-react";
 
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "pk_test_51TnWxJRtWyTHe4oWLtVB6KsLFXU5PkBtaMFRqqrxknuQnDtmZKBIeiNSlz6RlgEsePc5hth4OBQl103LM25DLX1200hT6dOjHM");
+
 export default function InvoicePage() {
+  return (
+    <Elements stripe={stripePromise}>
+      <InvoicePageContent />
+    </Elements>
+  );
+}
+
+function InvoicePageContent() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
@@ -35,9 +59,8 @@ export default function InvoicePage() {
 
   // Payment Form State
   const [cardholderName, setCardholderName] = useState("");
-  const [cardNumber, setCardNumber] = useState("");
-  const [expiryDate, setExpiryDate] = useState("");
-  const [cvv, setCvv] = useState("");
+  const stripe = useStripe();
+  const elements = useElements();
   
   // Payment Validation States
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -75,62 +98,61 @@ export default function InvoicePage() {
     }
   }, [bookingDetails]);
 
-  // Handle number input formatting
-  const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const rawVal = e.target.value.replace(/\D/g, "").slice(0, 16);
-    // Format card number with spaces (e.g. XXXX XXXX XXXX XXXX)
-    const formatted = rawVal.replace(/(\d{4})(?=\d)/g, "$1 ");
-    setCardNumber(formatted);
-  };
-
-  const handleExpiryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let rawVal = e.target.value.replace(/\D/g, "").slice(0, 4);
-    if (rawVal.length > 2) {
-      rawVal = `${rawVal.slice(0, 2)}/${rawVal.slice(2)}`;
-    }
-    setExpiryDate(rawVal);
-  };
-
-  const handleCvvChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const rawVal = e.target.value.replace(/\D/g, "").slice(0, 4);
-    setCvv(rawVal);
-  };
-
-  const validateForm = () => {
-    const errors: Record<string, string> = {};
-    if (!cardholderName.trim()) {
-      errors.cardholderName = "Cardholder name is required";
-    }
-    const cleanCard = cardNumber.replace(/\s/g, "");
-    if (cleanCard.length !== 16) {
-      errors.cardNumber = "Card number must be exactly 16 digits";
-    }
-    if (!/^\d{2}\/\d{2}$/.test(expiryDate)) {
-      errors.expiryDate = "Expiry date must be MM/YY";
-    } else {
-      const [mm, yy] = expiryDate.split("/").map(Number);
-      if (mm < 1 || mm > 12) {
-        errors.expiryDate = "Invalid month";
-      }
-    }
-    if (cvv.length < 3 || cvv.length > 4) {
-      errors.cvv = "CVV must be 3 or 4 digits";
-    }
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
   const handlePaymentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateForm()) return;
+    if (!cardholderName.trim()) {
+      setFormErrors({ cardholderName: "Cardholder name is required" });
+      return;
+    }
+    setFormErrors({});
+
+    if (!stripe || !elements) {
+      setError("Stripe payment client is not loaded yet.");
+      return;
+    }
 
     setError("");
     startTransition(async () => {
       try {
-        await payPublicBookingApi(id);
+        // 1. Fetch public payment intent from backend
+        const intentResult = await getPublicBookingPaymentIntentApi(id);
+        const clientSecret = intentResult.clientSecret;
+        const paymentIntentId = intentResult.paymentIntentId;
+
+        if (!clientSecret) {
+          throw new Error("Could not retrieve client secret from backend payment intent endpoint");
+        }
+
+        if (clientSecret.startsWith("pi_mock_secret_")) {
+          console.log("Mock Stripe payment intent detected, bypassing SDK confirmation");
+        } else {
+          // 2. Confirm card payment with Stripe Elements
+          const cardNumEl = elements.getElement(CardNumberElement);
+          if (!cardNumEl) {
+            throw new Error("Stripe elements not fully loaded");
+          }
+
+          const stripeResult = await stripe.confirmCardPayment(clientSecret, {
+            payment_method: {
+              card: cardNumEl,
+              billing_details: {
+                name: cardholderName,
+              },
+            },
+          });
+
+          if (stripeResult.error) {
+            throw new Error(stripeResult.error.message || "Payment confirmation failed");
+          }
+        }
+
+        // 3. Inform backend to finalize booking status as paid and confirmed
+        await payPublicBookingApi(id, paymentIntentId);
+        
         // Direct redirection to success page
         router.push(`/booking-success/${id}`);
       } catch (err: any) {
+        console.error("Payment confirmation failed:", err);
         setError(err.message || "Payment verification failed.");
       }
     });
@@ -502,63 +524,25 @@ export default function InvoicePage() {
                   {/* Card Number */}
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Card Number</label>
-                    <div className="relative">
-                      <input 
-                        type="text" 
-                        placeholder="XXXX XXXX XXXX XXXX"
-                        value={cardNumber}
-                        onChange={handleCardNumberChange}
-                        className={`w-full h-11 pl-3.5 pr-10 rounded-xl border ${
-                          formErrors.cardNumber 
-                            ? 'border-red-500 focus:ring-red-500' 
-                            : 'border-zinc-200 dark:border-zinc-800 focus:ring-indigo-600 focus:border-indigo-600'
-                        } bg-transparent text-sm focus:outline-none focus:ring-2`}
-                      />
-                      <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400">
-                        <Lock className="w-4 h-4" />
-                      </span>
+                    <div className="p-3 border border-zinc-200 dark:border-zinc-800 rounded-xl bg-transparent">
+                      <CardNumberElement options={{ showIcon: true, disableLink: true, style: { base: { fontSize: '14px', color: '#18181b', '::placeholder': { color: '#a1a1aa' } } } }} />
                     </div>
-                    {formErrors.cardNumber && (
-                      <p className="text-[10px] font-bold text-red-500">{formErrors.cardNumber}</p>
-                    )}
                   </div>
 
                   {/* Expiry & CVV Row */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Expiry Date</label>
-                      <input 
-                        type="text" 
-                        placeholder="MM/YY"
-                        value={expiryDate}
-                        onChange={handleExpiryChange}
-                        className={`w-full h-11 px-3.5 rounded-xl border ${
-                          formErrors.expiryDate 
-                            ? 'border-red-500 focus:ring-red-500' 
-                            : 'border-zinc-200 dark:border-zinc-800 focus:ring-indigo-600 focus:border-indigo-600'
-                        } bg-transparent text-sm focus:outline-none focus:ring-2`}
-                      />
-                      {formErrors.expiryDate && (
-                        <p className="text-[10px] font-bold text-red-500">{formErrors.expiryDate}</p>
-                      )}
+                      <div className="p-3 border border-zinc-200 dark:border-zinc-800 rounded-xl bg-transparent">
+                        <CardExpiryElement options={{ style: { base: { fontSize: '14px', color: '#18181b', '::placeholder': { color: '#a1a1aa' } } } }} />
+                      </div>
                     </div>
 
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">CVV / CVC</label>
-                      <input 
-                        type="password" 
-                        placeholder="•••"
-                        value={cvv}
-                        onChange={handleCvvChange}
-                        className={`w-full h-11 px-3.5 rounded-xl border ${
-                          formErrors.cvv 
-                            ? 'border-red-500 focus:ring-red-500' 
-                            : 'border-zinc-200 dark:border-zinc-800 focus:ring-indigo-600 focus:border-indigo-600'
-                        } bg-transparent text-sm focus:outline-none focus:ring-2`}
-                      />
-                      {formErrors.cvv && (
-                        <p className="text-[10px] font-bold text-red-500">{formErrors.cvv}</p>
-                      )}
+                      <div className="p-3 border border-zinc-200 dark:border-zinc-800 rounded-xl bg-transparent">
+                        <CardCvcElement options={{ style: { base: { fontSize: '14px', color: '#18181b', '::placeholder': { color: '#a1a1aa' } } } }} />
+                      </div>
                     </div>
                   </div>
 

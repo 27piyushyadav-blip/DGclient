@@ -5,7 +5,21 @@ import { useState, useTransition, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import ProfileImage from "@/components/ProfileImage";
-import { getPublicBookingDetailsApi, payPublicBookingApi } from "@/lib/bookingsApi";
+import { loadStripe } from "@stripe/stripe-js";
+import {
+  Elements,
+  CardNumberElement,
+  CardExpiryElement,
+  CardCvcElement,
+  useStripe,
+  useElements,
+} from "@stripe/react-stripe-js";
+import {
+  getPublicBookingDetailsApi,
+  payPublicBookingApi,
+  getPublicBookingPaymentIntentApi,
+} from "@/lib/bookingsApi";
+
 
 // --- Icons ---
 import { 
@@ -20,7 +34,17 @@ const LoadingSpinner = () => (
   </div>
 );
 
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "pk_test_51TnWxJRtWyTHe4oWLtVB6KsLFXU5PkBtaMFRqqrxknuQnDtmZKBIeiNSlz6RlgEsePc5hth4OBQl103LM25DLX1200hT6dOjHM");
+
 export default function CheckoutClient() {
+  return (
+    <Elements stripe={stripePromise}>
+      <CheckoutClientContent />
+    </Elements>
+  );
+}
+
+function CheckoutClientContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
@@ -28,6 +52,10 @@ export default function CheckoutClient() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [dbBooking, setDbBooking] = useState<any>(null);
+
+  const [cardholderName, setCardholderName] = useState("");
+  const stripe = useStripe();
+  const elements = useElements();
 
   const bookingId = searchParams?.get("bookingId");
 
@@ -84,11 +112,53 @@ export default function CheckoutClient() {
 
   // 3. Submission Handler
   const handleConfirmAndPay = () => {
+    if (!cardholderName.trim()) {
+      setError("Cardholder name is required");
+      return;
+    }
+    if (!stripe || !elements) {
+      setError("Stripe payment client is not loaded yet.");
+      return;
+    }
+
     setError("");
     startTransition(async () => {
       if (bookingId) {
         try {
-          await payPublicBookingApi(bookingId);
+          // 1. Fetch public payment intent from backend
+          const intentResult = await getPublicBookingPaymentIntentApi(bookingId as string);
+          const clientSecret = intentResult.clientSecret;
+          const paymentIntentId = intentResult.paymentIntentId;
+
+          if (!clientSecret) {
+            throw new Error("Could not retrieve client secret from backend payment intent endpoint");
+          }
+
+          if (clientSecret.startsWith("pi_mock_secret_")) {
+            console.log("Mock Stripe payment intent detected, bypassing SDK confirmation");
+          } else {
+            // 2. Confirm card payment with Stripe Elements
+            const cardNumEl = elements.getElement(CardNumberElement);
+            if (!cardNumEl) {
+              throw new Error("Stripe elements not fully loaded");
+            }
+
+            const stripeResult = await stripe.confirmCardPayment(clientSecret, {
+              payment_method: {
+                card: cardNumEl,
+                billing_details: {
+                  name: cardholderName,
+                },
+              },
+            });
+
+            if (stripeResult.error) {
+              throw new Error(stripeResult.error.message || "Payment confirmation failed");
+            }
+          }
+
+          // 3. Inform backend to finalize booking status as paid and confirmed
+          await payPublicBookingApi(bookingId as string, paymentIntentId);
           router.push(`/booking-success/${bookingId}`);
         } catch (err: any) {
           setError(err.message || "Failed to process payment.");
@@ -213,6 +283,44 @@ export default function CheckoutClient() {
                     <div className="flex justify-between text-sm">
                        <span className="text-zinc-500">Platform Fee</span>
                        <span className="font-medium text-green-600">$0</span>
+                    </div>
+
+                    {/* Card Details form inside Checkout page */}
+                    <div className="space-y-4 pt-2 pb-4">
+                      <h4 className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Enter Card Details</h4>
+                      
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Cardholder Name</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. John Doe"
+                          value={cardholderName}
+                          onChange={(e) => setCardholderName(e.target.value)}
+                          className="w-full h-11 px-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600 text-zinc-900 dark:text-white"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Card Number</label>
+                        <div className="p-3 border border-zinc-200 dark:border-zinc-800 rounded-xl bg-zinc-50/50 dark:bg-zinc-900/50">
+                          <CardNumberElement options={{ showIcon: true, disableLink: true, style: { base: { fontSize: '14px', color: '#18181b', '::placeholder': { color: '#a1a1aa' } } } }} />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Expiry Date</label>
+                          <div className="p-3 border border-zinc-200 dark:border-zinc-800 rounded-xl bg-zinc-50/50 dark:bg-zinc-900/50">
+                            <CardExpiryElement options={{ style: { base: { fontSize: '14px', color: '#18181b', '::placeholder': { color: '#a1a1aa' } } } }} />
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">CVV</label>
+                          <div className="p-3 border border-zinc-200 dark:border-zinc-800 rounded-xl bg-zinc-50/50 dark:bg-zinc-900/50">
+                            <CardCvcElement options={{ style: { base: { fontSize: '14px', color: '#18181b', '::placeholder': { color: '#a1a1aa' } } } }} />
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
                     <div className="h-px w-full bg-zinc-100 dark:bg-zinc-800 my-2" />

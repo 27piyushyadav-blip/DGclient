@@ -13,7 +13,19 @@ import {
   Star,
   UserRound,
   Wallet,
+  Apple,
 } from "lucide-react";
+import { loadStripe } from "@stripe/stripe-js";
+import {
+  Elements,
+  CardNumberElement,
+  CardExpiryElement,
+  CardCvcElement,
+  useStripe,
+  useElements,
+} from "@stripe/react-stripe-js";
+import { createPaymentIntentApi } from "@/lib/bookingsApi";
+
 
 import type { Venue, VenueStaff, VenueService } from "@/app/main/data";
 import { Button } from "@/components/ui/button";
@@ -62,9 +74,11 @@ const whyChooseUs = [
 
 const paymentMethods = [
   { id: "card", label: "Credit / Debit Card", icon: CreditCard },
-  { id: "paypal", label: "PayPal", icon: Wallet },
-  { id: "afterpay", label: "Afterpay", icon: Sparkles },
+  { id: "apple", label: "Apple Pay", icon: Apple },
 ];
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "pk_test_51TnWxJRtWyTHe4oWLtVB6KsLFXU5PkBtaMFRqqrxknuQnDtmZKBIeiNSlz6RlgEsePc5hth4OBQl103LM25DLX1200hT6dOjHM");
+
 
 const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -91,7 +105,15 @@ function formatBookingDate(date: Date) {
   });
 }
 
-export default function SpecificVenueBookingModal({
+export default function SpecificVenueBookingModal(props: SpecificVenueBookingModalProps) {
+  return (
+    <Elements stripe={stripePromise}>
+      <SpecificVenueBookingModalContent {...props} />
+    </Elements>
+  );
+}
+
+function SpecificVenueBookingModalContent({
   open,
   onOpenChange,
   venue,
@@ -125,6 +147,9 @@ export default function SpecificVenueBookingModal({
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(paymentMethods[0].id);
+  const [cardholderName, setCardholderName] = useState("");
+  const stripe = useStripe();
+  const elements = useElements();
   const [isDateTimeModalOpen, setIsDateTimeModalOpen] = useState(false);
   const [tempSelectedDate, setTempSelectedDate] = useState<Date | null>(
     selectedDate,
@@ -346,8 +371,50 @@ const handleCreateBooking = async () => {
 
     // Calculate amount from service price
     const amount = parsePrice(selectedService.price);
+    const taxes = Math.round(amount * 0.1);
+    const total = amount + taxes;
 
-    // Create booking
+    // 1. Confirm payment with Stripe if card method is selected
+    if (selectedPaymentMethod === "card") {
+      if (!stripe || !elements) {
+        throw new Error("Stripe payment client is not loaded yet.");
+      }
+      if (!cardholderName.trim()) {
+        throw new Error("Cardholder name is required.");
+      }
+
+      // Create PaymentIntent in backend
+      const intentResult = await createPaymentIntentApi({ amount: total });
+      const clientSecret = intentResult.clientSecret;
+
+      if (!clientSecret) {
+        throw new Error("Failed to initialize payment process with the server.");
+      }
+
+      if (clientSecret.startsWith("pi_mock_secret_")) {
+        console.log("Mock Stripe payment intent detected, bypassing SDK confirmation");
+      } else {
+        const cardNumEl = elements.getElement(CardNumberElement);
+        if (!cardNumEl) {
+          throw new Error("Card element fields are not fully loaded.");
+        }
+
+        const stripeResult = await stripe.confirmCardPayment(clientSecret, {
+          payment_method: {
+            card: cardNumEl,
+            billing_details: {
+              name: cardholderName,
+            },
+          },
+        });
+
+        if (stripeResult.error) {
+          throw new Error(stripeResult.error.message || "Payment confirmation failed.");
+        }
+      }
+    }
+
+    // 2. Create booking in backend
     const response = await createBookingApi({
       expertId: selectedStaff.id || '',
       organizationId: venue.userId || venue.id, // Use userId (organisation.id) if available, otherwise fall back to id
@@ -459,8 +526,7 @@ return (
           </div>
 
           <div className={cn(
-            "flex-1 px-6 py-6",
-            step === paymentStep ? "overflow-visible" : "overflow-y-scroll scrollbar-thin",
+            "flex-1 px-6 py-6 overflow-y-scroll scrollbar-thin",
             step !== paymentStep && "min-h-0"
           )}>
             <div className={cn(
@@ -981,6 +1047,45 @@ return (
                               })}
                             </div>
                           </div>
+
+                          {selectedPaymentMethod === "card" && (
+                            <div className="mt-3 pt-3 border-t border-slate-100 space-y-3">
+                              <p className="text-xs font-bold text-slate-700">Enter Card Details</p>
+                              
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Card Number</label>
+                                <div className="p-2 border border-slate-200 rounded-lg bg-slate-50/55">
+                                  <CardNumberElement options={{ showIcon: true, disableLink: true, style: { base: { fontSize: '12px', color: '#18181b', '::placeholder': { color: '#a1a1aa' } } } }} />
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="space-y-1">
+                                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Expiry Date</label>
+                                  <div className="p-2 border border-slate-200 rounded-lg bg-slate-50/55">
+                                    <CardExpiryElement options={{ style: { base: { fontSize: '12px', color: '#18181b', '::placeholder': { color: '#a1a1aa' } } } }} />
+                                  </div>
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">CVV</label>
+                                  <div className="p-2 border border-slate-200 rounded-lg bg-slate-50/55">
+                                    <CardCvcElement options={{ style: { base: { fontSize: '12px', color: '#18181b', '::placeholder': { color: '#a1a1aa' } } } }} />
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Cardholder Name</label>
+                                <input
+                                  type="text"
+                                  placeholder="e.g. John Doe"
+                                  value={cardholderName}
+                                  onChange={(e) => setCardholderName(e.target.value)}
+                                  className="w-full h-8 px-2 rounded-lg border border-slate-200 bg-transparent text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 text-slate-900"
+                                />
+                              </div>
+                            </div>
+                          )}
 
                           <div className="mt-3 space-y-1.5 rounded-xl bg-slate-50 p-3">
                             <div className="flex items-center justify-between">

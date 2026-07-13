@@ -344,9 +344,9 @@ function VenueCard({
       <div className="flex justify-between items-center bg-white lg:h-[118px]">
         <CardContent className="grid gap-2 border-t border-slate-200 p-4 md:grid-cols-[minmax(0,1fr)_1px] h-full items-center">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {services.slice(0, 3).map((service) => (
+            {services.slice(0, 3).map((service, index) => (
               <div
-                key={service.name}
+                key={`${service.name}-${index}`}
                 className="border-r border-slate-100   w-[6rem] flex flex-col items-center justify-center gap-2 h-[6rem] mt-[-0.5rem]"
               >
                 <img
