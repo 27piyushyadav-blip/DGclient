@@ -55,7 +55,7 @@ export default function LoginForm() {
 
   const handleGoogleSignIn = () => {
     startGoogleTransition(() => {
-      window.location.href = `${process.env.NEXT_PUBLIC_API_BASE_URL || ''}/google`;
+      window.location.href = `${process.env.NEXT_PUBLIC_API_BASE_URL}/google`;
     });
   };
 
