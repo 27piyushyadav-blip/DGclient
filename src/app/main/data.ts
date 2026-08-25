@@ -147,6 +147,8 @@ export type Venue = {
   phone?: string;
   defaultLayout?: VenueLayout | null;
   logo?: string;
+  loyaltyPointsEnabled?: boolean;
+  loyaltyPointsAwarded?: number;
 };
 
 export const filters = {
@@ -477,5 +479,7 @@ export function mapOrgToVenue(org: any, index: number = 0): Venue {
     features,
     defaultLayout: org.defaultLayout || null,
     industry: org.industry,
+    loyaltyPointsEnabled: org.loyaltyPointsEnabled || false,
+    loyaltyPointsAwarded: org.loyaltyPointsAwarded || 20,
   };
 }

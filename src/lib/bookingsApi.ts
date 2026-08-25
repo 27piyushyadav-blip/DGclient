@@ -11,6 +11,7 @@ export async function createBookingApi(bookingData: {
   duration: number;
   amount: number;
   notes?: string;
+  pointsToRedeem?: number;
 }) {
   return apiClient<any>(`${BASE_URL}/bookings`, {
     method: 'POST',

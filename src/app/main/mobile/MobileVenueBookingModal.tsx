@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { createBookingApi } from "@/lib/bookingsApi";
+import { getUserLoyaltyPointsApi } from "@/lib/userApi";
 import Badge from "@mui/material/Badge";
 import Image from "next/image";
 
@@ -101,6 +102,9 @@ export default function MobileVenueBookingScreen({
   const [isCreatingBooking, setIsCreatingBooking] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 const [tempSelectedDate, setTempSelectedDate] = useState<Date | null>(null);
+  const [availablePoints, setAvailablePoints] = useState(0);
+  const [usePoints, setUsePoints] = useState(false);
+  const [pointsToRedeemInput, setPointsToRedeemInput] = useState("0");
 
   const isServiceFirstFlow = bookingFlow === "service-first";
   const serviceStep = isServiceFirstFlow ? 1 : 2;
@@ -166,8 +170,38 @@ const [tempSelectedDate, setTempSelectedDate] = useState<Date | null>(null);
   }, [filteredServices, selectedService]);
 
   const bookingPrice = selectedService ? parsePrice(selectedService.price) : 0;
-  const taxes = Math.round(bookingPrice * 0.1);
-  const total = bookingPrice + taxes;
+
+  useEffect(() => {
+    const orgId = venue.userId || venue.id;
+    if (!orgId || !venue.loyaltyPointsEnabled) return;
+
+    async function fetchPoints() {
+      try {
+        const pointsRes = await getUserLoyaltyPointsApi(orgId);
+        setAvailablePoints(pointsRes.points || 0);
+        
+        // Auto fill pointsToRedeemInput with max possible
+        const maxPointsNeeded = Math.ceil(bookingPrice / 0.002);
+        const maxPointsRedeemable = Math.min(pointsRes.points || 0, maxPointsNeeded);
+        setPointsToRedeemInput(String(maxPointsRedeemable));
+      } catch (e) {
+        console.error("Failed to fetch customer loyalty points for this organization:", e);
+      }
+    }
+    fetchPoints();
+  }, [venue.userId, venue.id, venue.loyaltyPointsEnabled, bookingPrice]);
+
+  const pointsToRedeem = Math.max(0, parseInt(pointsToRedeemInput) || 0);
+  const maxPointsNeeded = Math.ceil(bookingPrice / 0.002);
+  const maxPointsRedeemable = Math.min(availablePoints, maxPointsNeeded);
+
+  const calculatedPointsDiscount = pointsToRedeem * 0.002;
+  const pointsDiscount = usePoints ? Math.min(bookingPrice, calculatedPointsDiscount) : 0;
+  const actualPointsToRedeem = Math.ceil(pointsDiscount / 0.002);
+
+  const discountedPrice = Math.max(0, bookingPrice - pointsDiscount);
+  const taxes = Math.round(discountedPrice * 0.05);
+  const total = discountedPrice + taxes;
 
   const canGoNext = Boolean(
     (step === serviceStep && selectedService) ||
@@ -222,6 +256,9 @@ const [tempSelectedDate, setTempSelectedDate] = useState<Date | null>(null);
       const scheduledDateTime = new Date(selectedDate);
       scheduledDateTime.setHours(hour24, minutes, 0, 0);
 
+      const baseAmount = parsePrice(selectedService.price);
+      const amount = usePoints ? Math.max(0, baseAmount - pointsDiscount) : baseAmount;
+
       const response = await createBookingApi({
         expertId: selectedStaff.id || "",
         organizationId: venue.userId || venue.id,
@@ -229,7 +266,8 @@ const [tempSelectedDate, setTempSelectedDate] = useState<Date | null>(null);
         consultationType: "offline",
         scheduledDate: scheduledDateTime.toISOString(),
         duration: (selectedService as any).durationMinutes || 30,
-        amount: parsePrice(selectedService.price),
+        amount: amount,
+        pointsToRedeem: usePoints ? actualPointsToRedeem : undefined,
         notes: `Booking for ${selectedService.name} at ${venue.name}`,
       });
 
@@ -622,20 +660,67 @@ const [tempSelectedDate, setTempSelectedDate] = useState<Date | null>(null);
           <span className="text-sm text-slate-600">Subtotal</span>
           <span className="text-sm font-semibold text-slate-900">${bookingPrice}</span>
         </div>
+
+        {usePoints && pointsDiscount > 0 && (
+          <div className="flex items-center justify-between text-green-600 font-semibold">
+            <span className="text-sm">Points Discount</span>
+            <span className="text-sm">-${pointsDiscount.toFixed(2)}</span>
+          </div>
+        )}
         
         {/* Tax */}
         <div className="flex items-center justify-between">
           <span className="text-sm text-slate-600">Tax (5%)</span>
-          <span className="text-sm font-semibold text-slate-900">${Math.round(bookingPrice * 0.05)}</span>
+          <span className="text-sm font-semibold text-slate-900">${taxes}</span>
         </div>
         
         {/* Total */}
         <div className="flex items-center justify-between border-t border-slate-200 pt-3 mt-2">
           <span className="text-base font-semibold text-slate-900">Total</span>
-          <span className="text-xl font-bold text-blue-600">${Math.round(bookingPrice * 1.05)}</span>
+          <span className="text-xl font-bold text-blue-600">${total}</span>
         </div>
       </div>
     </section>
+
+    {/* Loyalty Points Section */}
+    {venue.loyaltyPointsEnabled && availablePoints > 0 && (
+      <div className="p-3 bg-indigo-50 dark:bg-indigo-950/20 rounded-sm space-y-1.5 border border-indigo-100 dark:border-indigo-900/30 mt-2 shadow-sm">
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="mobileModalUsePointsCheckbox"
+            checked={usePoints}
+            onChange={(e) => setUsePoints(e.target.checked)}
+            className="h-3.5 w-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+          />
+          <label htmlFor="mobileModalUsePointsCheckbox" className="text-xs font-semibold text-indigo-950 dark:text-indigo-200 cursor-pointer">
+            Use Loyalty Points (Available: {availablePoints})
+          </label>
+        </div>
+
+        {usePoints && (
+          <div className="space-y-1 pl-6">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] font-bold text-indigo-800 dark:text-indigo-300">Points to Redeem:</span>
+              <input
+                type="number"
+                min="0"
+                max={maxPointsRedeemable}
+                value={pointsToRedeemInput}
+                onChange={(e) => {
+                  const val = Math.min(availablePoints, Math.max(0, parseInt(e.target.value) || 0));
+                  setPointsToRedeemInput(String(val));
+                }}
+                className="w-16 h-6 px-1.5 border border-indigo-200 dark:border-indigo-800 rounded bg-white text-xs font-bold text-center text-zinc-900 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+            </div>
+            <p className="text-[9px] text-indigo-600/80 dark:text-indigo-400/80 font-medium">
+              Redeeming {actualPointsToRedeem} points saves ${pointsDiscount.toFixed(2)} (1 Point = 0.20¢ / $0.002)
+            </p>
+          </div>
+        )}
+      </div>
+    )}
 
     {/* Payment Method Section */}
     <section className="mt-2 ">
