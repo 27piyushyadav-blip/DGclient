@@ -25,3 +25,10 @@ export async function uploadUserProfileImageApi(file: File) {
     body: formData,
   });
 }
+
+export async function getUserLoyaltyPointsApi(orgId: string) {
+  return apiClient<any>(`${BASE_URL}/users/loyalty-points/${orgId}`, {
+    method: 'GET',
+    cache: 'no-store',
+  });
+}

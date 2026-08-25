@@ -19,6 +19,7 @@ import {
   payPublicBookingApi,
   getPublicBookingPaymentIntentApi,
 } from "@/lib/bookingsApi";
+import { getUserLoyaltyPointsApi } from "@/lib/userApi";
 
 
 // --- Icons ---
@@ -57,6 +58,10 @@ function CheckoutClientContent() {
   const stripe = useStripe();
   const elements = useElements();
 
+  const [availablePoints, setAvailablePoints] = useState(0);
+  const [usePoints, setUsePoints] = useState(false);
+  const [pointsToRedeemInput, setPointsToRedeemInput] = useState("0");
+
   const bookingId = searchParams?.get("bookingId");
 
   useEffect(() => {
@@ -76,6 +81,26 @@ function CheckoutClientContent() {
     }
     loadBooking();
   }, [bookingId]);
+
+  useEffect(() => {
+    const orgId = dbBooking?.booking?.organizationId || dbBooking?.organization?.id;
+    if (!orgId || !dbBooking?.organization?.loyaltyPointsEnabled) return;
+
+    async function fetchPoints() {
+      try {
+        const pointsRes = await getUserLoyaltyPointsApi(orgId);
+        setAvailablePoints(pointsRes.points || 0);
+        
+        // Auto fill pointsToRedeemInput with max possible
+        const maxPointsNeeded = Math.ceil(Number(dbBooking?.booking?.amount || 0) / 0.002);
+        const maxPointsRedeemable = Math.min(pointsRes.points || 0, maxPointsNeeded);
+        setPointsToRedeemInput(String(maxPointsRedeemable));
+      } catch (e) {
+        console.error("Failed to fetch customer loyalty points for this organization:", e);
+      }
+    }
+    fetchPoints();
+  }, [dbBooking]);
 
   // 1. Parse Data
   const bookingData = dbBooking ? {
@@ -110,6 +135,20 @@ function CheckoutClientContent() {
     year: 'numeric'
   }) : 'N/A';
 
+  const pointsToRedeem = Math.max(0, parseInt(pointsToRedeemInput) || 0);
+  const maxPointsNeeded = Math.ceil(Number(bookingData.price) / 0.002);
+  const maxPointsRedeemable = Math.min(availablePoints, maxPointsNeeded);
+  
+  // 1 point = 0.20 cents ($0.002)
+  const calculatedPointsDiscount = pointsToRedeem * 0.002;
+  const pointsDiscount = usePoints ? Math.min(Number(bookingData.price), calculatedPointsDiscount) : 0;
+  const actualPointsToRedeem = Math.ceil(pointsDiscount / 0.002);
+
+  const discountedPrice = Math.max(0, Number(bookingData.price) - pointsDiscount);
+  // Calculate tax on the discounted amount to match the backend calculations
+  const tax = Math.round(discountedPrice * 0.05 * 100) / 100;
+  const finalTotal = discountedPrice + tax;
+
   // 3. Submission Handler
   const handleConfirmAndPay = () => {
     if (!cardholderName.trim()) {
@@ -126,7 +165,10 @@ function CheckoutClientContent() {
       if (bookingId) {
         try {
           // 1. Fetch public payment intent from backend
-          const intentResult = await getPublicBookingPaymentIntentApi(bookingId as string);
+          const intentResult = await getPublicBookingPaymentIntentApi(
+            bookingId as string,
+            usePoints ? actualPointsToRedeem : undefined
+          );
           const clientSecret = intentResult.clientSecret;
           const paymentIntentId = intentResult.paymentIntentId;
 
@@ -271,19 +313,69 @@ function CheckoutClientContent() {
               <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-lg overflow-hidden">
                  <div className="p-6 bg-zinc-900 text-white dark:bg-zinc-800">
                     <p className="text-xs font-medium opacity-80 uppercase tracking-wider mb-1">Total Payable</p>
-                    <p className="text-3xl font-bold">${bookingData.price}</p>
+                    <p className="text-3xl font-bold">${finalTotal.toFixed(2)}</p>
                  </div>
 
                  <div className="p-6 space-y-4">
                     <div className="flex justify-between text-sm">
                        <span className="text-zinc-500">Consultation Fee</span>
-                       <span className="font-medium">${bookingData.price}</span>
+                       <span className="font-medium">${Number(bookingData.price).toFixed(2)}</span>
+                    </div>
+                    {usePoints && pointsDiscount > 0 && (
+                      <div className="flex justify-between text-sm text-green-600 font-semibold">
+                         <span>Points Discount</span>
+                         <span>-${pointsDiscount.toFixed(2)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-sm">
+                       <span className="text-zinc-500">GST / Tax (5%)</span>
+                       <span className="font-medium">${tax.toFixed(2)}</span>
                     </div>
                     {/* PLATFORM FEE REMOVED (140) */}
                     <div className="flex justify-between text-sm">
                        <span className="text-zinc-500">Platform Fee</span>
                        <span className="font-medium text-green-600">$0</span>
                     </div>
+
+                     {/* Loyalty Points Section */}
+                     {dbBooking?.organization?.loyaltyPointsEnabled && availablePoints > 0 && (
+                       <div className="p-4 bg-indigo-50 dark:bg-indigo-900/10 rounded-xl space-y-2 border border-indigo-100 dark:border-indigo-900/20 my-2">
+                         <div className="flex items-center gap-2">
+                           <input
+                             type="checkbox"
+                             id="usePointsCheckbox"
+                             checked={usePoints}
+                             onChange={(e) => setUsePoints(e.target.checked)}
+                             className="h-4 w-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                           />
+                           <label htmlFor="usePointsCheckbox" className="text-xs font-semibold text-indigo-950 dark:text-indigo-200 cursor-pointer">
+                             Use Loyalty Points (Available: {availablePoints})
+                           </label>
+                         </div>
+
+                         {usePoints && (
+                           <div className="space-y-1.5 pl-6">
+                             <div className="flex items-center justify-between gap-2">
+                               <span className="text-[10px] font-bold text-indigo-800 dark:text-indigo-300">Points to Redeem:</span>
+                               <input
+                                 type="number"
+                                 min="0"
+                                 max={maxPointsRedeemable}
+                                 value={pointsToRedeemInput}
+                                 onChange={(e) => {
+                                   const val = Math.min(availablePoints, Math.max(0, parseInt(e.target.value) || 0));
+                                   setPointsToRedeemInput(String(val));
+                                 }}
+                                 className="w-20 h-7 px-2 border border-indigo-200 dark:border-indigo-800 rounded bg-white text-xs font-bold text-center text-zinc-900 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                               />
+                             </div>
+                             <p className="text-[10px] text-indigo-600/80 dark:text-indigo-400/80 font-medium">
+                               Redeeming {actualPointsToRedeem} points saves ${pointsDiscount.toFixed(2)} (1 Point = 0.20¢ / $0.002)
+                             </p>
+                           </div>
+                         )}
+                       </div>
+                     )}
 
                     {/* Card Details form inside Checkout page */}
                     <div className="space-y-4 pt-2 pb-4">

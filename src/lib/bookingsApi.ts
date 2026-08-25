@@ -86,9 +86,10 @@ export async function payPublicBookingApi(bookingId: string, paymentIntentId?: s
   });
 }
 
-export async function getPublicBookingPaymentIntentApi(bookingId: string) {
+export async function getPublicBookingPaymentIntentApi(bookingId: string, pointsToRedeem?: number) {
   return apiClient<any>(`${BASE_URL}/bookings/public/${bookingId}/payment-intent`, {
     method: 'POST',
+    body: JSON.stringify({ pointsToRedeem }),
     skipAuth: true,
   });
 }
